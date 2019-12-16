@@ -1,1 +1,1 @@
-# spatio-temporal-fmri
+# spatio-temporal-brain
