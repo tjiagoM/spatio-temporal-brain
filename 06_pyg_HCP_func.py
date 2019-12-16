@@ -1,47 +1,20 @@
 import argparse
+import os
 
-from utils import create_name_for_hcp_dataset, create_name_for_model
-
+import numpy as np
+import pandas as pd
+import statsmodels.formula.api as smf
 import torch
-from torch_geometric.data import InMemoryDataset
-from torch_geometric.data import Data
-import networkx as nx
-import statsmodels.formula.api as smf
-import numpy as np
-import pandas as pd
-import os
-
-import torch.optim as optim
-from torch_geometric.data import DataLoader
 import torch.nn.functional as F
-import statsmodels.formula.api as smf
-import numpy as np
-import pandas as pd
-import os
-
 from scipy.stats import stats
-from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import r2_score, roc_auc_score, accuracy_score, f1_score
-from sklearn.model_selection import train_test_split, StratifiedKFold, ParameterGrid
-
-from sklearn.linear_model import ElasticNetCV
-from sklearn.preprocessing import RobustScaler, StandardScaler
 from sklearn.model_selection import KFold
-from torch_scatter import scatter_mean
-
-from utils import CorrectorModel
-
-from sklearn.linear_model import ElasticNet
-from torch.nn import Sequential, Linear, ReLU, GRU, BatchNorm1d
-
-import torch_geometric.transforms as T
-from torch_geometric.datasets import QM9
-from torch_geometric.nn import NNConv, Set2Set, global_mean_pool, global_max_pool, SAGEConv, TopKPooling, GCNConv, \
-    Node2Vec, global_sort_pool, MetaLayer, global_add_pool
+from sklearn.model_selection import StratifiedKFold, ParameterGrid
 from torch_geometric.data import DataLoader
-from torch_geometric.utils import remove_self_loops, to_dense_batch
 
-from datasets import HCPFunctDataset, NetG
+from datasets import HCPFunctDataset
+from model import NetG
+from utils import create_name_for_hcp_dataset, create_name_for_model
 
 device = torch.device('cuda')
 
@@ -419,4 +392,5 @@ if __name__ == '__main__':
         #    print('{:1d}-Final: {:.7f}, R2: {:.4f}, Pear: {:.4f}'
         #          ''.format(outer_split_num, test_loss, test_r2, test_pear))
 
-        # Conclusao para ja: definir apenas um validation set? .... (depois melhorar para nested-CV with fixed epochs learned as average from the nested CV)
+        # Conclusao para ja: definir apenas um validation set? .... (depois melhorar para nested-CV with fixed epochs
+        # learned as average from the nested CV)
