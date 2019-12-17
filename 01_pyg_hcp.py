@@ -14,7 +14,7 @@ from sklearn.model_selection import StratifiedKFold, ParameterGrid
 from torch_geometric.data import DataLoader
 
 from datasets import HCPDataset
-from model import NetG
+from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, create_name_for_model
 
 device = torch.device('cuda')
@@ -297,16 +297,16 @@ if __name__ == '__main__':
 
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
-                model = NetG(num_time_length=2400,
-                             dropout_perc=params['dropout'],
-                             pooling=POOLING,
-                             channels_conv=CHANNELS_CONV,
-                             activation=ACTIVATION,
-                             conv_strategy=CONV_STRATEGY,
-                             add_gat=ADD_GAT,
-                             add_gcn=ADD_GCN,
-                             final_sigmoid=model_with_sigmoid
-                             ).to(device)
+                model = SpatioTemporalModel(num_time_length=2400,
+                                            dropout_perc=params['dropout'],
+                                            pooling=POOLING,
+                                            channels_conv=CHANNELS_CONV,
+                                            activation=ACTIVATION,
+                                            conv_strategy=CONV_STRATEGY,
+                                            add_gat=ADD_GAT,
+                                            add_gcn=ADD_GCN,
+                                            final_sigmoid=model_with_sigmoid
+                                            ).to(device)
 
                 # Creating the various names for each metric
                 model_names = {}

@@ -2,12 +2,13 @@ import torch
 import torch.nn.functional as F
 from torch.nn import BatchNorm1d
 from torch_geometric.nn import global_mean_pool, GCNConv
+from sys import exit
 
 
-class NetG(torch.nn.Module):
+class SpatioTemporalModel(torch.nn.Module):
     def __init__(self, num_time_length, dropout_perc, pooling, channels_conv, activation, conv_strategy,
                  add_gat=False, add_gcn=False, final_sigmoid=True):
-        super(NetG, self).__init__()
+        super(SpatioTemporalModel, self).__init__()
 
         if pooling != 'mean':
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN")
@@ -17,6 +18,9 @@ class NetG(torch.nn.Module):
             exit(-1)
         if activation not in ['relu', 'tanh']:
             print("THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh")
+            exit(-1)
+        if add_gat and add_gcn:
+            print("You cannot have both GCN and GAT")
             exit(-1)
 
         self.dropout = dropout_perc
