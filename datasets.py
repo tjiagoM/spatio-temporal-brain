@@ -3,20 +3,21 @@ import numpy as np
 import pandas as pd
 import torch
 from torch_geometric.data import InMemoryDataset, Data
+from sklearn.preprocessing import RobustScaler
 
 from utils import NEW_STRUCT_PEOPLE, NETMATS_PEOPLE
 
+PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
 def get_struct_path(person):
     return f'../hcp_multimodal_parcellation/HCP_tracks_matrices_BN_withcerebellum/{person}/{person}_{person}_BN_Atlas_246_1mm_geom_withcerebellum_RS.txt'
-
 
 def get_timeseries_path(person, session_day):
     return f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}.npy'
 
 
 # TODO: Meter no construtor o numero de nós/type para guardar grafos diferentes
-class HCPFunctDataset(InMemoryDataset):
+class HCPDataset(InMemoryDataset):
     def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, disconnect_nodes=False,
                  transform=None, pre_transform=None):
         '''
@@ -46,7 +47,7 @@ class HCPFunctDataset(InMemoryDataset):
         self.connectivity_type = connectivity_type
         self.disconnect_nodes = disconnect_nodes
 
-        super(HCPFunctDataset, self).__init__(root, transform, pre_transform)
+        super(HCPDataset, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
@@ -68,7 +69,7 @@ class HCPFunctDataset(InMemoryDataset):
         # No sorted needed?
         filtered_people = sorted(list(set(NETMATS_PEOPLE).intersection(set(NEW_STRUCT_PEOPLE))))
 
-        info_df = pd.read_csv('people_info.csv').set_index('Subject')
+        info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
         ##########
         for person in filtered_people:
 
@@ -93,12 +94,16 @@ class HCPFunctDataset(InMemoryDataset):
                 G = nx.from_numpy_array(arr_struct, create_using=nx.DiGraph)
 
             if self.disconnect_nodes:
-                print("Warning: Not yet developed in HCPFunctDataset")
+                print("Warning: Not yet developed in HCPDataset")
                 pass
 
             for session_day in [1]:  # , 2]:
-                timeseries = np.load(get_timeseries_path(person, session_day))
+
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
+
+                timeseries = np.load(get_timeseries_path(person, session_day)).T
+                scaler = RobustScaler().fit(timeseries)
+                timeseries = scaler.transform(timeseries).T
                 x = torch.tensor(timeseries, dtype=torch.float)  # torch.ones(50).unsqueeze(1)
 
                 if self.target_var == 'gender':

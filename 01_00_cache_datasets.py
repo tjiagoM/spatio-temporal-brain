@@ -1,6 +1,6 @@
 from sklearn.model_selection import ParameterGrid
 
-from datasets import HCPFunctDataset
+from datasets import HCPDataset
 from utils import create_name_for_hcp_dataset
 
 if __name__ == '__main__':
@@ -16,8 +16,8 @@ if __name__ == '__main__':
                                                    threshold=p['threshold'],
                                                    connectivity_type=p['connectivity_type'])
         print("Going for:", name_dataset)
-        _ = HCPFunctDataset(root=name_dataset,
-                            target_var=p['target_var'],
-                            num_nodes=p['num_nodes'],
-                            threshold=p['threshold'],
-                            connectivity_type=p['connectivity_type'])
+        _ = HCPDataset(root=name_dataset,
+                       target_var=p['target_var'],
+                       num_nodes=p['num_nodes'],
+                       threshold=p['threshold'],
+                       connectivity_type=p['connectivity_type'])

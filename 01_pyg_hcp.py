@@ -1,5 +1,6 @@
 import argparse
 import os
+from sys import exit
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold, ParameterGrid
 from torch_geometric.data import DataLoader
 
-from datasets import HCPFunctDataset
+from datasets import HCPDataset
 from model import NetG
 from utils import create_name_for_hcp_dataset, create_name_for_model
 
@@ -74,7 +75,11 @@ def evaluate_classifier(loader):
     acc = accuracy_score(labels, pred_binary)
     f1 = f1_score(labels, pred_binary)
 
-    return test_error / len(loader.dataset), roc_auc, acc, f1
+    return {'loss': test_error / len(loader.dataset),
+            'auc': roc_auc,
+            'acc': acc,
+            'f1': f1
+            }
 
 
 def train_regressor(model, train_loader):
@@ -97,9 +102,6 @@ def train_regressor(model, train_loader):
     return loss_all / len(train_loader.dataset)
 
 
-# Tipo o YooChoose thing, e chamar este evaluate para o train e test, metendo
-# para o cpu para calcular as coisas no final de cada epoch (incluindo o loss!)
-# e tirar as metricas do train
 def evaluate_regressor(loader):
     model.eval()
 
@@ -129,15 +131,15 @@ def evaluate_regressor(loader):
 
 def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader):
     loss = train_classifier(model, train_loader)
-    _, train_auc, train_acc, train_f1 = evaluate_classifier(train_loader)
-    val_loss, val_auc, val_acc, val_f1 = evaluate_classifier(val_loader)
+    train_metrics = evaluate_classifier(train_loader)
+    val_metrics = evaluate_classifier(val_loader)
 
     print(
         '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} / {:.4f}'
-        ''.format(outer_split_no, inner_split_no, epoch, loss, val_loss, train_auc, val_auc, train_acc, val_acc,
-                  train_f1, val_f1))
+        ''.format(outer_split_no, inner_split_no, epoch, loss, val_metrics['loss'], train_metrics['auc'], val_metrics['auc'],
+                  train_metrics['acc'], val_metrics['acc'], train_metrics['f1'], val_metrics['f1']))
 
-    return val_loss, val_auc, val_acc, val_f1
+    return val_metrics
 
 
 def regression_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader):
@@ -166,10 +168,10 @@ if __name__ == '__main__':
     parser.add_argument("--add_gat", type=bool, default=False)  # to make true just include flag with 1
     parser.add_argument("--remove_disconnected_nodes", type=bool,
                         default=False)  # to make true just include flag with 1
-    parser.add_argument("--conn_type", default="fmri")
+    parser.add_argument("--conn_type", default="struct")
     parser.add_argument("--conv_strategy", default="entire")
     parser.add_argument("--pooling",
-                        default="mean")  # 2) Try other pooling mechanisms CONCAT (only with fixed num_nodes across graphs), dense_diff_pool, SAGPooling (attention!), TopKPooling
+                        default="mean")  # 2) Try other pooling mechanisms CONCAT (only with fixed num_nodes across graphs),
     parser.add_argument("--channels_conv", type=int)
 
     args = parser.parse_args()
@@ -192,10 +194,6 @@ if __name__ == '__main__':
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
 
-    # 1) Start with simple architectures (maybe not a big combinations) to get preliminary results
-    # 3) Try other graph creations.
-    # 4) Multimodal bringing the structural data?
-
     if TARGET_VAR not in ['gender', 'intelligence']:
         print("Unrecognised target_var")
         exit(-1)
@@ -212,12 +210,12 @@ if __name__ == '__main__':
                                                connectivity_type=CONN_TYPE,
                                                disconnect_nodes=REMOVE_NODES)
     print("Going for", name_dataset)
-    dataset = HCPFunctDataset(root=name_dataset,
-                              num_nodes=NUM_NODES,
-                              target_var=TARGET_VAR,
-                              threshold=THRESHOLD,
-                              connectivity_type=CONN_TYPE,
-                              disconnect_nodes=REMOVE_NODES)
+    dataset = HCPDataset(root=name_dataset,
+                         num_nodes=NUM_NODES,
+                         target_var=TARGET_VAR,
+                         threshold=THRESHOLD,
+                         connectivity_type=CONN_TYPE,
+                         disconnect_nodes=REMOVE_NODES)
 
     N_OUT_SPLITS = 10
     N_INNER_SPLITS = 5
@@ -274,13 +272,15 @@ if __name__ == '__main__':
         #
         # Main inner-loop (for now, not really an inner loop - just one train/val inside
         #
-        param_grid = {'weight_decay': [0.0005, 0.005, 0.05, 0.5, 0],
-                      'lr': [0.0005, 0.005, 0.05, 0.5],
-                      'dropout': [0, 0.3, 0.5, 0.7, 0.9]
+        param_grid = {'weight_decay': [0.005, 0.05, 0.5, 0],
+                      'lr': [0.005, 0.05, 0.5],
+                      'dropout': [0, 0.3, 0.5, 0.7]
                       }
         grid = ParameterGrid(param_grid)
         # best_metric = -100
         # best_params = None
+        best_model_name_outer_fold = None
+        best_outer_metric_loss = 1000
         for params in grid:
             print("For ", params)
 
@@ -297,7 +297,7 @@ if __name__ == '__main__':
 
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
-                model = NetG(num_time_length=4800,
+                model = NetG(num_time_length=2400,
                              dropout_perc=params['dropout'],
                              pooling=POOLING,
                              channels_conv=CHANNELS_CONV,
@@ -341,24 +341,27 @@ if __name__ == '__main__':
                 for epoch in range(1, N_EPOCHS):
                     if TARGET_VAR == 'gender':
                         # TODO: Make this a dict to be easier to compare
-                        val_loss, val_auc, val_acc, val_f1 = classifier_step(outer_split_num,
+                        val_metrics = classifier_step(outer_split_num,
                                                                              0,
                                                                              epoch,
                                                                              model,
                                                                              train_in_loader,
                                                                              val_loader)
-                        if val_loss < best_metrics_fold['loss']:
-                            best_metrics_fold['loss'] = val_loss
+                        if val_metrics['loss'] < best_metrics_fold['loss']:
+                            best_metrics_fold['loss'] = val_metrics['loss']
                             torch.save(model, model_names['loss'])
-                        if val_acc > best_metrics_fold['acc']:
-                            best_metrics_fold['acc'] = val_acc
-                            torch.save(model, model_names['acc'])
-                        if val_auc > best_metrics_fold['auc']:
-                            best_metrics_fold['auc'] = val_auc
-                            torch.save(model, model_names['auc'])
-                        if val_f1 > best_metrics_fold['f1']:
-                            best_metrics_fold['f1'] = val_f1
-                            torch.save(model, model_names['f1'])
+                            if val_metrics['loss'] < best_outer_metric_loss:
+                                best_outer_metric_loss = val_metrics['loss']
+                                best_model_name_outer_fold = model_names['loss']
+                        #if val_acc > best_metrics_fold['acc']:
+                        #    best_metrics_fold['acc'] = val_acc
+                        #    torch.save(model, model_names['acc'])
+                        #if val_auc > best_metrics_fold['auc']:
+                        #    best_metrics_fold['auc'] = val_auc
+                        #    torch.save(model, model_names['auc'])
+                        #if val_f1 > best_metrics_fold['f1']:
+                        #    best_metrics_fold['f1'] = val_f1
+                        #    torch.save(model, model_names['f1'])
 
                     elif TARGET_VAR == 'intelligence':
                         val_metric = regression_step(outer_split_num,
@@ -378,14 +381,14 @@ if __name__ == '__main__':
                 break  # Just one inner "loop"
 
         # After all parameters are searched, get best and train on that, evaluating on test set
-        # print("Best params: ", best_params)
-        # model = torch.load("logs/best_model_" + TARGET_VAR + "_" + str(ADD_GCN) + "_" + str(outer_split_num) + ".pth")
+        print("Best params: ", best_model_name_outer_fold, "(", best_outer_metric_loss, ")")
+        model = torch.load(best_model_name_outer_fold)
 
-        # if TARGET_VAR == 'gender':
-        #    test_loss, test_auc, test_acc = evaluate_classifier(test_out_loader)
+        if TARGET_VAR == 'gender':
+            test_metrics = evaluate_classifier(test_out_loader)
 
-        #    print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}'
-        #          ''.format(outer_split_num, test_loss, test_auc, test_acc))
+            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}'
+                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc']))
         # else:
         #    test_loss, test_r2, test_pear = evaluate_regressor(test_out_loader)
 

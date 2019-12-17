@@ -1,5 +1,6 @@
 # Repo specific
-pytorch_data
+pytorch_data/
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
