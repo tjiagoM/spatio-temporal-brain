@@ -15,9 +15,9 @@ BATCH_SIZE = 150
 REMOVE_NODES = False
 NUM_NODES = 272
 CONN_TYPE = 'struct'
-CONV_STRATEGY = 'entire'
+CONV_STRATEGY = '2_cnn'
 POOLING = 'mean'
-CHANNELS_CONV = 1
+CHANNELS_CONV = 8
 
 name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
                                                target_var=TARGET_VAR,
@@ -43,23 +43,18 @@ model = SpatioTemporalModel(num_time_length=2400,
                              final_sigmoid=True
                              ).to('cpu')
 
-train_out_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
 model.train()
 loss_all = 0
-    criterion = torch.nn.BCELoss()
 
-    for data in train_loader:
-        data = data.to(device)
-        optimizer.zero_grad()
-        output_batch = model(data)
-        loss = criterion(output_batch, data.y.unsqueeze(1))
-        loss.backward()
-        loss_all += loss.item() * data.num_graphs
-        optimizer.step()
+for data in train_loader:
+    data = data.to('cpu')
+    output_batch = model(data)
+    break
+    loss.backward()
+    loss_all += loss.item() * data.num_graphs
+    optimizer.step()
 
     # len(train_loader) gives the number of batches
     # len(train_loader.dataset) gives the number of graphs
-
-    # Returning a weighted average according to number of graphs
-    return loss_all / len(train_loader.dataset)

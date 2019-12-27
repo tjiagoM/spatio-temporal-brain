@@ -1,8 +1,11 @@
+from sys import exit
+
 import torch
 import torch.nn.functional as F
 from torch.nn import BatchNorm1d
 from torch_geometric.nn import global_mean_pool, GCNConv
-from sys import exit
+
+from tcn import TemporalConvNet
 
 
 class SpatioTemporalModel(torch.nn.Module):
@@ -13,8 +16,8 @@ class SpatioTemporalModel(torch.nn.Module):
         if pooling != 'mean':
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN")
             exit(-1)
-        if conv_strategy != 'entire':
-            print("THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE")
+        if conv_strategy not in ['entire', '2_cnn', '2_tcn']:
+            print("THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/2_conv/2_tcn")
             exit(-1)
         if activation not in ['relu', 'tanh']:
             print("THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh")
@@ -23,12 +26,13 @@ class SpatioTemporalModel(torch.nn.Module):
             print("You cannot have both GCN and GAT")
             exit(-1)
 
+        self.TEMPORAL_EMBED_SIZE = 512
         self.dropout = dropout_perc
         self.pooling = pooling
-        self.activation = F.relu if activation == 'relu' else F.tanh
+        self.activation = torch.nn.ReLU() if activation == 'relu' else torch.nn.Tanh()
         self.activation_str = activation
 
-        self.conv_strategy = conv_strategy  # TODO
+        self.conv_strategy = conv_strategy
 
         self.channels_conv = channels_conv
         self.final_channels = 1 if channels_conv == 1 else channels_conv * 2
@@ -36,36 +40,70 @@ class SpatioTemporalModel(torch.nn.Module):
         self.add_gcn = add_gcn
         self.add_gat = add_gat  # TODO
 
-        # After convolutions/maxpoolings
         self.num_time_length = num_time_length
-        self.final_feature_size = int(self.num_time_length / 16)
+        self.final_feature_size = int(self.num_time_length / 2 / 16)
 
         self.gcn_conv1 = GCNConv(self.final_feature_size * self.final_channels,
                                  self.final_feature_size * self.final_channels)
 
-        self.conv1d_1 = torch.nn.Conv1d(1, self.channels_conv, 3, padding=1, stride=1)
-        self.maxpool1d_1 = torch.nn.MaxPool1d(4)
+        # CNNs for temporal domain
+        self.conv1d_1 = torch.nn.Conv1d(1, self.channels_conv, 7, padding=3, stride=2)
+        self.conv1d_2 = torch.nn.Conv1d(self.channels_conv, self.channels_conv, 7, padding=3, stride=2)
+        self.conv1d_3 = torch.nn.Conv1d(self.channels_conv, self.channels_conv, 7, padding=3, stride=2)
+        self.conv1d_4 = torch.nn.Conv1d(self.channels_conv, self.channels_conv, 7, padding=3, stride=2)
+        self.batch1 = BatchNorm1d(self.channels_conv)
+        self.batch2 = BatchNorm1d(self.channels_conv)
+        self.batch3 = BatchNorm1d(self.channels_conv)
+        self.batch4 = BatchNorm1d(self.channels_conv)
 
-        self.conv1d_2 = torch.nn.Conv1d(self.channels_conv, self.final_channels, 5, padding=2,
-                                        stride=1)
-        self.maxpool1d_2 = torch.nn.MaxPool1d(4)
+        if self.conv_strategy == 'entire':
+            self.conv1d_4 = torch.nn.Conv1d(self.channels_conv, self.final_channels, 7, padding=3, stride=2)
+            self.batch4 = BatchNorm1d(self.final_channels)
+        self.conv1d_5 = torch.nn.Conv1d(self.final_channels, self.final_channels, 7, padding=3, stride=2)
+        self.batch5 = BatchNorm1d(self.final_channels)
 
-        self.batch1 = BatchNorm1d(self.final_feature_size * self.final_channels)
-        self.lin1 = torch.nn.Linear(self.final_feature_size * self.final_channels, 1)
+        self.lin_temporal = torch.nn.Linear(self.final_feature_size * self.final_channels, self.TEMPORAL_EMBED_SIZE)
+
+        # TCNs for temporal domain
+        self.tcn = TemporalConvNet(1, [self.channels_conv, self.channels_conv], kernel_size=7, stride=2,
+                                   dropout=self.dropout,
+                                   num_time_length=num_time_length / 2)
+
+        if conv_strategy == '2_tcn':
+            self.temporal_conv = self.tcn
+        elif conv_strategy == '2_cnn':
+            self.temporal_conv = torch.nn.Sequential(self.conv1d_1, self.batch1, self.activation,
+                                                     self.conv1d_2, self.batch2, self.activation,
+                                                     self.conv1d_3, self.batch3, self.activation,
+                                                     self.conv1d_4, self.batch4, self.activation)
+        elif conv_strategy == 'entire':
+            self.temporal_conv = torch.nn.Sequential(self.conv1d_1, self.batch1, self.activation,
+                                                     self.conv1d_2, self.batch2, self.activation,
+                                                     self.conv1d_3, self.batch3, self.activation,
+                                                     self.conv1d_4, self.batch4, self.activation,
+                                                     self.conv1d_5, self.batch5, self.activation)
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
 
-        # x = self.batch1(x)
-        # BS/num_nodes X num_edges
-        x = x.view(-1, 1, self.num_time_length)
-        x = self.conv1d_1(x)  # smooth
-        x = self.maxpool1d_1(x)
-        x = self.conv1d_2(x)  # reduce
-        x = self.maxpool1d_2(x)
+        # Temporal Convolutions
+        if self.conv_strategy != 'entire':
+            half_slice = int(self.num_time_length / 2)
+            x_left = x[:, :half_slice].view(-1, 1, half_slice)
+            x_right = x[:, half_slice:].view(-1, 1, half_slice)
+
+            x_left = self.temporal_conv(x_left)
+            x_right = self.temporal_conv(x_right)
+
+            x = torch.cat([x_left, x_right], dim=1)
+
+        elif self.conv_strategy == 'entire':
+            x = x.view(-1, 1, self.num_time_length)
+            x = self.temporal_conv(x)
+
+        # Concatenating for the final embedding per node
         x = x.view(-1, self.final_feature_size * self.final_channels)
-        # x = self.conv1(x, edge_index)
-        x = self.batch1(x)
+        x = self.lin_temporal(x)
         x = self.activation(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
 
