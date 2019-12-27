@@ -5,12 +5,14 @@ import torch
 from torch_geometric.data import InMemoryDataset, Data
 from sklearn.preprocessing import RobustScaler
 
-from utils import NEW_STRUCT_PEOPLE, NETMATS_PEOPLE
+from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
+
 def get_struct_path(person):
     return f'../hcp_multimodal_parcellation/HCP_tracks_matrices_BN_withcerebellum/{person}/{person}_{person}_BN_Atlas_246_1mm_geom_withcerebellum_RS.txt'
+
 
 def get_timeseries_path(person, session_day):
     return f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}.npy'
@@ -67,7 +69,7 @@ class HCPDataset(InMemoryDataset):
         data_list = []
 
         # No sorted needed?
-        filtered_people = sorted(list(set(NETMATS_PEOPLE).intersection(set(NEW_STRUCT_PEOPLE))))
+        filtered_people = sorted(list(set(NEW_MULTIMODAL_TIMESERIES).intersection(set(NEW_STRUCT_PEOPLE))))
 
         info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
         ##########
@@ -97,11 +99,15 @@ class HCPDataset(InMemoryDataset):
                 print("Warning: Not yet developed in HCPDataset")
                 pass
 
-            for session_day in [1]:  # , 2]:
+            for session_day in [1, 2]:
 
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
-                timeseries = np.load(get_timeseries_path(person, session_day)).T
+                try:
+                    timeseries = np.load(get_timeseries_path(person, session_day)).T
+                except FileNotFoundError:
+                    print('W: No', person, session_day)
+                    continue
                 scaler = RobustScaler().fit(timeseries)
                 timeseries = scaler.transform(timeseries).T
                 x = torch.tensor(timeseries, dtype=torch.float)  # torch.ones(50).unsqueeze(1)
