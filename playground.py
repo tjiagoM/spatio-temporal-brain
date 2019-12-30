@@ -18,30 +18,33 @@ CONN_TYPE = 'struct'
 CONV_STRATEGY = '2_cnn'
 POOLING = 'mean'
 CHANNELS_CONV = 8
+NORMALISATION = 'roi_norm'
 
 name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
-                                               target_var=TARGET_VAR,
-                                               threshold=THRESHOLD,
-                                               connectivity_type=CONN_TYPE,
-                                               disconnect_nodes=REMOVE_NODES)
+                                           target_var=TARGET_VAR,
+                                           threshold=THRESHOLD,
+                                           normalisation=NORMALISATION,
+                                           connectivity_type=CONN_TYPE,
+                                           disconnect_nodes=REMOVE_NODES)
 print("Going for", name_dataset)
 dataset = HCPDataset(root=name_dataset,
                      num_nodes=NUM_NODES,
                      target_var=TARGET_VAR,
                      threshold=THRESHOLD,
+                     normalisation=NORMALISATION,
                      connectivity_type=CONN_TYPE,
                      disconnect_nodes=REMOVE_NODES)
 
 model = SpatioTemporalModel(num_time_length=2400,
-                             dropout_perc=0.3,
-                             pooling=POOLING,
-                             channels_conv=CHANNELS_CONV,
-                             activation=ACTIVATION,
-                             conv_strategy=CONV_STRATEGY,
-                             add_gat=ADD_GAT,
-                             add_gcn=ADD_GCN,
-                             final_sigmoid=True
-                             ).to('cpu')
+                            dropout_perc=0.3,
+                            pooling=POOLING,
+                            channels_conv=CHANNELS_CONV,
+                            activation=ACTIVATION,
+                            conv_strategy=CONV_STRATEGY,
+                            add_gat=ADD_GAT,
+                            add_gcn=ADD_GCN,
+                            final_sigmoid=True
+                            ).to('cpu')
 
 train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 

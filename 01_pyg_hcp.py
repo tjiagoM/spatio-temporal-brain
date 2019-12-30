@@ -136,7 +136,8 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
 
     print(
         '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} / {:.4f}'
-        ''.format(outer_split_no, inner_split_no, epoch, loss, val_metrics['loss'], train_metrics['auc'], val_metrics['auc'],
+        ''.format(outer_split_no, inner_split_no, epoch, loss, val_metrics['loss'], train_metrics['auc'],
+                  val_metrics['auc'],
                   train_metrics['acc'], val_metrics['acc'], train_metrics['f1'], val_metrics['f1']))
 
     return val_metrics
@@ -173,6 +174,7 @@ if __name__ == '__main__':
     parser.add_argument("--pooling",
                         default="mean")  # 2) Try other pooling mechanisms CONCAT (only with fixed num_nodes across graphs),
     parser.add_argument("--channels_conv", type=int)
+    parser.add_argument("--normalisation")
 
     args = parser.parse_args()
     # Making a single variable for each argument
@@ -190,12 +192,16 @@ if __name__ == '__main__':
     CONV_STRATEGY = args.conv_strategy
     POOLING = args.pooling
     CHANNELS_CONV = args.channels_conv
+    NORMALISATION = args.normalisation
 
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
 
     if TARGET_VAR not in ['gender', 'intelligence']:
         print("Unrecognised target_var")
+        exit(-1)
+    elif NORMALISATION not in ['no_norm', 'roi_norm', 'subject_norm']:
+        print("Unrecognised normalisation")
         exit(-1)
     else:
         print("Predicting", TARGET_VAR, N_EPOCHS, SPLIT_TO_TEST, ADD_GCN, ACTIVATION, THRESHOLD, ADD_GAT,
@@ -207,6 +213,7 @@ if __name__ == '__main__':
     name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
                                                target_var=TARGET_VAR,
                                                threshold=THRESHOLD,
+                                               normalisation=NORMALISATION,
                                                connectivity_type=CONN_TYPE,
                                                disconnect_nodes=REMOVE_NODES)
     print("Going for", name_dataset)
@@ -214,6 +221,7 @@ if __name__ == '__main__':
                          num_nodes=NUM_NODES,
                          target_var=TARGET_VAR,
                          threshold=THRESHOLD,
+                         normalisation=NORMALISATION,
                          connectivity_type=CONN_TYPE,
                          disconnect_nodes=REMOVE_NODES)
 
@@ -311,9 +319,9 @@ if __name__ == '__main__':
                 # Creating the various names for each metric
                 model_names = {}
                 for m in metrics:
-                    model_names[m] = create_name_for_model(TARGET_VAR, model, params, outer_split_num, 0,
-                                                           N_EPOCHS, THRESHOLD, BATCH_SIZE, REMOVE_NODES, NUM_NODES,
-                                                           CONN_TYPE,
+                    model_names[m] = create_name_for_model(TARGET_VAR, model, params, outer_split_num, 0, N_EPOCHS,
+                                                           THRESHOLD, BATCH_SIZE, REMOVE_NODES, NUM_NODES, CONN_TYPE,
+                                                           NORMALISATION,
                                                            m)
                 # If there is one of the metrics saved, then I assume this inner part was already calculated
                 if os.path.isfile(model_names[metrics[0]]):
@@ -342,24 +350,24 @@ if __name__ == '__main__':
                     if TARGET_VAR == 'gender':
                         # TODO: Make this a dict to be easier to compare
                         val_metrics = classifier_step(outer_split_num,
-                                                                             0,
-                                                                             epoch,
-                                                                             model,
-                                                                             train_in_loader,
-                                                                             val_loader)
+                                                      0,
+                                                      epoch,
+                                                      model,
+                                                      train_in_loader,
+                                                      val_loader)
                         if val_metrics['loss'] < best_metrics_fold['loss']:
                             best_metrics_fold['loss'] = val_metrics['loss']
                             torch.save(model, model_names['loss'])
                             if val_metrics['loss'] < best_outer_metric_loss:
                                 best_outer_metric_loss = val_metrics['loss']
                                 best_model_name_outer_fold = model_names['loss']
-                        #if val_acc > best_metrics_fold['acc']:
+                        # if val_acc > best_metrics_fold['acc']:
                         #    best_metrics_fold['acc'] = val_acc
                         #    torch.save(model, model_names['acc'])
-                        #if val_auc > best_metrics_fold['auc']:
+                        # if val_auc > best_metrics_fold['auc']:
                         #    best_metrics_fold['auc'] = val_auc
                         #    torch.save(model, model_names['auc'])
-                        #if val_f1 > best_metrics_fold['f1']:
+                        # if val_f1 > best_metrics_fold['f1']:
                         #    best_metrics_fold['f1'] = val_f1
                         #    torch.save(model, model_names['f1'])
 

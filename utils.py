@@ -268,16 +268,16 @@ OLD_NETMATS_PEOPLE = [100206, 100307, 100408, 100610, 101006, 101107, 101309, 10
                       990366, 991267, 992673, 992774, 993675, 994273, 996782]
 
 
-def create_name_for_hcp_dataset(num_nodes, target_var, threshold, connectivity_type,
+def create_name_for_hcp_dataset(num_nodes, target_var, threshold, connectivity_type, normalisation,
                                 disconnect_nodes=False,
                                 prefix_location='./pytorch_data/hcp_'):
-    name_combination = '_'.join([target_var, connectivity_type, str(num_nodes), str(threshold), str(disconnect_nodes)])
+    name_combination = '_'.join([target_var, connectivity_type, str(num_nodes), str(threshold), str(normalisation), str(disconnect_nodes)])
 
     return prefix_location + name_combination
 
 
 def create_name_for_model(target_var, model, params, outer_split_num, inner_split_num, n_epochs, threshold, batch_size,
-                          remove_disconnect_nodes, num_nodes, conn_type,
+                          remove_disconnect_nodes, num_nodes, conn_type, normalisation,
                           metric_evaluated,
                           prefix_location='logs/'):
     return prefix_location + '_'.join([target_var,
@@ -289,6 +289,7 @@ def create_name_for_model(target_var, model, params, outer_split_num, inner_spli
                                        str(params['weight_decay']),
                                        str(n_epochs),
                                        str(threshold),
+                                       str(normalisation),
                                        str(batch_size),
                                        str(remove_disconnect_nodes),
                                        str(num_nodes),

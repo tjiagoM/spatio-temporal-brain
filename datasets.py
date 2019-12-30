@@ -2,8 +2,8 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
-from torch_geometric.data import InMemoryDataset, Data
 from sklearn.preprocessing import RobustScaler
+from torch_geometric.data import InMemoryDataset, Data
 
 from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES
 
@@ -20,7 +20,7 @@ def get_timeseries_path(person, session_day):
 
 # TODO: Meter no construtor o numero de nós/type para guardar grafos diferentes
 class HCPDataset(InMemoryDataset):
-    def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, disconnect_nodes=False,
+    def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, normalisation, disconnect_nodes=False,
                  transform=None, pre_transform=None):
         '''
 
@@ -41,6 +41,9 @@ class HCPDataset(InMemoryDataset):
         if connectivity_type not in ['fmri', 'struct']:
             print("NOT A VALID connectivity_type!")
             exit(-2)
+        if normalisation not in ['no_norm', 'roi_norm', 'subject_norm']:
+            print("NOT A VALID normalisation!")
+            exit(-2)
 
         # TODO: check whether this matches the name inside root
         self.target_var = target_var
@@ -48,6 +51,7 @@ class HCPDataset(InMemoryDataset):
         self.threshold = threshold
         self.connectivity_type = connectivity_type
         self.disconnect_nodes = disconnect_nodes
+        self.normalisation = normalisation
 
         super(HCPDataset, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
@@ -108,8 +112,11 @@ class HCPDataset(InMemoryDataset):
                 except FileNotFoundError:
                     print('W: No', person, session_day)
                     continue
-                scaler = RobustScaler().fit(timeseries)
-                timeseries = scaler.transform(timeseries).T
+
+                if self.normalisation == 'roi_norm':
+                    scaler = RobustScaler().fit(timeseries)
+                    timeseries = scaler.transform(timeseries).T
+
                 x = torch.tensor(timeseries, dtype=torch.float)  # torch.ones(50).unsqueeze(1)
 
                 if self.target_var == 'gender':
