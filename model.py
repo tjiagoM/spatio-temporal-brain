@@ -85,6 +85,8 @@ class SpatioTemporalModel(torch.nn.Module):
                                                      self.conv1d_4, self.batch4, self.activation,
                                                      self.conv1d_5, self.batch5, self.activation)
 
+        self.final_linear = torch.nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
+
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
 
@@ -133,7 +135,7 @@ class SpatioTemporalModel(torch.nn.Module):
         # x = F.dropout(x, p=dropout_perc, training=self.training)
         x = F.dropout(x, p=self.dropout, training=self.training)
         # x = self.conv1d(x.unsqueeze(2)).squeeze(2)
-        x = self.lin1(x)
+        x = self.final_linear(x)
         # x = F.relu(x)
         # x = self.lin2(x)
         # TODO: try dense_diff_pool and DynamicEdgeConv

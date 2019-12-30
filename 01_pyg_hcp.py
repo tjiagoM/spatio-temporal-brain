@@ -11,13 +11,12 @@ from scipy.stats import stats
 from sklearn.metrics import r2_score, roc_auc_score, accuracy_score, f1_score
 from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold, ParameterGrid
+from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader
 
 from datasets import HCPDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy
-
-device = torch.device('cuda')
 
 
 def train_classifier(model, train_loader):
@@ -154,9 +153,16 @@ def regression_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     return val_r2
 
 
+def merge_y_and_session(ys, sessions):
+    tmp = torch.cat([ys.long().view(-1, 1), sessions.view(-1, 1)], dim=1)
+    return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
+
+    parser.add_argument("--device", default="cuda")
 
     parser.add_argument("--fold_num", type=int)
     parser.add_argument("--target_var")
@@ -177,6 +183,10 @@ if __name__ == '__main__':
     parser.add_argument("--normalisation")
 
     args = parser.parse_args()
+
+    # Device part
+    device = torch.device(args.device)
+
     # Making a single variable for each argument
     N_EPOCHS = args.num_epochs
     TARGET_VAR = args.target_var
@@ -226,8 +236,10 @@ if __name__ == '__main__':
     N_INNER_SPLITS = 5
 
     if TARGET_VAR == 'gender':
+        # Stratification will occur with regards to both the sex and session day
         skf = StratifiedKFold(n_splits=N_OUT_SPLITS, shuffle=True, random_state=0)
-        skf_generator = skf.split(np.zeros((len(dataset), 1)), dataset.data.y.numpy())
+        merged_labels = merge_y_and_session(dataset.data.y, dataset.data.session)
+        skf_generator = skf.split(np.zeros((len(dataset), 1)), merged_labels)
     elif TARGET_VAR == 'intelligence':
         scores = pd.read_csv('confounds.csv').set_index('Subject')
         scores = scores[['g_efa', 'Handedness', 'Age_in_Yrs', 'FS_BrainSeg_Vol', 'Gender', 'fMRI_3T_ReconVrs']]
@@ -291,7 +303,8 @@ if __name__ == '__main__':
 
             if TARGET_VAR == 'gender':
                 skf_inner = StratifiedKFold(n_splits=N_INNER_SPLITS, shuffle=True, random_state=0)
-                skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)), X_train_out.data.y.numpy())
+                merged_labels_inner = merge_y_and_session(X_train_out.data.y, X_train_out.data.session)
+                skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)), merged_labels_inner)
                 model_with_sigmoid = True
                 metrics = ['acc', 'f1', 'auc', 'loss']
             else:
