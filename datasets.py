@@ -116,6 +116,12 @@ class HCPDataset(InMemoryDataset):
                 if self.normalisation == Normalisation.ROI:
                     scaler = RobustScaler().fit(timeseries)
                     timeseries = scaler.transform(timeseries).T
+                elif self.normalisation == Normalisation.SUBJECT:
+                    flatten_timeseries = timeseries.flatten().reshape(-1, 1)
+                    scaler = RobustScaler().fit(flatten_timeseries)
+                    timeseries = scaler.transform(flatten_timeseries).reshape(timeseries.shape).T
+                else:  # No normalisation
+                    timeseries = timeseries.T
 
                 x = torch.tensor(timeseries, dtype=torch.float)  # torch.ones(50).unsqueeze(1)
 
