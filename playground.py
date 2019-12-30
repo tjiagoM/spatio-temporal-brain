@@ -2,7 +2,7 @@ from torch_geometric.data import DataLoader
 
 from datasets import HCPDataset
 from model import SpatioTemporalModel
-from utils import create_name_for_hcp_dataset
+from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy
 
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
@@ -14,11 +14,11 @@ ADD_GAT = False
 BATCH_SIZE = 150
 REMOVE_NODES = False
 NUM_NODES = 272
-CONN_TYPE = 'struct'
-CONV_STRATEGY = '2_cnn'
+CONN_TYPE = ConnType('struct')
+CONV_STRATEGY = ConvStrategy('2_cnn')
 POOLING = 'mean'
 CHANNELS_CONV = 8
-NORMALISATION = 'roi_norm'
+NORMALISATION = Normalisation('roi_norm')
 
 name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
                                            target_var=TARGET_VAR,

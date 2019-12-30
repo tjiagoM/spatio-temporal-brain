@@ -1,3 +1,23 @@
+from enum import Enum, unique
+
+@unique
+class Normalisation(str, Enum):
+    NONE = 'no_norm'
+    ROI = 'roi_norm'
+    SUBJECT = 'subject_norm'
+
+@unique
+class ConnType(str, Enum):
+    FMRI = 'fmri'
+    STRUCT = 'struct'
+
+@unique
+class ConvStrategy(str, Enum):
+    ENTIRE = 'entire'
+    CNN_2 = '2_cnn'
+    TCN_2 = '2_tcn'
+
+
 NEW_STRUCT_PEOPLE = [100206, 100307, 100408, 100610, 101107, 101309, 101410, 101915, 102008, 102311, 102513, 102614,
                      102715, 102816, 103010, 103111, 103212, 103414, 103515, 103818, 104012, 104416, 104820, 105014,
                      105115, 105216, 105620, 105923, 106016, 106319, 106521, 106824, 107018, 107321, 107422, 107725,
@@ -271,7 +291,8 @@ OLD_NETMATS_PEOPLE = [100206, 100307, 100408, 100610, 101006, 101107, 101309, 10
 def create_name_for_hcp_dataset(num_nodes, target_var, threshold, connectivity_type, normalisation,
                                 disconnect_nodes=False,
                                 prefix_location='./pytorch_data/hcp_'):
-    name_combination = '_'.join([target_var, connectivity_type, str(num_nodes), str(threshold), str(normalisation), str(disconnect_nodes)])
+    name_combination = '_'.join(
+        [target_var, connectivity_type.value, str(num_nodes), str(threshold), normalisation.value, str(disconnect_nodes)])
 
     return prefix_location + name_combination
 
@@ -289,9 +310,9 @@ def create_name_for_model(target_var, model, params, outer_split_num, inner_spli
                                        str(params['weight_decay']),
                                        str(n_epochs),
                                        str(threshold),
-                                       str(normalisation),
+                                       normalisation.value,
                                        str(batch_size),
                                        str(remove_disconnect_nodes),
                                        str(num_nodes),
-                                       str(conn_type)
+                                       conn_type.value
                                        ]) + '.pth'

@@ -15,7 +15,7 @@ from torch_geometric.data import DataLoader
 
 from datasets import HCPDataset
 from model import SpatioTemporalModel
-from utils import create_name_for_hcp_dataset, create_name_for_model
+from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy
 
 device = torch.device('cuda')
 
@@ -188,20 +188,17 @@ if __name__ == '__main__':
     BATCH_SIZE = args.batch_size
     REMOVE_NODES = args.remove_disconnected_nodes
     NUM_NODES = args.num_nodes
-    CONN_TYPE = args.conn_type
-    CONV_STRATEGY = args.conv_strategy
+    CONN_TYPE = ConnType(args.conn_type)
+    CONV_STRATEGY = ConvStrategy(args.conv_strategy)
     POOLING = args.pooling
     CHANNELS_CONV = args.channels_conv
-    NORMALISATION = args.normalisation
+    NORMALISATION = Normalisation(args.normalisation)
 
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
 
     if TARGET_VAR not in ['gender', 'intelligence']:
         print("Unrecognised target_var")
-        exit(-1)
-    elif NORMALISATION not in ['no_norm', 'roi_norm', 'subject_norm']:
-        print("Unrecognised normalisation")
         exit(-1)
     else:
         print("Predicting", TARGET_VAR, N_EPOCHS, SPLIT_TO_TEST, ADD_GCN, ACTIVATION, THRESHOLD, ADD_GAT,

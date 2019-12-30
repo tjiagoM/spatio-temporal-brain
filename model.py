@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from torch.nn import BatchNorm1d
 from torch_geometric.nn import global_mean_pool, GCNConv
 
+from utils import ConvStrategy
+
 from tcn import TemporalConvNet
 
 
@@ -16,7 +18,7 @@ class SpatioTemporalModel(torch.nn.Module):
         if pooling != 'mean':
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN")
             exit(-1)
-        if conv_strategy not in ['entire', '2_cnn', '2_tcn']:
+        if conv_strategy not in [ConvStrategy.CNN_2, ConvStrategy.TCN_2, ConvStrategy.ENTIRE]:
             print("THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/2_conv/2_tcn")
             exit(-1)
         if activation not in ['relu', 'tanh']:
@@ -56,7 +58,7 @@ class SpatioTemporalModel(torch.nn.Module):
         self.batch3 = BatchNorm1d(self.channels_conv)
         self.batch4 = BatchNorm1d(self.channels_conv)
 
-        if self.conv_strategy == 'entire':
+        if self.conv_strategy == ConvStrategy.ENTIRE:
             self.conv1d_4 = torch.nn.Conv1d(self.channels_conv, self.final_channels, 7, padding=3, stride=2)
             self.batch4 = BatchNorm1d(self.final_channels)
         self.conv1d_5 = torch.nn.Conv1d(self.final_channels, self.final_channels, 7, padding=3, stride=2)
@@ -69,14 +71,14 @@ class SpatioTemporalModel(torch.nn.Module):
                                    dropout=self.dropout,
                                    num_time_length=num_time_length / 2)
 
-        if conv_strategy == '2_tcn':
+        if conv_strategy == ConvStrategy.TCN_2:
             self.temporal_conv = self.tcn
-        elif conv_strategy == '2_cnn':
+        elif conv_strategy == ConvStrategy.CNN_2:
             self.temporal_conv = torch.nn.Sequential(self.conv1d_1, self.batch1, self.activation,
                                                      self.conv1d_2, self.batch2, self.activation,
                                                      self.conv1d_3, self.batch3, self.activation,
                                                      self.conv1d_4, self.batch4, self.activation)
-        elif conv_strategy == 'entire':
+        elif conv_strategy == ConvStrategy.ENTIRE:
             self.temporal_conv = torch.nn.Sequential(self.conv1d_1, self.batch1, self.activation,
                                                      self.conv1d_2, self.batch2, self.activation,
                                                      self.conv1d_3, self.batch3, self.activation,
@@ -87,7 +89,7 @@ class SpatioTemporalModel(torch.nn.Module):
         x, edge_index = data.x, data.edge_index
 
         # Temporal Convolutions
-        if self.conv_strategy != 'entire':
+        if self.conv_strategy != ConvStrategy.ENTIRE:
             half_slice = int(self.num_time_length / 2)
             x_left = x[:, :half_slice].view(-1, 1, half_slice)
             x_right = x[:, half_slice:].view(-1, 1, half_slice)
@@ -97,7 +99,7 @@ class SpatioTemporalModel(torch.nn.Module):
 
             x = torch.cat([x_left, x_right], dim=1)
 
-        elif self.conv_strategy == 'entire':
+        elif self.conv_strategy == ConvStrategy.ENTIRE:
             x = x.view(-1, 1, self.num_time_length)
             x = self.temporal_conv(x)
 
@@ -145,7 +147,7 @@ class SpatioTemporalModel(torch.nn.Module):
         model_vars = ['D_' + str(self.dropout),
                       'A_' + self.activation_str,
                       'P_' + self.pooling,
-                      'CS_' + self.conv_strategy,
+                      'CS_' + self.conv_strategy.value,
                       'CHC_' + str(self.channels_conv),
                       'FS_' + str(self.final_sigmoid),
                       'GCN_' + str(self.add_gcn),

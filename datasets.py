@@ -5,7 +5,7 @@ import torch
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
-from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES
+from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
@@ -38,10 +38,10 @@ class HCPDataset(InMemoryDataset):
         if threshold < 0 or threshold > 100:
             print("NOT A VALID threshold!")
             exit(-2)
-        if connectivity_type not in ['fmri', 'struct']:
+        if connectivity_type not in [ConnType.FMRI, ConnType.STRUCT]:
             print("NOT A VALID connectivity_type!")
             exit(-2)
-        if normalisation not in ['no_norm', 'roi_norm', 'subject_norm']:
+        if normalisation not in [Normalisation.NONE, Normalisation.ROI, Normalisation.SUBJECT]:
             print("NOT A VALID normalisation!")
             exit(-2)
 
@@ -79,9 +79,9 @@ class HCPDataset(InMemoryDataset):
         ##########
         for person in filtered_people:
 
-            if self.connectivity_type == 'fmri':
+            if self.connectivity_type == ConnType.FMRI:
                 pass
-            elif self.connectivity_type == 'struct':
+            elif self.connectivity_type == ConnType.STRUCT:
                 # arr_struct will only have values in the upper triangle
                 arr_struct = np.genfromtxt(get_struct_path(person))
                 num_to_filter = int((self.threshold / 100.0) * (self.num_nodes * (self.num_nodes - 1) / 2))
@@ -113,7 +113,7 @@ class HCPDataset(InMemoryDataset):
                     print('W: No', person, session_day)
                     continue
 
-                if self.normalisation == 'roi_norm':
+                if self.normalisation == Normalisation.ROI:
                     scaler = RobustScaler().fit(timeseries)
                     timeseries = scaler.transform(timeseries).T
 
