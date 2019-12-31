@@ -289,15 +289,16 @@ if __name__ == '__main__':
         #
         # Main inner-loop (for now, not really an inner loop - just one train/val inside
         #
-        param_grid = {'weight_decay': [0.005, 0.05, 0.5, 0],
+        param_grid = {'weight_decay': [0.05, 0.5, 0],
                       'lr': [0.005, 0.05, 0.5],
-                      'dropout': [0, 0.3, 0.5, 0.7]
+                      'dropout': [0, 0.5, 0.7]
                       }
         grid = ParameterGrid(param_grid)
         # best_metric = -100
         # best_params = None
         best_model_name_outer_fold = None
         best_outer_metric_loss = 1000
+        best_outer_metric_auc = -1000
         for params in grid:
             print("For ", params)
 
@@ -358,28 +359,24 @@ if __name__ == '__main__':
                         best_metrics_fold[m] = -1000
                 for epoch in range(1, N_EPOCHS):
                     if TARGET_VAR == 'gender':
-                        # TODO: Make this a dict to be easier to compare
                         val_metrics = classifier_step(outer_split_num,
                                                       0,
                                                       epoch,
                                                       model,
                                                       train_in_loader,
                                                       val_loader)
-                        if val_metrics['loss'] < best_metrics_fold['loss']:
-                            best_metrics_fold['loss'] = val_metrics['loss']
-                            torch.save(model, model_names['loss'])
-                            if val_metrics['loss'] < best_outer_metric_loss:
-                                best_outer_metric_loss = val_metrics['loss']
-                                best_model_name_outer_fold = model_names['loss']
-                        # if val_acc > best_metrics_fold['acc']:
-                        #    best_metrics_fold['acc'] = val_acc
-                        #    torch.save(model, model_names['acc'])
-                        # if val_auc > best_metrics_fold['auc']:
-                        #    best_metrics_fold['auc'] = val_auc
-                        #    torch.save(model, model_names['auc'])
-                        # if val_f1 > best_metrics_fold['f1']:
-                        #    best_metrics_fold['f1'] = val_f1
-                        #    torch.save(model, model_names['f1'])
+                        #if val_metrics['loss'] < best_metrics_fold['loss']:
+                        #    best_metrics_fold['loss'] = val_metrics['loss']
+                        #    torch.save(model, model_names['loss'])
+                        #    if val_metrics['loss'] < best_outer_metric_loss:
+                        #        best_outer_metric_loss = val_metrics['loss']
+                        #        best_model_name_outer_fold = model_names['loss']
+                        if val_metrics['auc'] > best_metrics_fold['auc']:
+                            best_metrics_fold['auc'] = val_metrics['auc']
+                            torch.save(model, model_names['auc'])
+                            if val_metrics['auc'] > best_outer_metric_auc:
+                                best_outer_metric_loss = val_metrics['auc']
+                                best_model_name_outer_fold = model_names['auc']
 
                     elif TARGET_VAR == 'intelligence':
                         val_metric = regression_step(outer_split_num,
@@ -405,8 +402,8 @@ if __name__ == '__main__':
         if TARGET_VAR == 'gender':
             test_metrics = evaluate_classifier(test_out_loader)
 
-            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}'
-                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc']))
+            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, F1: {:.4f}'
+                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'], test_metrics['f1']))
         # else:
         #    test_loss, test_r2, test_pear = evaluate_regressor(test_out_loader)
 
