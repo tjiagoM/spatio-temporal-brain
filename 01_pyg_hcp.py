@@ -375,7 +375,7 @@ if __name__ == '__main__':
                             best_metrics_fold['auc'] = val_metrics['auc']
                             torch.save(model, model_names['auc'])
                             if val_metrics['auc'] > best_outer_metric_auc:
-                                best_outer_metric_loss = val_metrics['auc']
+                                best_outer_metric_auc = val_metrics['auc']
                                 best_model_name_outer_fold = model_names['auc']
 
                     elif TARGET_VAR == 'intelligence':
