@@ -134,10 +134,10 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     val_metrics = evaluate_classifier(val_loader)
 
     print(
-        '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} / {:.4f}'
-        ''.format(outer_split_no, inner_split_no, epoch, loss, val_metrics['loss'], train_metrics['auc'],
-                  val_metrics['auc'],
-                  train_metrics['acc'], val_metrics['acc'], train_metrics['f1'], val_metrics['f1']))
+        '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} / '
+        '{:.4f} '.format(outer_split_no, inner_split_no, epoch, loss, val_metrics['loss'], train_metrics['auc'],
+                        val_metrics['auc'],
+                        train_metrics['acc'], val_metrics['acc'], train_metrics['f1'], val_metrics['f1']))
 
     return val_metrics
 
@@ -316,7 +316,7 @@ if __name__ == '__main__':
 
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
-                model = SpatioTemporalModel(num_time_length=2400,
+                model = SpatioTemporalModel(num_time_length=1200,
                                             dropout_perc=params['dropout'],
                                             pooling=POOLING,
                                             channels_conv=CHANNELS_CONV,
@@ -365,7 +365,7 @@ if __name__ == '__main__':
                                                       model,
                                                       train_in_loader,
                                                       val_loader)
-                        #if val_metrics['loss'] < best_metrics_fold['loss']:
+                        # if val_metrics['loss'] < best_metrics_fold['loss']:
                         #    best_metrics_fold['loss'] = val_metrics['loss']
                         #    torch.save(model, model_names['loss'])
                         #    if val_metrics['loss'] < best_outer_metric_loss:
@@ -403,7 +403,8 @@ if __name__ == '__main__':
             test_metrics = evaluate_classifier(test_out_loader)
 
             print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, F1: {:.4f}'
-                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'], test_metrics['f1']))
+                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                            test_metrics['f1']))
         # else:
         #    test_loss, test_r2, test_pear = evaluate_regressor(test_out_loader)
 

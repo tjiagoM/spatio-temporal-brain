@@ -5,17 +5,13 @@ import torch
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
-from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType
+from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType, get_timeseries_final_path
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
 
 def get_struct_path(person):
     return f'../hcp_multimodal_parcellation/HCP_tracks_matrices_BN_withcerebellum/{person}/{person}_{person}_BN_Atlas_246_1mm_geom_withcerebellum_RS.txt'
-
-
-def get_timeseries_path(person, session_day):
-    return f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}.npy'
 
 
 # TODO: Meter no construtor o numero de nós/type para guardar grafos diferentes
@@ -108,35 +104,39 @@ class HCPDataset(InMemoryDataset):
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
                 try:
-                    timeseries = np.load(get_timeseries_path(person, session_day)).T
+                    path_lr, path_rl = get_timeseries_final_path(person, session_day, direction=True)
+                    timeseries_lr = np.load(path_lr).T
+                    timeseries_rl = np.load(path_rl).T
                 except FileNotFoundError:
                     print('W: No', person, session_day)
                     continue
 
-                if self.normalisation == Normalisation.ROI:
-                    scaler = RobustScaler().fit(timeseries)
-                    timeseries = scaler.transform(timeseries).T
-                elif self.normalisation == Normalisation.SUBJECT:
-                    flatten_timeseries = timeseries.flatten().reshape(-1, 1)
-                    scaler = RobustScaler().fit(flatten_timeseries)
-                    timeseries = scaler.transform(flatten_timeseries).reshape(timeseries.shape).T
-                else:  # No normalisation
-                    timeseries = timeseries.T
+                for direction, timeseries in enumerate([timeseries_lr, timeseries_rl]):
+                    if self.normalisation == Normalisation.ROI:
+                        scaler = RobustScaler().fit(timeseries)
+                        timeseries = scaler.transform(timeseries).T
+                    elif self.normalisation == Normalisation.SUBJECT:
+                        flatten_timeseries = timeseries.flatten().reshape(-1, 1)
+                        scaler = RobustScaler().fit(flatten_timeseries)
+                        timeseries = scaler.transform(flatten_timeseries).reshape(timeseries.shape).T
+                    else:  # No normalisation
+                        timeseries = timeseries.T
 
-                x = torch.tensor(timeseries, dtype=torch.float)  # torch.ones(50).unsqueeze(1)
+                    x = torch.tensor(timeseries, dtype=torch.float)  # torch.ones(50).unsqueeze(1)
 
-                if self.target_var == 'gender':
-                    y = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
-                else:
-                    y = torch.tensor([0], dtype=torch.float)  # will be set later
+                    if self.target_var == 'gender':
+                        y = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
+                    else:
+                        y = torch.tensor([0], dtype=torch.float)  # will be set later
 
-                # edge_attr = torch.tensor(list(nx.get_edge_attributes(G, 'weight').values()),
-                #                         dtype=torch.float).unsqueeze(1)
+                    # edge_attr = torch.tensor(list(nx.get_edge_attributes(G, 'weight').values()),
+                    #                         dtype=torch.float).unsqueeze(1)
 
-                data = Data(x=x, edge_index=edge_index, y=y)  # edge_attr=edge_attr,
-                data.hcp_id = torch.tensor([person])
-                data.session = torch.tensor([session_day])
-                data_list.append(data)
+                    data = Data(x=x, edge_index=edge_index, y=y)  # edge_attr=edge_attr,
+                    data.hcp_id = torch.tensor([person])
+                    data.session = torch.tensor([session_day])
+                    data.direction = torch.tensor([direction])
+                    data_list.append(data)
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])

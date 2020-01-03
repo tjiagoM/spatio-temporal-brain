@@ -1,6 +1,6 @@
 import numpy as np
 
-from utils import NEW_MULTIMODAL_TIMESERIES, NEW_STRUCT_PEOPLE
+from utils import NEW_MULTIMODAL_TIMESERIES, NEW_STRUCT_PEOPLE, get_timeseries_final_path
 
 filtered_people = sorted(list(set(NEW_MULTIMODAL_TIMESERIES)
                               .intersection(set(NEW_STRUCT_PEOPLE))))
@@ -12,10 +12,6 @@ def get_bn_path(person, session):
 
 def get_aal_path(person, session):
     return f'../hcp_multimodal_parcellation/timeseries/{person}_{session}/{person}_rfMRI_REST{session}_rfMRI_REST{session}_hp2000_clean_AAL3.txt'
-
-
-def get_final_path(person, session_day):
-    return f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}.npy'
 
 
 # Just in case is needed
@@ -47,9 +43,11 @@ for person in filtered_people:
                       arr_aal_rl.shape)
                 continue
 
-            final_path = get_final_path(person, day_session)
+            final_path_lr, final_path_rl = get_timeseries_final_path(person, day_session, direction=True)
             # os.makedirs(os.path.dirname(final_path), exist_ok=True)
-            np.save(final_path, final_ts)
+            #np.save(final_path, final_ts)
+            np.save(final_path_lr, arr_concat_lr)
+            np.save(final_path_rl, arr_concat_rl)
 
         except OSError:
             # This person+session does not have timeseries available

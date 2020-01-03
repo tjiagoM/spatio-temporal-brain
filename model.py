@@ -28,7 +28,7 @@ class SpatioTemporalModel(torch.nn.Module):
             print("You cannot have both GCN and GAT")
             exit(-1)
 
-        self.TEMPORAL_EMBED_SIZE = 512
+        self.TEMPORAL_EMBED_SIZE = 256
         self.dropout = dropout_perc
         self.pooling = pooling
         self.activation = torch.nn.ReLU() if activation == 'relu' else torch.nn.Tanh()
@@ -43,7 +43,7 @@ class SpatioTemporalModel(torch.nn.Module):
         self.add_gat = add_gat  # TODO
 
         self.num_time_length = num_time_length
-        self.final_feature_size = int(self.num_time_length / 2 / 16)
+        self.final_feature_size = round(self.num_time_length / 2 / 16)
 
         self.gcn_conv1 = GCNConv(self.final_feature_size * self.final_channels,
                                  self.final_feature_size * self.final_channels)
@@ -122,6 +122,7 @@ class SpatioTemporalModel(torch.nn.Module):
 
         if self.pooling == 'mean':
             x = global_mean_pool(x, data.batch)
+
         # elif self.pooling == 'mixed':
         #    x1 = global_max_pool(x, data.batch)
         #    x2 = global_add_pool(x, data.batch) <- maybe not this one?
