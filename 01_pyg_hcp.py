@@ -396,7 +396,7 @@ if __name__ == '__main__':
                 break  # Just one inner "loop"
 
         # After all parameters are searched, get best and train on that, evaluating on test set
-        print("Best params: ", best_model_name_outer_fold, "(", best_outer_metric_loss, ")")
+        print("Best params: ", best_model_name_outer_fold, "(", best_outer_metric_auc, ")")
         model = torch.load(best_model_name_outer_fold)
 
         if TARGET_VAR == 'gender':
