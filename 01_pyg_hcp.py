@@ -40,7 +40,7 @@ def train_classifier(model, train_loader):
     return loss_all / len(train_loader.dataset)
 
 
-def evaluate_classifier(loader):
+def evaluate_classifier(loader, save_path_preds=None):
     model.eval()
     criterion = torch.nn.BCELoss()
 
@@ -64,6 +64,10 @@ def evaluate_classifier(loader):
 
     predictions = np.hstack(predictions)
     labels = np.hstack(labels)
+
+    if save_path_preds is not None:
+        np.save('labels_' + save_path_preds, labels)
+        np.save('predictions_' + save_path_preds, predictions)
 
     pred_binary = np.where(predictions > 0.5, 1, 0)
 
@@ -296,7 +300,8 @@ if __name__ == '__main__':
         grid = ParameterGrid(param_grid)
         # best_metric = -100
         # best_params = None
-        best_model_name_outer_fold = None
+        best_model_name_outer_fold_auc = None
+        best_model_name_outer_fold_loss = None
         best_outer_metric_loss = 1000
         best_outer_metric_auc = -1000
         for params in grid:
@@ -365,18 +370,18 @@ if __name__ == '__main__':
                                                       model,
                                                       train_in_loader,
                                                       val_loader)
-                        # if val_metrics['loss'] < best_metrics_fold['loss']:
-                        #    best_metrics_fold['loss'] = val_metrics['loss']
-                        #    torch.save(model, model_names['loss'])
-                        #    if val_metrics['loss'] < best_outer_metric_loss:
-                        #        best_outer_metric_loss = val_metrics['loss']
-                        #        best_model_name_outer_fold = model_names['loss']
+                        if val_metrics['loss'] < best_metrics_fold['loss']:
+                            best_metrics_fold['loss'] = val_metrics['loss']
+                            torch.save(model, model_names['loss'])
+                            if val_metrics['loss'] < best_outer_metric_loss:
+                                best_outer_metric_loss = val_metrics['loss']
+                                best_model_name_outer_fold_loss = model_names['loss']
                         if val_metrics['auc'] > best_metrics_fold['auc']:
                             best_metrics_fold['auc'] = val_metrics['auc']
                             torch.save(model, model_names['auc'])
                             if val_metrics['auc'] > best_outer_metric_auc:
                                 best_outer_metric_auc = val_metrics['auc']
-                                best_model_name_outer_fold = model_names['auc']
+                                best_model_name_outer_fold_auc = model_names['auc']
 
                     elif TARGET_VAR == 'intelligence':
                         val_metric = regression_step(outer_split_num,
@@ -395,16 +400,25 @@ if __name__ == '__main__':
                 #        outer_split_num) + ".pth")
                 break  # Just one inner "loop"
 
-        # After all parameters are searched, get best and train on that, evaluating on test set
-        print("Best params: ", best_model_name_outer_fold, "(", best_outer_metric_auc, ")")
-        model = torch.load(best_model_name_outer_fold)
-
         if TARGET_VAR == 'gender':
-            test_metrics = evaluate_classifier(test_out_loader)
-
+            # After all parameters are searched, get best and train on that, evaluating on test set
+            print("Best params if AUC: ", best_model_name_outer_fold_auc, "(", best_outer_metric_auc, ")")
+            model = torch.load(best_model_name_outer_fold_auc)
+            test_metrics = evaluate_classifier(test_out_loader,
+                                               save_path_preds=best_model_name_outer_fold_auc.replace('logs/', '').replace('.pth', '.npy'))
             print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, F1: {:.4f}'
                   ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
                             test_metrics['f1']))
+
+            print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
+            model = torch.load(best_model_name_outer_fold_loss)
+            test_metrics = evaluate_classifier(test_out_loader,
+                                               save_path_preds=best_model_name_outer_fold_loss.replace('logs/', '').replace('.pth', '.npy'))
+            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, F1: {:.4f}'
+                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                            test_metrics['f1']))
+
+
         # else:
         #    test_loss, test_r2, test_pear = evaluate_regressor(test_out_loader)
 

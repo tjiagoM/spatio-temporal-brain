@@ -1,21 +1,25 @@
 from enum import Enum, unique
 
+
 @unique
 class Normalisation(str, Enum):
     NONE = 'no_norm'
     ROI = 'roi_norm'
     SUBJECT = 'subject_norm'
 
+
 @unique
 class ConnType(str, Enum):
     FMRI = 'fmri'
     STRUCT = 'struct'
+
 
 @unique
 class ConvStrategy(str, Enum):
     ENTIRE = 'entire'
     CNN_2 = '2_cnn'
     TCN_2 = '2_tcn'
+
 
 @unique
 class Pooling(str, Enum):
@@ -305,7 +309,8 @@ def create_name_for_hcp_dataset(num_nodes, target_var, threshold, connectivity_t
                                 disconnect_nodes=False,
                                 prefix_location='./pytorch_data/hcp_4split_'):
     name_combination = '_'.join(
-        [target_var, connectivity_type.value, str(num_nodes), str(threshold), normalisation.value, str(disconnect_nodes)])
+        [target_var, connectivity_type.value, str(num_nodes), str(threshold), normalisation.value,
+         str(disconnect_nodes)])
 
     return prefix_location + name_combination
 
@@ -313,7 +318,8 @@ def create_name_for_hcp_dataset(num_nodes, target_var, threshold, connectivity_t
 def create_name_for_model(target_var, model, params, outer_split_num, inner_split_num, n_epochs, threshold, batch_size,
                           remove_disconnect_nodes, num_nodes, conn_type, normalisation,
                           metric_evaluated,
-                          prefix_location='logs/'):
+                          prefix_location='logs/',
+                          suffix='.pth'):
     return prefix_location + '_'.join([target_var,
                                        str(outer_split_num),
                                        str(inner_split_num),
@@ -328,4 +334,4 @@ def create_name_for_model(target_var, model, params, outer_split_num, inner_spli
                                        str(remove_disconnect_nodes),
                                        str(num_nodes),
                                        conn_type.value
-                                       ]) + '.pth'
+                                       ]) + suffix
