@@ -1,16 +1,23 @@
 from sys import exit
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import BatchNorm1d
 from torch_geometric.nn import global_mean_pool, GCNConv
 
 from utils import ConvStrategy
 
+from torch.nn.utils import weight_norm
 from tcn import TemporalConvNet
 
+# function to extract grad
+def set_grad(var):
+    def hook(grad):
+        var.grad = grad
+    return hook
 
-class SpatioTemporalModel(torch.nn.Module):
+class SpatioTemporalModel(nn.Module):
     def __init__(self, num_time_length, dropout_perc, pooling, channels_conv, activation, conv_strategy,
                  add_gat=False, add_gcn=False, final_sigmoid=True):
         super(SpatioTemporalModel, self).__init__()
@@ -21,8 +28,8 @@ class SpatioTemporalModel(torch.nn.Module):
         if conv_strategy not in [ConvStrategy.CNN_2, ConvStrategy.TCN_2, ConvStrategy.ENTIRE]:
             print("THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/2_conv/2_tcn")
             exit(-1)
-        if activation not in ['relu', 'tanh']:
-            print("THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh")
+        if activation not in ['relu', 'tanh', 'elu']:
+            print("THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh/elu")
             exit(-1)
         if add_gat and add_gcn:
             print("You cannot have both GCN and GAT")
@@ -31,7 +38,10 @@ class SpatioTemporalModel(torch.nn.Module):
         self.TEMPORAL_EMBED_SIZE = 256
         self.dropout = dropout_perc
         self.pooling = pooling
-        self.activation = torch.nn.ReLU() if activation == 'relu' else torch.nn.Tanh()
+        dict_activations = {'relu': nn.ReLU(),
+                            'elu': nn.ELU(),
+                            'tanh': nn.Tanh()}
+        self.activation = dict_activations[activation]
         self.activation_str = activation
 
         self.conv_strategy = conv_strategy
@@ -43,52 +53,63 @@ class SpatioTemporalModel(torch.nn.Module):
         self.add_gat = add_gat  # TODO
 
         self.num_time_length = num_time_length
-        self.final_feature_size = round(self.num_time_length / 2 / 16)
+        self.final_feature_size = round(self.num_time_length / 2 / 8)
+        #self.final_feature_size = 7
 
         self.gcn_conv1 = GCNConv(self.final_feature_size * self.final_channels,
                                  self.final_feature_size * self.final_channels)
 
         # CNNs for temporal domain
-        self.conv1d_1 = torch.nn.Conv1d(1, self.channels_conv, 7, padding=3, stride=2)
-        self.conv1d_2 = torch.nn.Conv1d(self.channels_conv, self.channels_conv, 7, padding=3, stride=2)
-        self.conv1d_3 = torch.nn.Conv1d(self.channels_conv, self.channels_conv, 7, padding=3, stride=2)
-        self.conv1d_4 = torch.nn.Conv1d(self.channels_conv, self.channels_conv, 7, padding=3, stride=2)
+        self.conv1d_1 = nn.Conv1d(1, self.channels_conv, 7, padding=3, stride=2)
+        self.conv1d_2 = nn.Conv1d(self.channels_conv, self.channels_conv * 2, 7, padding=3, stride=2)
+        self.conv1d_3 = nn.Conv1d(self.channels_conv * 2, self.channels_conv * 4, 7, padding=3, stride=2)
+        self.conv1d_4 = nn.Conv1d(self.channels_conv * 4, self.channels_conv * 8, 7, padding=3, stride=2)
         self.batch1 = BatchNorm1d(self.channels_conv)
-        self.batch2 = BatchNorm1d(self.channels_conv)
-        self.batch3 = BatchNorm1d(self.channels_conv)
-        self.batch4 = BatchNorm1d(self.channels_conv)
+        self.batch2 = BatchNorm1d(self.channels_conv * 2)
+        self.batch3 = BatchNorm1d(self.channels_conv * 4)
+        self.batch4 = BatchNorm1d(self.channels_conv * 8)
 
-        if self.conv_strategy == ConvStrategy.ENTIRE:
-            self.conv1d_4 = torch.nn.Conv1d(self.channels_conv, self.final_channels, 7, padding=3, stride=2)
-            self.batch4 = BatchNorm1d(self.final_channels)
-        self.conv1d_5 = torch.nn.Conv1d(self.final_channels, self.final_channels, 7, padding=3, stride=2)
-        self.batch5 = BatchNorm1d(self.final_channels)
+        #if self.conv_strategy == ConvStrategy.ENTIRE:
+        #    self.conv1d_4 = torch.nn.Conv1d(self.channels_conv, self.final_channels, 7, padding=3, stride=2)
+        #    self.batch4 = BatchNorm1d(self.final_channels)
+        #self.conv1d_5 = torch.nn.Conv1d(self.channels_conv * 8, self.channels_conv * 16, 7, padding=3, stride=2)
+        #self.batch5 = BatchNorm1d(self.channels_conv * 16)
 
-        self.lin_temporal = torch.nn.Linear(self.final_feature_size * self.final_channels, self.TEMPORAL_EMBED_SIZE)
+        self.lin_temporal = nn.Linear(self.channels_conv * 8 * self.final_feature_size, self.TEMPORAL_EMBED_SIZE)
 
         # TCNs for temporal domain
-        self.tcn = TemporalConvNet(1, [self.channels_conv, self.channels_conv], kernel_size=7, stride=2,
-                                   dropout=self.dropout,
-                                   num_time_length=num_time_length / 2)
+        #self.tcn = TemporalConvNet(1, [self.channels_conv, self.channels_conv], kernel_size=7, stride=2,
+        #                           dropout=self.dropout,
+        #                           num_time_length=num_time_length / 2)
 
         if conv_strategy == ConvStrategy.TCN_2:
             self.temporal_conv = self.tcn
         elif conv_strategy == ConvStrategy.CNN_2:
-            self.temporal_conv = torch.nn.Sequential(self.conv1d_1, self.batch1, self.activation,
+            self.temporal_conv = nn.Sequential(self.conv1d_1, self.batch1, self.activation,
                                                      self.conv1d_2, self.batch2, self.activation,
                                                      self.conv1d_3, self.batch3, self.activation,
                                                      self.conv1d_4, self.batch4, self.activation)
         elif conv_strategy == ConvStrategy.ENTIRE:
-            self.temporal_conv = torch.nn.Sequential(self.conv1d_1, self.batch1, self.activation,
-                                                     self.conv1d_2, self.batch2, self.activation,
-                                                     self.conv1d_3, self.batch3, self.activation,
-                                                     self.conv1d_4, self.batch4, self.activation,
-                                                     self.conv1d_5, self.batch5, self.activation)
+            self.temporal_conv = nn.Sequential(self.conv1d_1, self.activation, self.batch1,
+                                                     self.conv1d_2, self.activation, self.batch2,
+                                                     self.conv1d_3, self.activation, self.batch3,
+                                                     self.conv1d_4, self.activation, self.batch4)
 
-        self.final_linear = torch.nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
+        self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
+        #self.final_linear.register_hook(set_grad(self.final_linear))
+
+        self.init_weights()
+
+    def init_weights(self):
+        self.conv1d_1.weight.data.normal_(0, 0.01)
+        self.conv1d_2.weight.data.normal_(0, 0.01)
+        self.conv1d_3.weight.data.normal_(0, 0.01)
+        self.conv1d_4.weight.data.normal_(0, 0.01)
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
+        #x = x[:,:100]
+        #print("OO", x.shape)
 
         # Temporal Convolutions
         if self.conv_strategy != ConvStrategy.ENTIRE:
@@ -103,11 +124,15 @@ class SpatioTemporalModel(torch.nn.Module):
 
         elif self.conv_strategy == ConvStrategy.ENTIRE:
             x = x.view(-1, 1, self.num_time_length)
+            #x = x.view(-1, 1, 100)
             x = self.temporal_conv(x)
+            #print("1", x.shape)
 
         # Concatenating for the final embedding per node
-        x = x.view(-1, self.final_feature_size * self.final_channels)
+        x = x.view(-1, self.channels_conv * 8 * self.final_feature_size)
+        #print("1", x.shape)
         x = self.lin_temporal(x)
+        #print("1", x.shape)
         x = self.activation(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
 

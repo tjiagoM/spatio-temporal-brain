@@ -307,7 +307,7 @@ def get_timeseries_final_path(person, session_day, direction=False):
 
 def create_name_for_hcp_dataset(num_nodes, target_var, threshold, connectivity_type, normalisation,
                                 disconnect_nodes=False,
-                                prefix_location='./pytorch_data/hcp_4split_'):
+                                prefix_location='./pytorch_data/balanced_hcp_4split_'):
     name_combination = '_'.join(
         [target_var, connectivity_type.value, str(num_nodes), str(threshold), normalisation.value,
          str(disconnect_nodes)])

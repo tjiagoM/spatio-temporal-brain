@@ -6,7 +6,7 @@ from utils import create_name_for_hcp_dataset, Normalisation, ConnType
 if __name__ == '__main__':
     combinations = {'num_nodes': [272],
                     'target_var': ['gender'],
-                    'threshold': [5, 10, 20],
+                    'threshold': [5],#, 10, 20],
                     'connectivity_type': ['struct'],
                     'normalisation': ['roi_norm', 'subject_norm']}
     grid = ParameterGrid(combinations)

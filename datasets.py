@@ -5,6 +5,8 @@ import torch
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
+from numpy.random import default_rng
+
 from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType, get_timeseries_final_path
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
@@ -40,6 +42,9 @@ class HCPDataset(InMemoryDataset):
         if normalisation not in [Normalisation.NONE, Normalisation.ROI, Normalisation.SUBJECT]:
             print("NOT A VALID normalisation!")
             exit(-2)
+
+        self.NUM_POS_CLASS = 1776
+        self.NUM_NEG_CLASS = 2120
 
         # TODO: check whether this matches the name inside root
         self.target_var = target_var
@@ -94,19 +99,21 @@ class HCPDataset(InMemoryDataset):
                 arr_struct[np.diag_indices(self.num_nodes)] = 1.0
 
                 G = nx.from_numpy_array(arr_struct, create_using=nx.DiGraph)
-
             if self.disconnect_nodes:
                 print("Warning: Not yet developed in HCPDataset")
                 pass
 
             for session_day in [1, 2]:
-
+                G = nx.random_regular_graph(2, 272)
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
                 try:
                     path_lr, path_rl = get_timeseries_final_path(person, session_day, direction=True)
                     timeseries_lr = np.load(path_lr).T
                     timeseries_rl = np.load(path_rl).T
+                    #timeseries_lr = np.random.normal(0, 0.1, (100, 20))
+                    #timeseries_rl = np.random.normal(0, 0.1, (100, 20))
+
                 except FileNotFoundError:
                     print('W: No', person, session_day)
                     continue
@@ -123,6 +130,7 @@ class HCPDataset(InMemoryDataset):
                         timeseries = timeseries.T
 
                     x = torch.tensor(timeseries, dtype=torch.float)  # torch.ones(50).unsqueeze(1)
+                    #x = x[[16, 165, 80, 46, 56, 133, 237, 171, 230, 8, 36, 191, 199, 13, 3, 17, 149, 59, 53, 115],:]
 
                     if self.target_var == 'gender':
                         y = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
@@ -137,6 +145,15 @@ class HCPDataset(InMemoryDataset):
                     data.session = torch.tensor([session_day])
                     data.direction = torch.tensor([direction])
                     data_list.append(data)
+
+        # Randomly undersampling
+        rng = default_rng(seed=0)
+        numbers_sample = rng.choice(self.NUM_NEG_CLASS, size=self.NUM_POS_CLASS, replace=False)
+
+        y_0 = list(filter(lambda x: x.y == 0, data_list))
+        data_list = list(filter(lambda x: x.y == 1, data_list))
+        y_0 = [elem for id, elem in enumerate(y_0) if id in numbers_sample]
+        data_list.extend(y_0)
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])

@@ -24,15 +24,26 @@ def train_classifier(model, train_loader):
     loss_all = 0
     criterion = torch.nn.BCELoss()
 
+    grads = {'final_l': [],
+             'conv1d_1': [],
+             'conv1d_2': [],
+             'conv1d_3': [],
+             'conv1d_4': [],
+             }
     for data in train_loader:
         data = data.to(device)
         optimizer.zero_grad()
         output_batch = model(data)
         loss = criterion(output_batch, data.y.unsqueeze(1))
+
         loss.backward()
+
+        grads['final_l'].extend(model.final_linear.weight.grad.flatten().cpu().tolist())
+        grads['conv1d_1'].extend(model.final_linear.weight.grad.flatten().cpu().tolist())
+
         loss_all += loss.item() * data.num_graphs
         optimizer.step()
-
+    print("GRAD", np.mean(grads['final_l']), np.std(grads['final_l']))
     # len(train_loader) gives the number of batches
     # len(train_loader.dataset) gives the number of graphs
 
@@ -164,6 +175,12 @@ def merge_y_and_session(ys, sessions):
 
 if __name__ == '__main__':
 
+    import warnings
+    warnings.filterwarnings("ignore")
+    torch.manual_seed(1)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--device", default="cuda")
@@ -173,7 +190,7 @@ if __name__ == '__main__':
     parser.add_argument("--activation")
     parser.add_argument("--threshold", type=int)
     parser.add_argument("--num_nodes", type=int)
-    parser.add_argument("--num_epochs", default=75, type=int)
+    parser.add_argument("--num_epochs", default=20, type=int)
     parser.add_argument("--batch_size", default=150, type=int)
     parser.add_argument("--add_gcn", type=bool, default=False)  # to make true just include flag with 1
     parser.add_argument("--add_gat", type=bool, default=False)  # to make true just include flag with 1
@@ -241,9 +258,9 @@ if __name__ == '__main__':
 
     if TARGET_VAR == 'gender':
         # Stratification will occur with regards to both the sex and session day
-        skf = StratifiedKFold(n_splits=N_OUT_SPLITS, shuffle=True, random_state=0)
+        skf = StratifiedKFold(n_splits=N_OUT_SPLITS, shuffle=False, random_state=1111)
         merged_labels = merge_y_and_session(dataset.data.y, dataset.data.session)
-        skf_generator = skf.split(np.zeros((len(dataset), 1)), merged_labels)
+        skf_generator = skf.split(np.zeros((len(dataset), 1)), dataset.data.y)
     elif TARGET_VAR == 'intelligence':
         scores = pd.read_csv('confounds.csv').set_index('Subject')
         scores = scores[['g_efa', 'Handedness', 'Age_in_Yrs', 'FS_BrainSeg_Vol', 'Gender', 'fMRI_3T_ReconVrs']]
@@ -266,6 +283,9 @@ if __name__ == '__main__':
 
         X_train_out = dataset[torch.tensor(train_index)]
         X_test_out = dataset[torch.tensor(test_index)]
+
+        print("Size is:", len(X_train_out), "/", len(X_test_out))
+        print("Positive classes:", sum(X_train_out.data.y.numpy()), "/", sum(X_test_out.data.y.numpy()))
 
         # If predicting intelligence, ncessary to update labels with residuals
         # TODO: Make residual corrections inside inner-loop
@@ -293,10 +313,14 @@ if __name__ == '__main__':
         #
         # Main inner-loop (for now, not really an inner loop - just one train/val inside
         #
-        param_grid = {'weight_decay': [0.05, 0.5, 0],
-                      'lr': [0.005, 0.05, 0.5],
+        param_grid = {'weight_decay': [0.005, 0.5, 0],
+                      'lr': [1e-4, 1e-5, 1e-6],
                       'dropout': [0, 0.5, 0.7]
                       }
+        #param_grid = {'weight_decay': [0],
+        #              'lr': [0.05],
+        #              'dropout': [0]
+        #              }
         grid = ParameterGrid(param_grid)
         # best_metric = -100
         # best_params = None
@@ -308,9 +332,9 @@ if __name__ == '__main__':
             print("For ", params)
 
             if TARGET_VAR == 'gender':
-                skf_inner = StratifiedKFold(n_splits=N_INNER_SPLITS, shuffle=True, random_state=0)
+                skf_inner = StratifiedKFold(n_splits=N_INNER_SPLITS, shuffle=False, random_state=1111)
                 merged_labels_inner = merge_y_and_session(X_train_out.data.y, X_train_out.data.session)
-                skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)), merged_labels_inner)
+                skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)), X_train_out.data.y)
                 model_with_sigmoid = True
                 metrics = ['acc', 'f1', 'auc', 'loss']
             else:
@@ -399,7 +423,6 @@ if __name__ == '__main__':
                 #    torch.save(model, "logs/best_model_" + TARGET_VAR + "_" + str(ADD_GCN) + "_" + str(
                 #        outer_split_num) + ".pth")
                 break  # Just one inner "loop"
-
         if TARGET_VAR == 'gender':
             # After all parameters are searched, get best and train on that, evaluating on test set
             print("Best params if AUC: ", best_model_name_outer_fold_auc, "(", best_outer_metric_auc, ")")
