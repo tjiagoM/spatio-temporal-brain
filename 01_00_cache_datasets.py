@@ -8,7 +8,7 @@ if __name__ == '__main__':
                     'target_var': ['gender'],
                     'threshold': [5],#, 10, 20],
                     'connectivity_type': ['struct'],
-                    'normalisation': ['roi_norm', 'subject_norm']}
+                    'normalisation': ['no_norm', 'roi_norm', 'subject_norm']}
     grid = ParameterGrid(combinations)
 
     for p in grid:
