@@ -1,11 +1,12 @@
 import torch
 from torch_geometric.data import DataLoader
+import numpy as np
 
 from datasets import HCPDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy
 
-device = 'cuda:1'
+device = 'cuda:0'
 
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
@@ -72,3 +73,102 @@ for data in train_loader:
 
     # len(train_loader) gives the number of batches
     # len(train_loader.dataset) gives the number of graphs
+
+
+#unique_people = []
+#unique_y = []
+#for person_id, outcome in zip(dataset.data.hcp_id.tolist(), dataset.data.y.tolist()):
+#    if person_id not in unique_people:
+#        unique_people.append(person_id)
+#        unique_y.append(outcome)
+from sklearn.preprocessing import LabelEncoder
+
+def merge_y_and_session(ys, sessions, directions):
+    tmp = torch.cat([ys.long().view(-1, 1),
+                     sessions.view(-1, 1),
+                     directions.view(-1,1)], dim=1)
+    return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
+
+y_final = merge_y_and_session(dataset.data.y,
+                              dataset.data.session,
+                              dataset.data.direction)
+
+from sklearn.model_selection import GroupKFold
+skf = GroupKFold(n_splits=10)
+skf_generator = skf.split(np.zeros((len(dataset), 1)),
+                          y=y_final,
+                          groups=dataset.data.hcp_id.tolist())
+
+split_num = 0
+for train_index, test_index in skf_generator:
+
+    train_data = dataset[torch.tensor(train_index)]
+    test_data = dataset[torch.tensor(test_index)]
+
+    len_train_y1 = len(train_data.data.y[train_data.data.y == 1])
+    len_train_y0 = len(train_data.data.y[train_data.data.y == 0])
+
+    len_test_y1 = len(test_data.data.y[test_data.data.y == 1])
+    len_test_y0 = len(test_data.data.y[test_data.data.y == 0])
+
+    uniq_train_people = train_data.data.hcp_id.tolist()
+    uniq_test_people = test_data.data.hcp_id.tolist()
+    num_intersection = len(set(uniq_test_people).intersection(set(uniq_train_people)))
+
+    len_train_lr = len(train_data.data.direction[train_data.data.direction == 1])
+    len_train_rl = len(train_data.data.direction[train_data.data.direction == 0])
+
+    len_test_lr = len(test_data.data.direction[test_data.data.direction == 1])
+    len_test_rl = len(test_data.data.direction[test_data.data.direction == 0])
+
+    print("For\t", split_num, "\t", len(train_data), "\t", len(test_data),
+          "\t", len_train_y1, "/", len_train_y0,
+          "\t", len_test_y1, "/", len_test_y0,
+          "\t", num_intersection,
+          "\t", len_train_lr, "/", len_train_lr,
+          "\t", len_test_rl, "/", len_test_rl)
+
+    split_num += 1
+
+print()
+############################################################################
+############################################################################
+############################################################################
+import numpy as np
+from utils import StratifiedGroupKFold
+
+split_num = 0
+skf = StratifiedGroupKFold(n_splits=10, random_state=1112)
+skf_generator = skf.split(np.zeros((len(dataset), 1)),
+                          y_final,
+                          groups=dataset.data.hcp_id.tolist())
+for train_index, test_index in skf_generator:
+
+    train_data = dataset[torch.tensor(train_index)]
+    test_data = dataset[torch.tensor(test_index)]
+
+    len_train_y1 = len(train_data.data.y[train_data.data.y == 1])
+    len_train_y0 = len(train_data.data.y[train_data.data.y == 0])
+
+    len_test_y1 = len(test_data.data.y[test_data.data.y == 1])
+    len_test_y0 = len(test_data.data.y[test_data.data.y == 0])
+
+    uniq_train_people = train_data.data.hcp_id.tolist()
+    uniq_test_people = test_data.data.hcp_id.tolist()
+    num_intersection = len(set(uniq_test_people).intersection(set(uniq_train_people)))
+
+    len_train_lr = len(train_data.data.direction[train_data.data.direction == 1])
+    len_train_rl = len(train_data.data.direction[train_data.data.direction == 0])
+
+    len_test_lr = len(test_data.data.direction[test_data.data.direction == 1])
+    len_test_rl = len(test_data.data.direction[test_data.data.direction == 0])
+
+    print("For\t", split_num, "\t", len(train_data), "\t", len(test_data),
+          "\t", len_train_y1, "/", len_train_y0,
+          "\t", len_test_y1, "/", len_test_y0,
+          "\t", num_intersection,
+          "\t", len_train_lr, "/", len_train_lr,
+          "\t", len_test_rl, "/", len_test_rl)
+
+    split_num += 1
+

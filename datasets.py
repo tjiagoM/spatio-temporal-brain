@@ -104,7 +104,6 @@ class HCPDataset(InMemoryDataset):
                 pass
 
             for session_day in [1, 2]:
-                G = nx.random_regular_graph(2, 272)
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
                 try:

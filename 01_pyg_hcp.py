@@ -10,13 +10,14 @@ import torch.nn.functional as F
 from scipy.stats import stats
 from sklearn.metrics import r2_score, roc_auc_score, accuracy_score, f1_score
 from sklearn.model_selection import KFold
-from sklearn.model_selection import StratifiedKFold, ParameterGrid
+from sklearn.model_selection import ParameterGrid
 from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader
 
 from datasets import HCPDataset
 from model import SpatioTemporalModel
-from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy
+from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
+    StratifiedGroupKFold
 
 
 def train_classifier(model, train_loader):
@@ -151,8 +152,8 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     print(
         '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} / '
         '{:.4f} '.format(outer_split_no, inner_split_no, epoch, loss, val_metrics['loss'], train_metrics['auc'],
-                        val_metrics['auc'],
-                        train_metrics['acc'], val_metrics['acc'], train_metrics['f1'], val_metrics['f1']))
+                         val_metrics['auc'],
+                         train_metrics['acc'], val_metrics['acc'], train_metrics['f1'], val_metrics['f1']))
 
     return val_metrics
 
@@ -168,14 +169,17 @@ def regression_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     return val_r2
 
 
-def merge_y_and_session(ys, sessions):
-    tmp = torch.cat([ys.long().view(-1, 1), sessions.view(-1, 1)], dim=1)
+def merge_y_and_others(ys, sessions, directions):
+    tmp = torch.cat([ys.long().view(-1, 1),
+                     sessions.view(-1, 1),
+                     directions.view(-1, 1)], dim=1)
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
 
 if __name__ == '__main__':
 
     import warnings
+
     warnings.filterwarnings("ignore")
     torch.manual_seed(1)
     torch.backends.cudnn.deterministic = True
@@ -258,9 +262,13 @@ if __name__ == '__main__':
 
     if TARGET_VAR == 'gender':
         # Stratification will occur with regards to both the sex and session day
-        skf = StratifiedKFold(n_splits=N_OUT_SPLITS, shuffle=False, random_state=1111)
-        merged_labels = merge_y_and_session(dataset.data.y, dataset.data.session)
-        skf_generator = skf.split(np.zeros((len(dataset), 1)), dataset.data.y)
+        skf = StratifiedGroupKFold(n_splits=N_OUT_SPLITS, random_state=1111)
+        merged_labels = merge_y_and_others(dataset.data.y,
+                                           dataset.data.session,
+                                           dataset.data.direction)
+        skf_generator = skf.split(np.zeros((len(dataset), 1)),
+                                  merged_labels,
+                                  groups=dataset.data.hcp_id.tolist())
     elif TARGET_VAR == 'intelligence':
         scores = pd.read_csv('confounds.csv').set_index('Subject')
         scores = scores[['g_efa', 'Handedness', 'Age_in_Yrs', 'FS_BrainSeg_Vol', 'Gender', 'fMRI_3T_ReconVrs']]
@@ -317,7 +325,7 @@ if __name__ == '__main__':
                       'lr': [1e-4, 1e-5, 1e-6],
                       'dropout': [0, 0.5, 0.7]
                       }
-        #param_grid = {'weight_decay': [0],
+        # param_grid = {'weight_decay': [0],
         #              'lr': [0.05],
         #              'dropout': [0]
         #              }
@@ -332,9 +340,13 @@ if __name__ == '__main__':
             print("For ", params)
 
             if TARGET_VAR == 'gender':
-                skf_inner = StratifiedKFold(n_splits=N_INNER_SPLITS, shuffle=False, random_state=1111)
-                merged_labels_inner = merge_y_and_session(X_train_out.data.y, X_train_out.data.session)
-                skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)), X_train_out.data.y)
+                skf_inner = StratifiedGroupKFold(n_splits=N_INNER_SPLITS, random_state=1111)
+                merged_labels_inner = merge_y_and_others(X_train_out.data.y,
+                                                         X_train_out.data.session,
+                                                         X_train_out.data.direction)
+                skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)),
+                                                      merged_labels_inner,
+                                                      groups=X_train_out.data.hcp_id.tolist())
                 model_with_sigmoid = True
                 metrics = ['acc', 'f1', 'auc', 'loss']
             else:
@@ -428,7 +440,9 @@ if __name__ == '__main__':
             print("Best params if AUC: ", best_model_name_outer_fold_auc, "(", best_outer_metric_auc, ")")
             model = torch.load(best_model_name_outer_fold_auc)
             test_metrics = evaluate_classifier(test_out_loader,
-                                               save_path_preds=best_model_name_outer_fold_auc.replace('logs/', '').replace('.pth', '.npy'))
+                                               save_path_preds=best_model_name_outer_fold_auc.replace('logs/',
+                                                                                                      '').replace(
+                                                   '.pth', '.npy'))
             print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, F1: {:.4f}'
                   ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
                             test_metrics['f1']))
@@ -436,11 +450,12 @@ if __name__ == '__main__':
             print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
             model = torch.load(best_model_name_outer_fold_loss)
             test_metrics = evaluate_classifier(test_out_loader,
-                                               save_path_preds=best_model_name_outer_fold_loss.replace('logs/', '').replace('.pth', '.npy'))
+                                               save_path_preds=best_model_name_outer_fold_loss.replace('logs/',
+                                                                                                       '').replace(
+                                                   '.pth', '.npy'))
             print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, F1: {:.4f}'
                   ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
                             test_metrics['f1']))
-
 
         # else:
         #    test_loss, test_r2, test_pear = evaluate_regressor(test_out_loader)
