@@ -17,7 +17,7 @@ from torch_geometric.data import DataLoader
 from datasets import HCPDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
-    StratifiedGroupKFold
+    StratifiedGroupKFold, PoolingStrategy
 
 
 def train_classifier(model, train_loader):
@@ -34,8 +34,12 @@ def train_classifier(model, train_loader):
     for data in train_loader:
         data = data.to(device)
         optimizer.zero_grad()
-        output_batch = model(data)
-        loss = criterion(output_batch, data.y.unsqueeze(1))
+        if POOLING == PoolingStrategy.DIFFPOOL:
+            output_batch, link_loss, ent_loss = model(data)
+            loss = criterion(output_batch, data.y.unsqueeze(1)) + link_loss + ent_loss
+        else:
+            output_batch = model(data)
+            loss = criterion(output_batch, data.y.unsqueeze(1))
 
         loss.backward()
 
@@ -63,9 +67,14 @@ def evaluate_classifier(loader, save_path_preds=None):
     for data in loader:
         with torch.no_grad():
             data = data.to(device)
+            if POOLING == PoolingStrategy.DIFFPOOL:
+                output_batch, link_loss, ent_loss = model(data)
+                output_batch = output_batch.flatten()
+                loss = criterion(output_batch, data.y) + link_loss + ent_loss
+            else:
+                output_batch = model(data)
+                loss = criterion(output_batch, data.y)
 
-            output_batch = model(data).flatten()
-            loss = criterion(output_batch, data.y)
             test_error += loss.item() * data.num_graphs
 
             pred = output_batch.detach().cpu().numpy()
@@ -225,7 +234,7 @@ if __name__ == '__main__':
     NUM_NODES = args.num_nodes
     CONN_TYPE = ConnType(args.conn_type)
     CONV_STRATEGY = ConvStrategy(args.conv_strategy)
-    POOLING = args.pooling
+    POOLING = PoolingStrategy(args.pooling)
     CHANNELS_CONV = args.channels_conv
     NORMALISATION = Normalisation(args.normalisation)
 

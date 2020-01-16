@@ -26,9 +26,9 @@ class ConvStrategy(str, Enum):
 
 
 @unique
-class Pooling(str, Enum):
+class PoolingStrategy(str, Enum):
     MEAN = 'mean'
-    CONCAT = 'concat'
+    DIFFPOOL = 'diff_pool'
 
 
 NEW_STRUCT_PEOPLE = [100206, 100307, 100408, 100610, 101107, 101309, 101410, 101915, 102008, 102311, 102513, 102614,
