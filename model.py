@@ -75,17 +75,17 @@ class DiffPoolLayer(torch.nn.Module):
         super(DiffPoolLayer, self).__init__()
         self.init_feats = num_init_feats
         self.max_nodes = max_num_nodes
-        self.INTERN_EMBED_SIZE = ceil(self.init_feats / 3)
+        self.INTERN_EMBED_SIZE = self.init_feats#ceil(self.init_feats / 3)
 
         num_nodes = ceil(0.25 * self.max_nodes)
         self.gnn1_pool = GNN(self.init_feats, self.INTERN_EMBED_SIZE, num_nodes, add_loop=True)
-        self.gnn1_embed = GNN(self.init_feats, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, add_loop=True, lin=True)
+        self.gnn1_embed = GNN(self.init_feats, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, add_loop=True, lin=False)
 
         num_nodes = ceil(0.25 * num_nodes)
-        self.gnn2_pool = GNN(self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, num_nodes)
-        self.gnn2_embed = GNN(self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=True)
+        self.gnn2_pool = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, num_nodes)
+        self.gnn2_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False)
 
-        self.gnn3_embed = GNN(self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=True)
+        self.gnn3_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False)
 
         #self.lin1 = torch.nn.Linear(3 * 64, 64)
         #self.lin2 = torch.nn.Linear(self.INTERN_EMBED_SIZE, 1)
@@ -195,7 +195,8 @@ class SpatioTemporalModel(nn.Module):
                                                      self.conv1d_4, self.activation, self.batch4)
 
         if self.pooling == PoolingStrategy.DIFFPOOL:
-            self.final_linear = nn.Linear(ceil(self.TEMPORAL_EMBED_SIZE / 3), 1)
+            self.pre_final_linear = nn.Linear(3 * self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
+            self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
         else:
             self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
         #self.final_linear.register_hook(set_grad(self.final_linear))
@@ -262,8 +263,12 @@ class SpatioTemporalModel(nn.Module):
             x = global_mean_pool(x, data.batch)
         elif self.pooling == PoolingStrategy.DIFFPOOL:
             x, link_loss, ent_loss = self.diff_pool(x_tmp, adj_tmp, batch_mask)
-        #print("after_pool", x.shape)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = F.relu(self.pre_final_linear(x))
 
+        #print("after_pool", x.shape)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.final_linear(x)
         # elif self.pooling == 'mixed':
         #    x1 = global_max_pool(x, data.batch)
         #    x2 = global_add_pool(x, data.batch) <- maybe not this one?
@@ -275,9 +280,9 @@ class SpatioTemporalModel(nn.Module):
         # Resulting shape of to_dense_batch is batch x num_nodes x num_features (at least for my regular graphs
 
         # x = F.dropout(x, p=dropout_perc, training=self.training)
-        x = F.dropout(x, p=self.dropout, training=self.training)
+        #x = F.dropout(x, p=self.dropout, training=self.training)
         # x = self.conv1d(x.unsqueeze(2)).squeeze(2)
-        x = self.final_linear(x)
+        #x = self.final_linear(x)
         # x = F.relu(x)
         # x = self.lin2(x)
         # TODO: try dense_diff_pool and DynamicEdgeConv
