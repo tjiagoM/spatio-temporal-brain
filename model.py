@@ -90,21 +90,33 @@ class DiffPoolLayer(torch.nn.Module):
         #self.lin1 = torch.nn.Linear(3 * 64, 64)
         #self.lin2 = torch.nn.Linear(self.INTERN_EMBED_SIZE, 1)
 
+        # To be stored when model is saved.
+        self.mask1 = None
+        self.s1 = None
+        self.adj1 = None
+        self.s2 = None
+        self.adj2 = None
+
     def forward(self, x, adj, mask=None):
         s = self.gnn1_pool(x, adj, mask)
-
         x = self.gnn1_embed(x, adj, mask)
 
-
         x, adj, l1, e1 = dense_diff_pool(x, adj, s, mask)
+        if self.training:
+            self.s1 = s.detach().cpu().numpy()
+            self.adj1 = adj.detach().cpu().numpy()
+            self.mask1 = mask.detach().cpu().numpy()
 
         s = self.gnn2_pool(x, adj)
         x = self.gnn2_embed(x, adj)
 
         x, adj, l2, e2 = dense_diff_pool(x, adj, s)
 
-        x = self.gnn3_embed(x, adj)
+        if self.training:
+            self.s2 = s.detach().cpu().numpy()
+            self.adj2 = adj.detach().cpu().numpy()
 
+        x = self.gnn3_embed(x, adj)
 
         x = x.mean(dim=1)
 
@@ -201,6 +213,7 @@ class SpatioTemporalModel(nn.Module):
             self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
         #self.final_linear.register_hook(set_grad(self.final_linear))
 
+        # TODO: meter estes e outros a serem definidos só se forem precisos
         self.diff_pool = DiffPoolLayer(272,
                                        self.TEMPORAL_EMBED_SIZE)
 
@@ -265,6 +278,7 @@ class SpatioTemporalModel(nn.Module):
             x, link_loss, ent_loss = self.diff_pool(x_tmp, adj_tmp, batch_mask)
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(self.pre_final_linear(x))
+
 
         #print("after_pool", x.shape)
         x = F.dropout(x, p=self.dropout, training=self.training)

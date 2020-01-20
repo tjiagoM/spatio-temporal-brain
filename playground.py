@@ -4,7 +4,7 @@ import numpy as np
 
 from datasets import HCPDataset
 from model import SpatioTemporalModel
-from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy
+from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy
 
 device = 'cuda:0'
 
@@ -20,7 +20,7 @@ REMOVE_NODES = False
 NUM_NODES = 272
 CONN_TYPE = ConnType('struct')
 CONV_STRATEGY = ConvStrategy('entire')
-POOLING = 'mean'
+POOLING = PoolingStrategy('diff_pool')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
 
