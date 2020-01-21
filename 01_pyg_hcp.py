@@ -26,10 +26,7 @@ def train_classifier(model, train_loader):
     criterion = torch.nn.BCELoss()
 
     grads = {'final_l': [],
-             'conv1d_1': [],
-             'conv1d_2': [],
-             'conv1d_3': [],
-             'conv1d_4': [],
+             'conv1d_1': []
              }
     for data in train_loader:
         data = data.to(device)
@@ -106,53 +103,6 @@ def evaluate_classifier(loader, save_path_preds=None):
             }
 
 
-def train_regressor(model, train_loader):
-    model.train()
-    loss_all = 0
-
-    for data in train_loader:
-        data = data.to(device)
-        optimizer.zero_grad()
-        output_batch = model(data)
-        loss = F.mse_loss(output_batch, data.y.unsqueeze(1))
-        loss.backward()
-        loss_all += loss.item() * data.num_graphs
-        optimizer.step()
-
-    # len(train_loader) gives the number of batches
-    # len(train_loader.dataset) gives the number of graphs
-
-    # Returning a weighted average according to number of graphs
-    return loss_all / len(train_loader.dataset)
-
-
-def evaluate_regressor(loader):
-    model.eval()
-
-    predictions = []
-    labels = []
-    test_error = 0
-
-    for data in loader:
-        with torch.no_grad():
-            data = data.to(device)
-
-            output_batch = model(data).flatten()
-            loss = F.mse_loss(output_batch, data.y)
-            test_error += loss.item() * data.num_graphs
-
-            pred = output_batch.detach().cpu().numpy()
-
-            label = data.y.detach().cpu().numpy()
-            predictions.append(pred)
-            labels.append(label)
-
-    predictions = np.hstack(predictions)
-    labels = np.hstack(labels)
-
-    return test_error / len(loader.dataset), r2_score(labels, predictions), stats.pearsonr(predictions, labels)[0]
-
-
 def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader):
     loss = train_classifier(model, train_loader)
     train_metrics = evaluate_classifier(train_loader)
@@ -165,17 +115,6 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
                          train_metrics['acc'], val_metrics['acc'], train_metrics['f1'], val_metrics['f1']))
 
     return val_metrics
-
-
-def regression_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader):
-    loss = train_regressor(model, train_loader)
-    _, train_r2, train_pear = evaluate_regressor(train_loader)
-    val_loss, val_r2, val_pear = evaluate_regressor(val_loader)
-
-    print('{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, R2: {:.4f} / {:.4f}, Pear: {:.4f} / {:.4f}'
-          ''.format(outer_split_no, inner_split_no, epoch, loss, val_loss, train_r2, val_r2, train_pear, val_pear))
-
-    return val_r2
 
 
 def merge_y_and_others(ys, sessions, directions):
@@ -241,7 +180,7 @@ if __name__ == '__main__':
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
 
-    if TARGET_VAR not in ['gender', 'intelligence']:
+    if TARGET_VAR not in ['gender']:
         print("Unrecognised target_var")
         exit(-1)
     else:
@@ -278,11 +217,6 @@ if __name__ == '__main__':
         skf_generator = skf.split(np.zeros((len(dataset), 1)),
                                   merged_labels,
                                   groups=dataset.data.hcp_id.tolist())
-    elif TARGET_VAR == 'intelligence':
-        scores = pd.read_csv('confounds.csv').set_index('Subject')
-        scores = scores[['g_efa', 'Handedness', 'Age_in_Yrs', 'FS_BrainSeg_Vol', 'Gender', 'fMRI_3T_ReconVrs']]
-        skf = KFold(n_splits=N_OUT_SPLITS, shuffle=True, random_state=0)
-        skf_generator = skf.split(np.zeros((len(dataset), 1)))
     else:
         print("Something wrong with target_var")
         exit(-1)
@@ -303,27 +237,6 @@ if __name__ == '__main__':
 
         print("Size is:", len(X_train_out), "/", len(X_test_out))
         print("Positive classes:", sum(X_train_out.data.y.numpy()), "/", sum(X_test_out.data.y.numpy()))
-
-        # If predicting intelligence, ncessary to update labels with residuals
-        # TODO: Make residual corrections inside inner-loop
-        if TARGET_VAR == 'intelligence':
-            ids = [elem.hcp_id.item() for elem in X_train_out]
-
-            scores_filt = scores.loc[ids, :]
-            regress_model = smf.ols(
-                formula='g_efa ~ Handedness + Age_in_Yrs + FS_BrainSeg_Vol + C(Gender) + C(fMRI_3T_ReconVrs)',
-                data=scores_filt).fit()
-
-            for elem in X_train_out:
-                elem.y[0] = regress_model.resid.loc[elem.hcp_id.item()]
-
-            ids = [elem.hcp_id.item() for elem in X_test_out]
-            scores_filt = scores.loc[ids, :]
-
-            scores_test_residuals = scores_filt['g_efa'] - regress_model.predict(scores_filt)
-
-            for elem in X_test_out:
-                elem.y[0] = scores_test_residuals.loc[elem.hcp_id.item()]
 
         train_out_loader = DataLoader(X_train_out, batch_size=BATCH_SIZE, shuffle=True)
         test_out_loader = DataLoader(X_test_out, batch_size=BATCH_SIZE, shuffle=True)
@@ -358,11 +271,6 @@ if __name__ == '__main__':
                                                       groups=X_train_out.data.hcp_id.tolist())
                 model_with_sigmoid = True
                 metrics = ['acc', 'f1', 'auc', 'loss']
-            else:
-                skf_inner = KFold(n_splits=N_INNER_SPLITS, shuffle=True, random_state=0)
-                skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)))
-                model_with_sigmoid = False
-                metrics = ['r2', 'pears', 'loss']
 
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
@@ -427,14 +335,6 @@ if __name__ == '__main__':
                             if val_metrics['auc'] > best_outer_metric_auc:
                                 best_outer_metric_auc = val_metrics['auc']
                                 best_model_name_outer_fold_auc = model_names['auc']
-
-                    elif TARGET_VAR == 'intelligence':
-                        val_metric = regression_step(outer_split_num,
-                                                     0,
-                                                     epoch,
-                                                     model,
-                                                     train_in_loader,
-                                                     val_loader)
 
                 # End of inner-fold, put best val_metric in the array
                 # if best_metric_fold > best_metric:

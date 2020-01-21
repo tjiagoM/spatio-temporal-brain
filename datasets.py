@@ -30,7 +30,7 @@ class HCPDataset(InMemoryDataset):
         :param transform:
         :param pre_transform:
         '''
-        if target_var not in ['gender', 'intelligence']:
+        if target_var not in ['gender']:
             print("NOT A VALID target_var!")
             exit(-2)
         if threshold < 0 or threshold > 100:
