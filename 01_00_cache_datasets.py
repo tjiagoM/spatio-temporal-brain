@@ -4,11 +4,16 @@ from datasets import HCPDataset
 from utils import create_name_for_hcp_dataset, Normalisation, ConnType
 
 if __name__ == '__main__':
-    combinations = {'num_nodes': [272],
+    combinations = [{'num_nodes': [272],
                     'target_var': ['gender'],
-                    'threshold': [5],#, 10, 20],
+                    'threshold': [5, 10, 20],
                     'connectivity_type': ['struct'],
-                    'normalisation': ['no_norm', 'roi_norm', 'subject_norm']}
+                    'normalisation': ['roi_norm']},
+                    {'num_nodes': [50],
+                     'target_var': ['gender'],
+                     'threshold': [5, 10, 20],
+                     'connectivity_type': ['fmri'],
+                     'normalisation': ['roi_norm']}]
     grid = ParameterGrid(combinations)
 
     for p in grid:
