@@ -70,6 +70,7 @@ def evaluate_classifier(loader, save_path_preds=None):
                 loss = criterion(output_batch, data.y) + link_loss + ent_loss
             else:
                 output_batch = model(data)
+                output_batch = output_batch.flatten()
                 loss = criterion(output_batch, data.y)
 
             test_error += loss.item() * data.num_graphs
@@ -205,7 +206,7 @@ if __name__ == '__main__':
                          connectivity_type=CONN_TYPE,
                          disconnect_nodes=REMOVE_NODES)
 
-    N_OUT_SPLITS = 10
+    N_OUT_SPLITS = 5
     N_INNER_SPLITS = 5
 
     if TARGET_VAR == 'gender':
@@ -282,7 +283,8 @@ if __name__ == '__main__':
                                             conv_strategy=CONV_STRATEGY,
                                             add_gat=ADD_GAT,
                                             add_gcn=ADD_GCN,
-                                            final_sigmoid=model_with_sigmoid
+                                            final_sigmoid=model_with_sigmoid,
+                                            num_nodes=NUM_NODES
                                             ).to(device)
 
                 # Creating the various names for each metric
@@ -299,6 +301,9 @@ if __name__ == '__main__':
 
                 X_train_in = X_train_out[torch.tensor(inner_train_index)]
                 X_val_in = X_train_out[torch.tensor(inner_val_index)]
+
+                print("Inner Size is:", len(X_train_in), "/", len(X_val_in))
+                print("Inner Positive classes:", sum(X_train_in.data.y.numpy()), "/", sum(X_val_in.data.y.numpy()))
 
                 ###########
                 ### DataLoaders

@@ -130,10 +130,10 @@ class DiffPoolLayer(torch.nn.Module):
 
 class SpatioTemporalModel(nn.Module):
     def __init__(self, num_time_length, dropout_perc, pooling, channels_conv, activation, conv_strategy,
-                 add_gat=False, add_gcn=False, final_sigmoid=True):
+                 add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
         super(SpatioTemporalModel, self).__init__()
 
-        if pooling not in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DIFFPOOL]:
+        if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL]:
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL")
             exit(-1)
         if conv_strategy not in [ConvStrategy.CNN_2, ConvStrategy.TCN_2, ConvStrategy.ENTIRE]:
@@ -214,7 +214,7 @@ class SpatioTemporalModel(nn.Module):
         #self.final_linear.register_hook(set_grad(self.final_linear))
 
         # TODO: meter estes e outros a serem definidos só se forem precisos
-        self.diff_pool = DiffPoolLayer(272,
+        self.diff_pool = DiffPoolLayer(num_nodes,
                                        self.TEMPORAL_EMBED_SIZE)
 
         self.init_weights()
@@ -278,7 +278,6 @@ class SpatioTemporalModel(nn.Module):
             x, link_loss, ent_loss = self.diff_pool(x_tmp, adj_tmp, batch_mask)
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(self.pre_final_linear(x))
-
 
         #print("after_pool", x.shape)
         x = F.dropout(x, p=self.dropout, training=self.training)

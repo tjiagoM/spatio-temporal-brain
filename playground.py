@@ -11,7 +11,7 @@ device = 'cuda:0'
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
-THRESHOLD = 5
+THRESHOLD = 20
 SPLIT_TO_TEST = 1
 ADD_GCN = False
 ADD_GAT = False
@@ -51,7 +51,8 @@ model = SpatioTemporalModel(num_time_length=1200,
                             conv_strategy=CONV_STRATEGY,
                             add_gat=ADD_GAT,
                             add_gcn=ADD_GCN,
-                            final_sigmoid=True
+                            final_sigmoid=True,
+                            num_nodes=NUM_NODES
                             ).to(device)
 
 train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
