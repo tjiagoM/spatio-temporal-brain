@@ -85,8 +85,8 @@ def evaluate_classifier(loader, save_path_preds=None):
     labels = np.hstack(labels)
 
     if save_path_preds is not None:
-        np.save('labels_' + save_path_preds, labels)
-        np.save('predictions_' + save_path_preds, predictions)
+        np.save('results/labels_' + save_path_preds, labels)
+        np.save('results/predictions_' + save_path_preds, predictions)
 
     pred_binary = np.where(predictions > 0.5, 1, 0)
 

@@ -90,31 +90,16 @@ class DiffPoolLayer(torch.nn.Module):
         #self.lin1 = torch.nn.Linear(3 * 64, 64)
         #self.lin2 = torch.nn.Linear(self.INTERN_EMBED_SIZE, 1)
 
-        # To be stored when model is saved.
-        self.mask1 = None
-        self.s1 = None
-        self.adj1 = None
-        self.s2 = None
-        self.adj2 = None
-
     def forward(self, x, adj, mask=None):
         s = self.gnn1_pool(x, adj, mask)
         x = self.gnn1_embed(x, adj, mask)
 
         x, adj, l1, e1 = dense_diff_pool(x, adj, s, mask)
-        if self.training:
-            self.s1 = s.detach().cpu().numpy()
-            self.adj1 = adj.detach().cpu().numpy()
-            self.mask1 = mask.detach().cpu().numpy()
 
         s = self.gnn2_pool(x, adj)
         x = self.gnn2_embed(x, adj)
 
         x, adj, l2, e2 = dense_diff_pool(x, adj, s)
-
-        if self.training:
-            self.s2 = s.detach().cpu().numpy()
-            self.adj2 = adj.detach().cpu().numpy()
 
         x = self.gnn3_embed(x, adj)
 
@@ -164,11 +149,11 @@ class SpatioTemporalModel(nn.Module):
         self.add_gat = add_gat  # TODO
 
         self.num_time_length = num_time_length
-        self.final_feature_size = round(self.num_time_length / 2 / 8)
+        self.final_feature_size = ceil(self.num_time_length / 2 / 8)
         #self.final_feature_size = 7
 
-        self.gcn_conv1 = GCNConv(self.final_feature_size * self.final_channels,
-                                 self.final_feature_size * self.final_channels)
+        self.gcn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
+                                 self.TEMPORAL_EMBED_SIZE)
 
         # CNNs for temporal domain
         self.conv1d_1 = nn.Conv1d(1, self.channels_conv, 7, padding=3, stride=2)
