@@ -1,6 +1,7 @@
 import argparse
 import os
 from sys import exit
+import time
 
 import numpy as np
 import pandas as pd
@@ -133,6 +134,7 @@ if __name__ == '__main__':
     torch.manual_seed(1)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+    np.random.seed(1111)
 
     parser = argparse.ArgumentParser()
 
@@ -157,6 +159,9 @@ if __name__ == '__main__':
     parser.add_argument("--normalisation")
 
     args = parser.parse_args()
+
+    # To check time execution
+    start_time = time.time()
 
     # Device part
     device = torch.device(args.device)
@@ -286,6 +291,8 @@ if __name__ == '__main__':
                                             final_sigmoid=model_with_sigmoid,
                                             num_nodes=NUM_NODES
                                             ).to(device)
+                trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+                print("Number of trainable params:", trainable_params)
 
                 # Creating the various names for each metric
                 model_names = {}
@@ -379,3 +386,6 @@ if __name__ == '__main__':
 
         # Conclusao para ja: definir apenas um validation set? .... (depois melhorar para nested-CV with fixed epochs
         # learned as average from the nested CV)
+
+    print("--- %s seconds to execute this script---" % (time.time() - start_time))
+

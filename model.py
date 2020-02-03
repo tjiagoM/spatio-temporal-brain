@@ -14,13 +14,6 @@ from utils import ConvStrategy, PoolingStrategy
 from torch.nn.utils import weight_norm
 from tcn import TemporalConvNet
 
-
-# function to extract grad
-def set_grad(var):
-    def hook(grad):
-        var.grad = grad
-    return hook
-
 class GNN(torch.nn.Module):
     def __init__(self,
                  in_channels,
@@ -121,8 +114,8 @@ class SpatioTemporalModel(nn.Module):
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL]:
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL")
             exit(-1)
-        if conv_strategy not in [ConvStrategy.CNN_2, ConvStrategy.TCN_2, ConvStrategy.ENTIRE]:
-            print("THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/2_conv/2_tcn")
+        if conv_strategy not in [ConvStrategy.TCN_ENTIRE, ConvStrategy.CNN_ENTIRE]:
+            print("THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/TCN_ENTIRE")
             exit(-1)
         if activation not in ['relu', 'tanh', 'elu']:
             print("THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh/elu")
@@ -150,59 +143,49 @@ class SpatioTemporalModel(nn.Module):
 
         self.num_time_length = num_time_length
         self.final_feature_size = ceil(self.num_time_length / 2 / 8)
-        #self.final_feature_size = 7
 
-        self.gcn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
-                                 self.TEMPORAL_EMBED_SIZE)
+        if self.add_gcn:
+            self.gcn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
+                                     self.TEMPORAL_EMBED_SIZE)
 
-        # CNNs for temporal domain
-        self.conv1d_1 = nn.Conv1d(1, self.channels_conv, 7, padding=3, stride=2)
-        self.conv1d_2 = nn.Conv1d(self.channels_conv, self.channels_conv * 2, 7, padding=3, stride=2)
-        self.conv1d_3 = nn.Conv1d(self.channels_conv * 2, self.channels_conv * 4, 7, padding=3, stride=2)
-        self.conv1d_4 = nn.Conv1d(self.channels_conv * 4, self.channels_conv * 8, 7, padding=3, stride=2)
-        self.batch1 = BatchNorm1d(self.channels_conv)
-        self.batch2 = BatchNorm1d(self.channels_conv * 2)
-        self.batch3 = BatchNorm1d(self.channels_conv * 4)
-        self.batch4 = BatchNorm1d(self.channels_conv * 8)
 
-        #if self.conv_strategy == ConvStrategy.ENTIRE:
-        #    self.conv1d_4 = torch.nn.Conv1d(self.channels_conv, self.final_channels, 7, padding=3, stride=2)
-        #    self.batch4 = BatchNorm1d(self.final_channels)
-        #self.conv1d_5 = torch.nn.Conv1d(self.channels_conv * 8, self.channels_conv * 16, 7, padding=3, stride=2)
-        #self.batch5 = BatchNorm1d(self.channels_conv * 16)
+        if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
+            self.size_before_lin_temporal = self.channels_conv * 3 * self.final_feature_size
 
-        self.lin_temporal = nn.Linear(self.channels_conv * 8 * self.final_feature_size, self.TEMPORAL_EMBED_SIZE)
+            self.temporal_conv = TemporalConvNet(1,
+                                                  [self.channels_conv, self.channels_conv * 3],
+                                                  kernel_size=7,
+                                                  stride=2,
+                                                  dropout=self.dropout,
+                                                  num_time_length=self.num_time_length)
+        elif self.conv_strategy == ConvStrategy.CNN_ENTIRE:
+            self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
 
-        # TCNs for temporal domain
-        #self.tcn = TemporalConvNet(1, [self.channels_conv, self.channels_conv], kernel_size=7, stride=2,
-        #                           dropout=self.dropout,
-        #                           num_time_length=num_time_length / 2)
+            self.conv1d_1 = nn.Conv1d(1, self.channels_conv, 7, padding=3, stride=2)
+            self.conv1d_2 = nn.Conv1d(self.channels_conv, self.channels_conv * 2, 7, padding=3, stride=2)
+            self.conv1d_3 = nn.Conv1d(self.channels_conv * 2, self.channels_conv * 4, 7, padding=3, stride=2)
+            self.conv1d_4 = nn.Conv1d(self.channels_conv * 4, self.channels_conv * 8, 7, padding=3, stride=2)
+            self.batch1 = BatchNorm1d(self.channels_conv)
+            self.batch2 = BatchNorm1d(self.channels_conv * 2)
+            self.batch3 = BatchNorm1d(self.channels_conv * 4)
+            self.batch4 = BatchNorm1d(self.channels_conv * 8)
 
-        if conv_strategy == ConvStrategy.TCN_2:
-            self.temporal_conv = self.tcn
-        elif conv_strategy == ConvStrategy.CNN_2:
-            self.temporal_conv = nn.Sequential(self.conv1d_1, self.batch1, self.activation,
-                                                     self.conv1d_2, self.batch2, self.activation,
-                                                     self.conv1d_3, self.batch3, self.activation,
-                                                     self.conv1d_4, self.batch4, self.activation)
-        elif conv_strategy == ConvStrategy.ENTIRE:
             self.temporal_conv = nn.Sequential(self.conv1d_1, self.activation, self.batch1,
-                                                     self.conv1d_2, self.activation, self.batch2,
-                                                     self.conv1d_3, self.activation, self.batch3,
-                                                     self.conv1d_4, self.activation, self.batch4)
+                                                 self.conv1d_2, self.activation, self.batch2,
+                                                 self.conv1d_3, self.activation, self.batch3,
+                                                 self.conv1d_4, self.activation, self.batch4)
+            self.init_weights()
+
+        self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.TEMPORAL_EMBED_SIZE)
 
         if self.pooling == PoolingStrategy.DIFFPOOL:
             self.pre_final_linear = nn.Linear(3 * self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
             self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
+
+            self.diff_pool = DiffPoolLayer(num_nodes,
+                                           self.TEMPORAL_EMBED_SIZE)
         else:
             self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
-        #self.final_linear.register_hook(set_grad(self.final_linear))
-
-        # TODO: meter estes e outros a serem definidos só se forem precisos
-        self.diff_pool = DiffPoolLayer(num_nodes,
-                                       self.TEMPORAL_EMBED_SIZE)
-
-        self.init_weights()
 
     def init_weights(self):
         self.conv1d_1.weight.data.normal_(0, 0.01)
@@ -216,27 +199,13 @@ class SpatioTemporalModel(nn.Module):
         #print("OO", x.shape)
 
         # Temporal Convolutions
-        if self.conv_strategy != ConvStrategy.ENTIRE:
-            half_slice = int(self.num_time_length / 2)
-            x_left = x[:, :half_slice].view(-1, 1, half_slice)
-            x_right = x[:, half_slice:].view(-1, 1, half_slice)
-
-            x_left = self.temporal_conv(x_left)
-            x_right = self.temporal_conv(x_right)
-
-            x = torch.cat([x_left, x_right], dim=1)
-
-        elif self.conv_strategy == ConvStrategy.ENTIRE:
-            x = x.view(-1, 1, self.num_time_length)
-            #x = x.view(-1, 1, 100)
-            x = self.temporal_conv(x)
-            #print("1", x.shape)
+        x = x.view(-1, 1, self.num_time_length)
+        x = self.temporal_conv(x)
 
         # Concatenating for the final embedding per node
-        x = x.view(-1, self.channels_conv * 8 * self.final_feature_size)
-        #print("1", x.shape)
+        x = x.view(-1, self.size_before_lin_temporal)
+
         x = self.lin_temporal(x)
-        #print("1", x.shape)
         x = self.activation(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
 
@@ -245,45 +214,20 @@ class SpatioTemporalModel(nn.Module):
             x = self.activation(x)
             x = F.dropout(x, training=self.training)
 
-        # x = self.conv2(x, edge_index)
-        # x = F.relu(x)
-        # x = self.batch1(x)
-        #print("befor", edge_index.shape, x.shape, data.batch.shape)
-        adj_tmp = pyg_utils.to_dense_adj(edge_index, data.batch)
-        #print("after", adj_tmp.shape)
-        x_tmp, batch_mask = pyg_utils.to_dense_batch(x, data.batch)
-        #print("after2", x_tmp.shape, batch_mask.shape)
-
-        #res, lo, el = self.diff_pool(x_tmp, adj_tmp, batch_mask)
-        #print("after_diff", res.shape, lo.shape, el.shape)
-
         if self.pooling == PoolingStrategy.MEAN:
             x = global_mean_pool(x, data.batch)
         elif self.pooling == PoolingStrategy.DIFFPOOL:
+            adj_tmp = pyg_utils.to_dense_adj(edge_index, data.batch)
+            x_tmp, batch_mask = pyg_utils.to_dense_batch(x, data.batch)
+
             x, link_loss, ent_loss = self.diff_pool(x_tmp, adj_tmp, batch_mask)
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = F.relu(self.pre_final_linear(x))
 
-        #print("after_pool", x.shape)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.final_linear(x)
-        # elif self.pooling == 'mixed':
-        #    x1 = global_max_pool(x, data.batch)
-        #    x2 = global_add_pool(x, data.batch) <- maybe not this one?
-        #    x3 = global_mean_pool(x, data.batch)
-        #    x = torch.cat([x1, x2, x3], dim=1)
-        # x = global_sort_pool(x, data.batch, 10)# esta linha funciona...
-        # x, b = to_dense_batch(x, data.batch) # para numero de nós variáveis, isto não dá...
-        # x = x.view(-1, x.shape[1] * 50)
-        # Resulting shape of to_dense_batch is batch x num_nodes x num_features (at least for my regular graphs
 
-        # x = F.dropout(x, p=dropout_perc, training=self.training)
-        #x = F.dropout(x, p=self.dropout, training=self.training)
-        # x = self.conv1d(x.unsqueeze(2)).squeeze(2)
-        #x = self.final_linear(x)
-        # x = F.relu(x)
-        # x = self.lin2(x)
-        # TODO: try dense_diff_pool and DynamicEdgeConv
+        # TODO: try DynamicEdgeConv
         if self.final_sigmoid:
             return torch.sigmoid(x) if self.pooling != PoolingStrategy.DIFFPOOL else (torch.sigmoid(x), link_loss, ent_loss)
         else:

@@ -20,9 +20,8 @@ class ConnType(str, Enum):
 
 @unique
 class ConvStrategy(str, Enum):
-    ENTIRE = 'entire'
-    CNN_2 = '2_cnn'
-    TCN_2 = '2_tcn'
+    CNN_ENTIRE = 'entire'
+    TCN_ENTIRE = 'tcn_entire'
 
 
 @unique

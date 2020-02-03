@@ -6,7 +6,7 @@ from datasets import HCPDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy
 
-device = 'cuda:0'
+device = 'cuda:1'
 
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
@@ -19,8 +19,8 @@ BATCH_SIZE = 150
 REMOVE_NODES = False
 NUM_NODES = 50
 CONN_TYPE = ConnType('fmri')
-CONV_STRATEGY = ConvStrategy('entire')
-POOLING = PoolingStrategy('diff_pool')
+CONV_STRATEGY = ConvStrategy('tcn_entire')
+POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
 
@@ -54,6 +54,8 @@ model = SpatioTemporalModel(num_time_length=1200,
                             final_sigmoid=True,
                             num_nodes=NUM_NODES
                             ).to(device)
+pytorch_total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(pytorch_total_trainable_params)
 
 train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
@@ -63,9 +65,13 @@ criterion = torch.nn.BCELoss()
 
 for data in train_loader:
     data = data.to(device)
-    output_batch = model(data)
+    if POOLING == PoolingStrategy.DIFFPOOL:
+        output_batch, link_loss, ent_loss = model(data)
+        loss = criterion(output_batch, data.y.unsqueeze(1)) + link_loss + ent_loss
+    else:
+        output_batch = model(data)
+        loss = criterion(output_batch, data.y.unsqueeze(1))
 
-    loss = criterion(output_batch, data.y.unsqueeze(1))
     loss.backward()
     break
 
