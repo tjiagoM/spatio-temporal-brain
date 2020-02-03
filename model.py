@@ -150,10 +150,10 @@ class SpatioTemporalModel(nn.Module):
 
 
         if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
-            self.size_before_lin_temporal = self.channels_conv * 3 * self.final_feature_size
+            self.size_before_lin_temporal = self.channels_conv * 4 * self.final_feature_size
 
             self.temporal_conv = TemporalConvNet(1,
-                                                  [self.channels_conv, self.channels_conv * 3],
+                                                  [self.channels_conv * 2, self.channels_conv * 4],
                                                   kernel_size=7,
                                                   stride=2,
                                                   dropout=self.dropout,
@@ -195,8 +195,6 @@ class SpatioTemporalModel(nn.Module):
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
-        #x = x[:,:100]
-        #print("OO", x.shape)
 
         # Temporal Convolutions
         x = x.view(-1, 1, self.num_time_length)

@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
     warnings.filterwarnings("ignore")
     torch.manual_seed(1)
-    torch.backends.cudnn.deterministic = True
+    #torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     np.random.seed(1111)
 
@@ -185,6 +185,12 @@ if __name__ == '__main__':
 
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
+
+    if CONV_STRATEGY != ConvStrategy.TCN_ENTIRE:
+        print("Setting to deterministic runs")
+        torch.backends.cudnn.deterministic = True
+    else:
+        print("This run will not be deterministic")
 
     if TARGET_VAR not in ['gender']:
         print("Unrecognised target_var")
