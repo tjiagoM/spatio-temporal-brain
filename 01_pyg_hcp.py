@@ -1,25 +1,22 @@
 import argparse
 import datetime
 import os
-from sys import exit
+import pickle
 import time
+from sys import exit
 
 import numpy as np
-import pandas as pd
-import statsmodels.formula.api as smf
 import torch
-import torch.nn.functional as F
-from scipy.stats import stats
-from sklearn.metrics import r2_score, roc_auc_score, accuracy_score, f1_score, classification_report
-from sklearn.model_selection import KFold
+from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
 from sklearn.model_selection import ParameterGrid
 from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader
+from xgboost import XGBClassifier
 
-from datasets import HCPDataset
+from datasets import HCPDataset, create_hcp_correlation_vals
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
-    StratifiedGroupKFold, PoolingStrategy
+    StratifiedGroupKFold, PoolingStrategy, AnalysisType
 
 
 def train_classifier(model, train_loader):
@@ -54,6 +51,21 @@ def train_classifier(model, train_loader):
     # Returning a weighted average according to number of graphs
     return loss_all / len(train_loader.dataset)
 
+def return_metrics(labels, pred_binary, pred_prob, loss_value=None):
+    roc_auc = roc_auc_score(labels, pred_prob)
+    acc = accuracy_score(labels, pred_binary)
+    f1 = f1_score(labels, pred_binary)
+    report = classification_report(labels, pred_binary, output_dict=True)
+    sens = report['1.0']['recall']
+    spec = report['0.0']['recall']
+
+    return {'loss': loss_value,
+            'auc': roc_auc,
+            'acc': acc,
+            'f1': f1,
+            'sensitivity': sens,
+            'specificity': spec
+            }
 
 def evaluate_classifier(loader, save_path_preds=None):
     model.eval()
@@ -95,20 +107,7 @@ def evaluate_classifier(loader, save_path_preds=None):
     # TODO: Define accuracy at optimal AUC point
     # https://stackoverflow.com/questions/28719067/roc-curve-and-cut-off-point-python
 
-    roc_auc = roc_auc_score(labels, predictions)
-    acc = accuracy_score(labels, pred_binary)
-    f1 = f1_score(labels, pred_binary)
-    report = classification_report(labels, pred_binary, output_dict=True)
-    sens = report['1.0']['recall']
-    spec = report['0.0']['recall']
-
-    return {'loss': test_error / len(loader.dataset),
-            'auc': roc_auc,
-            'acc': acc,
-            'f1': f1,
-            'sensitivity': sens,
-            'specificity': spec
-            }
+    return return_metrics(labels, pred_binary, predictions, loss_value=test_error / len(loader.dataset))
 
 
 def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader):
@@ -131,6 +130,15 @@ def merge_y_and_others(ys, sessions, directions):
                      directions.view(-1, 1)], dim=1)
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
+def get_array_data(data_fold):
+    tmp_array = []
+    tmp_y = []
+
+    for d in data_fold:
+        tmp_array.append(flatten_correlations[(d.hcp_id.item(), d.session.item(), d.direction.item())])
+        tmp_y.append(d.y.item())
+
+    return np.array(tmp_array), np.array(tmp_y)
 
 if __name__ == '__main__':
 
@@ -138,7 +146,7 @@ if __name__ == '__main__':
 
     warnings.filterwarnings("ignore")
     torch.manual_seed(1)
-    #torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     np.random.seed(1111)
 
@@ -148,9 +156,9 @@ if __name__ == '__main__':
 
     parser.add_argument("--fold_num", type=int)
     parser.add_argument("--target_var")
-    parser.add_argument("--activation")
-    parser.add_argument("--threshold", type=int)
-    parser.add_argument("--num_nodes", type=int)
+    parser.add_argument("--activation", default='relu')
+    parser.add_argument("--threshold", default=20, type=int)
+    parser.add_argument("--num_nodes", default=50, type=int)
     parser.add_argument("--num_epochs", default=20, type=int)
     parser.add_argument("--batch_size", default=150, type=int)
     parser.add_argument("--add_gcn", type=bool, default=False)  # to make true just include flag with 1
@@ -162,7 +170,8 @@ if __name__ == '__main__':
     parser.add_argument("--pooling",
                         default="mean")  # 2) Try other pooling mechanisms CONCAT (only with fixed num_nodes across graphs),
     parser.add_argument("--channels_conv", type=int)
-    parser.add_argument("--normalisation")
+    parser.add_argument("--normalisation", default='roi_norm')
+    parser.add_argument("--analysis_type", default='spatiotemporal')
 
     args = parser.parse_args()
 
@@ -188,6 +197,7 @@ if __name__ == '__main__':
     POOLING = PoolingStrategy(args.pooling)
     CHANNELS_CONV = args.channels_conv
     NORMALISATION = Normalisation(args.normalisation)
+    ANALYSIS_TYPE = AnalysisType(args.analysis_type)
 
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
@@ -222,6 +232,8 @@ if __name__ == '__main__':
                          normalisation=NORMALISATION,
                          connectivity_type=CONN_TYPE,
                          disconnect_nodes=REMOVE_NODES)
+    if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+        flatten_correlations = create_hcp_correlation_vals(NUM_NODES)
 
     N_OUT_SPLITS = 5
     N_INNER_SPLITS = 5
@@ -261,10 +273,20 @@ if __name__ == '__main__':
         #
         # Main inner-loop (for now, not really an inner loop - just one train/val inside
         #
-        param_grid = {'weight_decay': [0.005, 0.5, 0],
-                      'lr': [1e-4, 1e-5, 1e-6],
-                      'dropout': [0, 0.5, 0.7]
-                      }
+        if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
+            param_grid = {'weight_decay': [0.005, 0.5, 0],
+                          'lr': [1e-4, 1e-5, 1e-6],
+                          'dropout': [0, 0.5, 0.7]
+                          }
+        elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+            param_grid = {
+                'min_child_weight': [1, 5, 10],
+                'gamma': [0.0, 1, 5],
+                'subsample': [0.6, 0.8, 1.0],
+                'colsample_bytree': [0.3, 0.7, 1.0],
+                'max_depth': [3, 4, 5],
+                'n_estimators': [100]
+            }
         # param_grid = {'weight_decay': [0],
         #              'lr': [0.05],
         #              'dropout': [0]
@@ -273,9 +295,11 @@ if __name__ == '__main__':
         # best_metric = -100
         # best_params = None
         best_model_name_outer_fold_auc = None
+        best_model_name_outer_fold_acc = None
         best_model_name_outer_fold_loss = None
         best_outer_metric_loss = 1000
         best_outer_metric_auc = -1000
+        best_outer_metric_acc = -1000
         for params in grid:
             print("For ", params)
 
@@ -292,26 +316,29 @@ if __name__ == '__main__':
 
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
-                model = SpatioTemporalModel(num_time_length=1200,
-                                            dropout_perc=params['dropout'],
-                                            pooling=POOLING,
-                                            channels_conv=CHANNELS_CONV,
-                                            activation=ACTIVATION,
-                                            conv_strategy=CONV_STRATEGY,
-                                            add_gat=ADD_GAT,
-                                            add_gcn=ADD_GCN,
-                                            final_sigmoid=model_with_sigmoid,
-                                            num_nodes=NUM_NODES
-                                            ).to(device)
-                trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-                print("Number of trainable params:", trainable_params)
+                if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
+                    model = SpatioTemporalModel(num_time_length=1200,
+                                                dropout_perc=params['dropout'],
+                                                pooling=POOLING,
+                                                channels_conv=CHANNELS_CONV,
+                                                activation=ACTIVATION,
+                                                conv_strategy=CONV_STRATEGY,
+                                                add_gat=ADD_GAT,
+                                                add_gcn=ADD_GCN,
+                                                final_sigmoid=model_with_sigmoid,
+                                                num_nodes=NUM_NODES
+                                                ).to(device)
+                    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+                    print("Number of trainable params:", trainable_params)
+                elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+                    model = XGBClassifier(n_jobs=-1, seed=1111, random_state=1111, **params)
 
                 # Creating the various names for each metric
                 model_names = {}
                 for m in metrics:
                     model_names[m] = create_name_for_model(TARGET_VAR, model, params, outer_split_num, 0, N_EPOCHS,
                                                            THRESHOLD, BATCH_SIZE, REMOVE_NODES, NUM_NODES, CONN_TYPE,
-                                                           NORMALISATION,
+                                                           NORMALISATION, ANALYSIS_TYPE,
                                                            m)
                 # If there is one of the metrics saved, then I assume this inner part was already calculated
                 if os.path.isfile(model_names[metrics[0]]):
@@ -323,6 +350,25 @@ if __name__ == '__main__':
 
                 print("Inner Size is:", len(X_train_in), "/", len(X_val_in))
                 print("Inner Positive classes:", sum(X_train_in.data.y.numpy()), "/", sum(X_val_in.data.y.numpy()))
+
+                if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+                    X_train_in_array, y_train_in_array = get_array_data(X_train_in)
+                    X_val_in_array, y_val_in_array = get_array_data(X_val_in)
+
+                    model.fit(X_train_in_array, y_train_in_array)
+                    y_pred = model.predict(X_val_in_array)
+
+                    val_metrics = return_metrics(y_val_in_array, y_pred, y_pred)
+                    print(val_metrics)
+                    if val_metrics['auc'] > best_outer_metric_auc:
+                        pickle.dump(model, open(model_names['auc'], "wb"))
+                        best_outer_metric_auc = val_metrics['auc']
+                        best_model_name_outer_fold_auc = model_names['auc']
+                    if val_metrics['acc'] > best_outer_metric_acc:
+                        pickle.dump(model, open(model_names['acc'], "wb"))
+                        best_outer_metric_acc = val_metrics['acc']
+                        best_model_name_outer_fold_acc = model_names['acc']
+                    break
 
                 ###########
                 ### DataLoaders
@@ -370,36 +416,44 @@ if __name__ == '__main__':
                 break  # Just one inner "loop"
 
         # After all parameters are searched, get best and train on that, evaluating on test set
-        print("Best params if AUC: ", best_model_name_outer_fold_auc, "(", best_outer_metric_auc, ")")
-        model = torch.load(best_model_name_outer_fold_auc)
-        test_metrics = evaluate_classifier(test_out_loader,
-                                           save_path_preds=best_model_name_outer_fold_auc.replace('logs/',
-                                                                                                  '').replace(
-                                               '.pth', '.npy'))
-        print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
-              ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
-                        test_metrics['sensitivity'], test_metrics['specificity']))
+        if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
+            print("Best params if AUC: ", best_model_name_outer_fold_auc, "(", best_outer_metric_auc, ")")
+            model = torch.load(best_model_name_outer_fold_auc)
+            test_metrics = evaluate_classifier(test_out_loader,
+                                               save_path_preds=best_model_name_outer_fold_auc.replace('logs/',
+                                                                                                      '').replace(
+                                                   '.pth', '.npy'))
+            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                            test_metrics['sensitivity'], test_metrics['specificity']))
 
-        print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
-        model = torch.load(best_model_name_outer_fold_loss)
-        test_metrics = evaluate_classifier(test_out_loader,
-                                           save_path_preds=best_model_name_outer_fold_loss.replace('logs/',
-                                                                                                   '').replace(
-                                               '.pth', '.npy'))
-        print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
-              ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
-                        test_metrics['sensitivity'], test_metrics['specificity']))
+            print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
+            model = torch.load(best_model_name_outer_fold_loss)
+            test_metrics = evaluate_classifier(test_out_loader,
+                                               save_path_preds=best_model_name_outer_fold_loss.replace('logs/',
+                                                                                                       '').replace(
+                                                   '.pth', '.npy'))
+            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                            test_metrics['sensitivity'], test_metrics['specificity']))
+        elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+            for met_name, best_name, best_val in [('acc', best_model_name_outer_fold_auc, best_outer_metric_auc),
+                                                  ('auc', best_model_name_outer_fold_acc, best_outer_metric_acc)]:
+                print(f'Best params if {met_name}: {best_name} ( {best_val} )')
+                model = pickle.load(open(best_name, "rb"))
 
-        # else:
-        #    test_loss, test_r2, test_pear = evaluate_regressor(test_out_loader)
+                X_test_array, y_test_array = get_array_data(X_test_out)
+                y_pred = model.predict(X_test_array)
+                test_metrics = return_metrics(y_test_array, y_pred, y_pred)
+                print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+                      ''.format(outer_split_num, test_metrics['auc'], test_metrics['acc'],
+                                test_metrics['sensitivity'], test_metrics['specificity']))
 
-        #    print('{:1d}-Final: {:.7f}, R2: {:.4f}, Pear: {:.4f}'
-        #          ''.format(outer_split_num, test_loss, test_r2, test_pear))
+                save_path_preds = best_name.replace('logs/','').replace('.pkl', '.npy')
 
-        # Conclusao para ja: definir apenas um validation set? .... (depois melhorar para nested-CV with fixed epochs
-        # learned as average from the nested CV)
+                np.save('results/labels_' + save_path_preds, y_test_array)
+                np.save('results/predictions_' + save_path_preds, y_pred)
 
     total_seconds = time.time() - start_time
     total_time = str(datetime.timedelta(seconds=total_seconds))
     print(f'--- {total_seconds} seconds to execute this script ({total_time})---')
-

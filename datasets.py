@@ -210,3 +210,21 @@ class HCPDataset(InMemoryDataset):
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
+
+
+
+def create_hcp_correlation_vals(num_nodes=50):
+    final_dict = {}
+
+    for person in OLD_NETMATS_PEOPLE:
+        for ind in range(4):
+            corr_arr = np.load(get_adj_50_path(person, ind))
+            # For threshold operations, zero out lower triangle (including diagonal)
+            flatten_array = corr_arr[np.triu_indices(num_nodes, k=1)]
+
+            session = 1 if ind < 2 else 2
+            direction = 0 if ind in [1, 3] else 1
+
+            final_dict[(person, session, direction)] = flatten_array
+
+    return final_dict

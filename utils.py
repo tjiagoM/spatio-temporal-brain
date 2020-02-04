@@ -29,6 +29,11 @@ class PoolingStrategy(str, Enum):
     MEAN = 'mean'
     DIFFPOOL = 'diff_pool'
 
+@unique
+class AnalysisType(str, Enum):
+    SPATIOTEMOPRAL = 'spatiotemporal'
+    FLATTEN_CORRS = 'flatten_corrs'
+
 
 NEW_STRUCT_PEOPLE = [100206, 100307, 100408, 100610, 101107, 101309, 101410, 101915, 102008, 102311, 102513, 102614,
                      102715, 102816, 103010, 103111, 103212, 103414, 103515, 103818, 104012, 104416, 104820, 105014,
@@ -320,14 +325,24 @@ def create_name_for_hcp_dataset(num_nodes, target_var, threshold, connectivity_t
 
 def create_name_for_model(target_var, model, params, outer_split_num, inner_split_num, n_epochs, threshold, batch_size,
                           remove_disconnect_nodes, num_nodes, conn_type, normalisation,
-                          metric_evaluated,
+                          analysis_type, metric_evaluated,
                           prefix_location='logs/',
                           suffix='.pth'):
+    if analysis_type == AnalysisType.SPATIOTEMOPRAL:
+        model_str_representation = model.to_string_name()
+    elif analysis_type == AnalysisType.FLATTEN_CORRS:
+        suffix = '.pkl'
+        model_str_representation = ''
+        for key in ['min_child_weight', 'gamma', 'subsample', 'colsample_bytree', 'max_depth', 'n_estimators']:
+            model_str_representation += key + '_' + str(model.get_xgb_params()[key])
+        params['lr'] = None
+        params['weight_decay'] = None
+
     return prefix_location + '_'.join([target_var,
                                        str(outer_split_num),
                                        str(inner_split_num),
                                        metric_evaluated,
-                                       model.to_string_name(),
+                                       model_str_representation,
                                        str(params['lr']),
                                        str(params['weight_decay']),
                                        str(n_epochs),
