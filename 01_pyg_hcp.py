@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import os
 from sys import exit
 import time
@@ -9,7 +10,7 @@ import statsmodels.formula.api as smf
 import torch
 import torch.nn.functional as F
 from scipy.stats import stats
-from sklearn.metrics import r2_score, roc_auc_score, accuracy_score, f1_score
+from sklearn.metrics import r2_score, roc_auc_score, accuracy_score, f1_score, classification_report
 from sklearn.model_selection import KFold
 from sklearn.model_selection import ParameterGrid
 from sklearn.preprocessing import LabelEncoder
@@ -97,11 +98,16 @@ def evaluate_classifier(loader, save_path_preds=None):
     roc_auc = roc_auc_score(labels, predictions)
     acc = accuracy_score(labels, pred_binary)
     f1 = f1_score(labels, pred_binary)
+    report = classification_report(labels, pred_binary, output_dict=True)
+    sens = report['1.0']['recall']
+    spec = report['0.0']['recall']
 
     return {'loss': test_error / len(loader.dataset),
             'auc': roc_auc,
             'acc': acc,
-            'f1': f1
+            'f1': f1,
+            'sensitivity': sens,
+            'specificity': spec
             }
 
 
@@ -362,27 +368,27 @@ if __name__ == '__main__':
                 #    torch.save(model, "logs/best_model_" + TARGET_VAR + "_" + str(ADD_GCN) + "_" + str(
                 #        outer_split_num) + ".pth")
                 break  # Just one inner "loop"
-        if TARGET_VAR == 'gender':
-            # After all parameters are searched, get best and train on that, evaluating on test set
-            print("Best params if AUC: ", best_model_name_outer_fold_auc, "(", best_outer_metric_auc, ")")
-            model = torch.load(best_model_name_outer_fold_auc)
-            test_metrics = evaluate_classifier(test_out_loader,
-                                               save_path_preds=best_model_name_outer_fold_auc.replace('logs/',
-                                                                                                      '').replace(
-                                                   '.pth', '.npy'))
-            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, F1: {:.4f}'
-                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
-                            test_metrics['f1']))
 
-            print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
-            model = torch.load(best_model_name_outer_fold_loss)
-            test_metrics = evaluate_classifier(test_out_loader,
-                                               save_path_preds=best_model_name_outer_fold_loss.replace('logs/',
-                                                                                                       '').replace(
-                                                   '.pth', '.npy'))
-            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, F1: {:.4f}'
-                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
-                            test_metrics['f1']))
+        # After all parameters are searched, get best and train on that, evaluating on test set
+        print("Best params if AUC: ", best_model_name_outer_fold_auc, "(", best_outer_metric_auc, ")")
+        model = torch.load(best_model_name_outer_fold_auc)
+        test_metrics = evaluate_classifier(test_out_loader,
+                                           save_path_preds=best_model_name_outer_fold_auc.replace('logs/',
+                                                                                                  '').replace(
+                                               '.pth', '.npy'))
+        print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+              ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                        test_metrics['sensitivity'], test_metrics['specificity']))
+
+        print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
+        model = torch.load(best_model_name_outer_fold_loss)
+        test_metrics = evaluate_classifier(test_out_loader,
+                                           save_path_preds=best_model_name_outer_fold_loss.replace('logs/',
+                                                                                                   '').replace(
+                                               '.pth', '.npy'))
+        print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+              ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                        test_metrics['sensitivity'], test_metrics['specificity']))
 
         # else:
         #    test_loss, test_r2, test_pear = evaluate_regressor(test_out_loader)
@@ -393,5 +399,7 @@ if __name__ == '__main__':
         # Conclusao para ja: definir apenas um validation set? .... (depois melhorar para nested-CV with fixed epochs
         # learned as average from the nested CV)
 
-    print("--- %s seconds to execute this script---" % (time.time() - start_time))
+    total_seconds = time.time() - start_time
+    total_time = str(datetime.timedelta(seconds=total_seconds))
+    print(f'--- {total_seconds} seconds to execute this script ({total_time})---')
 

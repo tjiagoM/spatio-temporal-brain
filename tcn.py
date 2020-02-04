@@ -16,16 +16,16 @@ class Chomp1d(nn.Module):
 
 
 class StridedTemporalBlock(nn.Module):
-    def __init__(self, n_inputs, n_outputs, kernel_size, stride, dilation, padding, final_output, dropout=0.2):
+    def __init__(self, n_inputs, n_hidden, n_outputs, kernel_size, stride, dilation, padding, final_output, dropout=0.2):
         super(StridedTemporalBlock, self).__init__()
         self.stride = stride
-        self.conv1 = weight_norm(nn.Conv1d(n_inputs, n_outputs, kernel_size,
+        self.conv1 = weight_norm(nn.Conv1d(n_inputs, n_hidden, kernel_size,
                                            stride=stride, padding=padding, dilation=dilation))
         self.chomp1 = Chomp1d(int(padding/stride))
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(dropout)
 
-        self.conv2 = weight_norm(nn.Conv1d(n_outputs, n_outputs, kernel_size,
+        self.conv2 = weight_norm(nn.Conv1d(n_hidden, n_outputs, kernel_size,
                                            stride=stride, padding=padding, dilation=dilation))
         self.chomp2 = Chomp1d(int(padding/stride))
         self.relu2 = nn.ReLU()
@@ -58,12 +58,13 @@ class TemporalConvNet(nn.Module):
         layers = []
         num_levels = len(num_channels)
         previous_final = num_time_length
-        for i in range(num_levels):
+        for i in range(0, num_levels - 1, 2):
             previous_final = int(previous_final / (stride * 2))
             dilation_size = 2 ** i
             in_channels = num_inputs if i == 0 else num_channels[i-1]
-            out_channels = num_channels[i]
-            layers += [StridedTemporalBlock(in_channels, out_channels, kernel_size, stride=stride, dilation=dilation_size,
+            hidden_channels = num_channels[i]
+            out_channels = num_channels[i+1]
+            layers += [StridedTemporalBlock(in_channels, hidden_channels, out_channels, kernel_size, stride=stride, dilation=dilation_size,
                                             padding=(kernel_size-1) * dilation_size, dropout=dropout,
                                             final_output=previous_final)]
 

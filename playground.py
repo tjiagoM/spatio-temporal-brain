@@ -13,14 +13,14 @@ TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
 THRESHOLD = 5
 SPLIT_TO_TEST = 1
-ADD_GCN = False
+ADD_GCN = True
 ADD_GAT = False
 BATCH_SIZE = 150
 REMOVE_NODES = False
 NUM_NODES = 50
 CONN_TYPE = ConnType('fmri')
 CONV_STRATEGY = ConvStrategy('tcn_entire')
-POOLING = PoolingStrategy('mean')
+POOLING = PoolingStrategy('diff_pool')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
 

@@ -150,10 +150,11 @@ class SpatioTemporalModel(nn.Module):
 
 
         if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
-            self.size_before_lin_temporal = self.channels_conv * 4 * self.final_feature_size
+            self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
 
             self.temporal_conv = TemporalConvNet(1,
-                                                  [self.channels_conv * 2, self.channels_conv * 4],
+                                                  [self.channels_conv, self.channels_conv * 2,
+                                                   self.channels_conv * 4, self.channels_conv * 8],
                                                   kernel_size=7,
                                                   stride=2,
                                                   dropout=self.dropout,
