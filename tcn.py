@@ -4,7 +4,7 @@
 
 import torch.nn as nn
 from torch.nn.utils import weight_norm
-
+from math import ceil
 
 class Chomp1d(nn.Module):
     def __init__(self, chomp_size):
@@ -59,7 +59,7 @@ class TemporalConvNet(nn.Module):
         num_levels = len(num_channels)
         previous_final = num_time_length
         for i in range(0, num_levels - 1, 2):
-            previous_final = int(previous_final / (stride * 2))
+            previous_final = ceil(previous_final / (stride * 2))
             dilation_size = 2 ** i
             in_channels = num_inputs if i == 0 else num_channels[i-1]
             hidden_channels = num_channels[i]
