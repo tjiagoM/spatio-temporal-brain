@@ -17,7 +17,7 @@ def get_struct_path(person):
     return f'../hcp_multimodal_parcellation/HCP_tracks_matrices_BN_withcerebellum/{person}/{person}_{person}_BN_Atlas_246_1mm_geom_withcerebellum_RS.txt'
 
 def get_adj_50_path(person, index):
-    return f'../../../space/hcp_50_timeseries/processed_4_split_50/{person}_{index}.npy'
+    return f'../../../space/hcp_50_timeseries/processed_16_split_50/{person}_{index}.npy'
 
 def get_50_ts_path(person):
     return f'../hcp_timecourses/3T_HCP1200_MSMAll_d50_ts2/{person}.txt'
@@ -123,12 +123,9 @@ class HCPDataset(InMemoryDataset):
                     exit(-2)
 
                 all_ts = np.genfromtxt(get_50_ts_path(person))
-                t1 = all_ts[:1200, :]
-                t2 = all_ts[1200:2400, :]
-                t3 = all_ts[2400:3600, :]
-                t4 = all_ts[3600:, :]
+                for ind, slice_start in enumerate(range(0, 4800, 75)):
+                    ts = all_ts[slice_start:slice_start + 75, :]
 
-                for ind, timeseries in enumerate([t1, t2, t3, t4]):
                     corr_arr = np.load(get_adj_50_path(person, ind))
                     # For threshold operations, zero out lower triangle (including diagonal)
                     corr_arr[np.tril_indices(self.num_nodes)] = 0
@@ -137,14 +134,15 @@ class HCPDataset(InMemoryDataset):
 
                     edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
-                    timeseries = self.__normalise_timeseries(timeseries)
+                    timeseries = self.__normalise_timeseries(ts)
                     x = torch.tensor(timeseries, dtype=torch.float)
                     if self.target_var == 'gender':
                         y = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
                     data = Data(x=x, edge_index=edge_index, y=y)  # edge_attr=edge_attr,
                     data.hcp_id = torch.tensor([person])
-                    data.session = torch.tensor([1 if ind < 2 else 2])
-                    data.direction = torch.tensor([0 if ind in [1, 3] else 1])
+                    data.index = torch.tensor([ind])
+                    #data.session = torch.tensor([1 if ind < 2 else 2])
+                    #data.direction = torch.tensor([0 if ind in [1, 3] else 1])
                     data_list.append(data)
 
             elif self.connectivity_type == ConnType.STRUCT:

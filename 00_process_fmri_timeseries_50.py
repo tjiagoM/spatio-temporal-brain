@@ -87,7 +87,7 @@ NETMATS_PEOPLE = [100206, 100307, 100408, 100610, 101006, 101107, 101309, 101915
                   990366, 991267, 992673, 992774, 993675, 994273, 996782]
 
 TIMESERIES_PATH = '../../../space/hcp_50_timeseries/3T_HCP1200_MSMAll_d50_ts2/'
-SAVING_PATH = '../../../space/hcp_50_timeseries/processed_4_split_50/'
+SAVING_PATH = '../../../space/hcp_50_timeseries/processed_16_split_50/'
 
 conn_measure = ConnectivityMeasure(
     kind='correlation',
@@ -96,17 +96,10 @@ conn_measure = ConnectivityMeasure(
 for person in NETMATS_PEOPLE:
     all_ts = np.genfromtxt(f'{TIMESERIES_PATH}{person}.txt')
 
-    t1 = all_ts[:1200, :]
-    t2 = all_ts[1200:2400, :]
-    t3 = all_ts[2400:3600, :]
-    t4 = all_ts[3600:, :]
+    for ind, slice_start in enumerate(range(0, 4800, 75)):
+        ts = all_ts[slice_start:slice_start+75, :]
+        assert ts.shape == (75, 50)
 
-    assert t1.shape == (1200, 50)
-    assert t2.shape == (1200, 50)
-    assert t3.shape == (1200, 50)
-    assert t4.shape == (1200, 50)
-
-    for ind, ts in enumerate([t1, t2, t3, t4]):
         corr_mat = conn_measure.fit_transform([ts])
         assert corr_mat.shape == (1, 50, 50)
         assert corr_mat[0][0, 0] == 1.0

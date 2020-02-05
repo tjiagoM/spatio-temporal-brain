@@ -111,6 +111,8 @@ class SpatioTemporalModel(nn.Module):
                  add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
         super(SpatioTemporalModel, self).__init__()
 
+        self.VERSION = '2.1'
+
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL]:
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL")
             exit(-1)
@@ -148,7 +150,6 @@ class SpatioTemporalModel(nn.Module):
             self.gcn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
                                      self.TEMPORAL_EMBED_SIZE)
 
-
         if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
 
@@ -159,22 +160,31 @@ class SpatioTemporalModel(nn.Module):
                                                   stride=2,
                                                   dropout=self.dropout,
                                                   num_time_length=self.num_time_length)
-        elif self.conv_strategy == ConvStrategy.CNN_ENTIRE:
+        elif self.conv_strategy == ConvStrategy.CNN_ENTIRE:# or self.conv_strategy == ConvStrategy.CNN_NO_STRIDES:
+            stride = 2# if self.conv_strategy == ConvStrategy.CNN_ENTIRE else 1
+            padding = 3# if self.conv_strategy == ConvStrategy.CNN_ENTIRE else 0
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
 
-            self.conv1d_1 = nn.Conv1d(1, self.channels_conv, 7, padding=3, stride=2)
-            self.conv1d_2 = nn.Conv1d(self.channels_conv, self.channels_conv * 2, 7, padding=3, stride=2)
-            self.conv1d_3 = nn.Conv1d(self.channels_conv * 2, self.channels_conv * 4, 7, padding=3, stride=2)
-            self.conv1d_4 = nn.Conv1d(self.channels_conv * 4, self.channels_conv * 8, 7, padding=3, stride=2)
+            self.conv1d_1 = nn.Conv1d(1, self.channels_conv, 7, padding=padding, stride=stride)
+            self.conv1d_2 = nn.Conv1d(self.channels_conv, self.channels_conv * 2, 7, padding=padding, stride=stride)
+            self.conv1d_3 = nn.Conv1d(self.channels_conv * 2, self.channels_conv * 4, 7, padding=padding, stride=stride)
+            self.conv1d_4 = nn.Conv1d(self.channels_conv * 4, self.channels_conv * 8, 7, padding=padding, stride=stride)
             self.batch1 = BatchNorm1d(self.channels_conv)
             self.batch2 = BatchNorm1d(self.channels_conv * 2)
             self.batch3 = BatchNorm1d(self.channels_conv * 4)
             self.batch4 = BatchNorm1d(self.channels_conv * 8)
 
-            self.temporal_conv = nn.Sequential(self.conv1d_1, self.activation, self.batch1,
-                                                 self.conv1d_2, self.activation, self.batch2,
-                                                 self.conv1d_3, self.activation, self.batch3,
-                                                 self.conv1d_4, self.activation, self.batch4)
+            #if self.conv_strategy == ConvStrategy.CNN_ENTIRE:
+            self.temporal_conv = nn.Sequential(self.conv1d_1, self.activation, self.batch1, nn.Dropout(dropout_perc),
+                                                 self.conv1d_2, self.activation, self.batch2, nn.Dropout(dropout_perc),
+                                                 self.conv1d_3, self.activation, self.batch3, nn.Dropout(dropout_perc),
+                                                 self.conv1d_4, self.activation, self.batch4, nn.Dropout(dropout_perc))
+            #elif self.conv_strategy == ConvStrategy.CNN_NO_STRIDES:
+            #    self.temporal_conv = nn.Sequential(self.conv1d_1, nn.MaxPool1d(2), self.activation, self.batch1, nn.Dropout(dropout_perc),
+            #                                       self.conv1d_2, nn.MaxPool1d(2), self.activation, self.batch2, nn.Dropout(dropout_perc),
+            #                                       self.conv1d_3, nn.MaxPool1d(2), self.activation, self.batch3, nn.Dropout(dropout_perc),
+            #                                       self.conv1d_4, nn.MaxPool1d(2), self.activation, self.batch4, nn.Dropout(dropout_perc))
+
             self.init_weights()
 
         self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.TEMPORAL_EMBED_SIZE)
@@ -233,7 +243,8 @@ class SpatioTemporalModel(nn.Module):
             return x if self.pooling != PoolingStrategy.DIFFPOOL else (x, link_loss, ent_loss)
 
     def to_string_name(self):
-        model_vars = ['D_' + str(self.dropout),
+        model_vars = ['V_' + self.VERSION,
+                      'D_' + str(self.dropout),
                       'A_' + self.activation_str,
                       'P_' + self.pooling.value,
                       'CS_' + self.conv_strategy.value,

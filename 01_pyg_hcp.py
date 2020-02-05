@@ -124,10 +124,9 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     return val_metrics
 
 
-def merge_y_and_others(ys, sessions, directions):
+def merge_y_and_others(ys, indices):
     tmp = torch.cat([ys.long().view(-1, 1),
-                     sessions.view(-1, 1),
-                     directions.view(-1, 1)], dim=1)
+                     indices.view(-1, 1)], dim=1)
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
 def get_array_data(data_fold):
@@ -147,7 +146,7 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     torch.manual_seed(1)
     # torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    #torch.backends.cudnn.benchmark = False
     np.random.seed(1111)
 
     parser = argparse.ArgumentParser()
@@ -202,12 +201,12 @@ if __name__ == '__main__':
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
 
-    if CONV_STRATEGY != ConvStrategy.TCN_ENTIRE:
-        print("Setting to deterministic runs")
-        torch.backends.cudnn.deterministic = True
-    else:
-        print("This run will not be deterministic")
-
+    #if CONV_STRATEGY != ConvStrategy.TCN_ENTIRE:
+    #    print("Setting to deterministic runs")
+    #    torch.backends.cudnn.deterministic = True
+    #else:
+    #    print("This run will not be deterministic")
+    print("This run will not be deterministic")
     if TARGET_VAR not in ['gender']:
         print("Unrecognised target_var")
         exit(-1)
@@ -242,8 +241,7 @@ if __name__ == '__main__':
         # Stratification will occur with regards to both the sex and session day
         skf = StratifiedGroupKFold(n_splits=N_OUT_SPLITS, random_state=1111)
         merged_labels = merge_y_and_others(dataset.data.y,
-                                           dataset.data.session,
-                                           dataset.data.direction)
+                                           dataset.data.index)
         skf_generator = skf.split(np.zeros((len(dataset), 1)),
                                   merged_labels,
                                   groups=dataset.data.hcp_id.tolist())
@@ -306,8 +304,7 @@ if __name__ == '__main__':
             if TARGET_VAR == 'gender':
                 skf_inner = StratifiedGroupKFold(n_splits=N_INNER_SPLITS, random_state=1111)
                 merged_labels_inner = merge_y_and_others(X_train_out.data.y,
-                                                         X_train_out.data.session,
-                                                         X_train_out.data.direction)
+                                                         X_train_out.data.index)
                 skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)),
                                                       merged_labels_inner,
                                                       groups=X_train_out.data.hcp_id.tolist())
@@ -317,7 +314,7 @@ if __name__ == '__main__':
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
                 if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
-                    model = SpatioTemporalModel(num_time_length=1200,
+                    model = SpatioTemporalModel(num_time_length=75,
                                                 dropout_perc=params['dropout'],
                                                 pooling=POOLING,
                                                 channels_conv=CHANNELS_CONV,

@@ -13,14 +13,14 @@ TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
 THRESHOLD = 5
 SPLIT_TO_TEST = 1
-ADD_GCN = True
+ADD_GCN = False
 ADD_GAT = False
 BATCH_SIZE = 150
 REMOVE_NODES = False
 NUM_NODES = 50
 CONN_TYPE = ConnType('fmri')
-CONV_STRATEGY = ConvStrategy('tcn_entire')
-POOLING = PoolingStrategy('diff_pool')
+CONV_STRATEGY = ConvStrategy('entire')
+POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
 
@@ -43,7 +43,7 @@ dataset = HCPDataset(root=name_dataset,
                      connectivity_type=CONN_TYPE,
                      disconnect_nodes=REMOVE_NODES)
 
-model = SpatioTemporalModel(num_time_length=1200,
+model = SpatioTemporalModel(num_time_length=75,
                             dropout_perc=0.3,
                             pooling=POOLING,
                             channels_conv=CHANNELS_CONV,
