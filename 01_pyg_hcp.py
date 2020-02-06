@@ -171,6 +171,7 @@ if __name__ == '__main__':
     parser.add_argument("--channels_conv", type=int)
     parser.add_argument("--normalisation", default='roi_norm')
     parser.add_argument("--analysis_type", default='spatiotemporal')
+    parser.add_argument("--time_length", type=int)
 
     args = parser.parse_args()
 
@@ -197,6 +198,7 @@ if __name__ == '__main__':
     CHANNELS_CONV = args.channels_conv
     NORMALISATION = Normalisation(args.normalisation)
     ANALYSIS_TYPE = AnalysisType(args.analysis_type)
+    TIME_LENGTH = args.time_length
 
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
@@ -212,12 +214,13 @@ if __name__ == '__main__':
         exit(-1)
     else:
         print("Predicting", TARGET_VAR, N_EPOCHS, SPLIT_TO_TEST, ADD_GCN, ACTIVATION, THRESHOLD, ADD_GAT,
-              BATCH_SIZE, REMOVE_NODES, NUM_NODES, CONN_TYPE, CONV_STRATEGY, POOLING, CHANNELS_CONV)
+              BATCH_SIZE, REMOVE_NODES, NUM_NODES, CONN_TYPE, CONV_STRATEGY, POOLING, CHANNELS_CONV, TIME_LENGTH)
 
     #
     # Definition of general variables
     #
     name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
+                                               time_length=TIME_LENGTH,
                                                target_var=TARGET_VAR,
                                                threshold=THRESHOLD,
                                                normalisation=NORMALISATION,
@@ -225,6 +228,7 @@ if __name__ == '__main__':
                                                disconnect_nodes=REMOVE_NODES)
     print("Going for", name_dataset)
     dataset = HCPDataset(root=name_dataset,
+                         time_length=TIME_LENGTH,
                          num_nodes=NUM_NODES,
                          target_var=TARGET_VAR,
                          threshold=THRESHOLD,
@@ -314,7 +318,7 @@ if __name__ == '__main__':
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
                 if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
-                    model = SpatioTemporalModel(num_time_length=75,
+                    model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                                                 dropout_perc=params['dropout'],
                                                 pooling=POOLING,
                                                 channels_conv=CHANNELS_CONV,

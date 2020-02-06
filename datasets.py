@@ -16,15 +16,15 @@ PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 def get_struct_path(person):
     return f'../hcp_multimodal_parcellation/HCP_tracks_matrices_BN_withcerebellum/{person}/{person}_{person}_BN_Atlas_246_1mm_geom_withcerebellum_RS.txt'
 
-def get_adj_50_path(person, index):
-    return f'../../../space/hcp_50_timeseries/processed_16_split_50/{person}_{index}.npy'
+def get_adj_50_path(person, index, split):
+    return f'../../../space/hcp_50_timeseries/processed_{split}_split_50/{person}_{index}.npy'
 
 def get_50_ts_path(person):
     return f'../hcp_timecourses/3T_HCP1200_MSMAll_d50_ts2/{person}.txt'
 
 class HCPDataset(InMemoryDataset):
-    def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, normalisation, disconnect_nodes=False,
-                 transform=None, pre_transform=None):
+    def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, normalisation, time_length=1200,
+                 disconnect_nodes=False, transform=None, pre_transform=None):
         '''
 
         :param root:
@@ -55,6 +55,12 @@ class HCPDataset(InMemoryDataset):
         self.connectivity_type = connectivity_type
         self.disconnect_nodes = disconnect_nodes
         self.normalisation = normalisation
+        self.time_length = time_length
+
+        if time_length == 75:
+            self.split_num = 16
+        elif time_length == 1200:
+            self.split_num = 4
 
         if self.disconnect_nodes:
             print("Warning: Removing disconnected nodes not yet developed in HCPDataset")
@@ -123,10 +129,11 @@ class HCPDataset(InMemoryDataset):
                     exit(-2)
 
                 all_ts = np.genfromtxt(get_50_ts_path(person))
-                for ind, slice_start in enumerate(range(0, 4800, 75)):
-                    ts = all_ts[slice_start:slice_start + 75, :]
 
-                    corr_arr = np.load(get_adj_50_path(person, ind))
+                for ind, slice_start in enumerate(range(0, 4800, self.time_length)):
+                    ts = all_ts[slice_start:slice_start + self.time_length, :]
+
+                    corr_arr = np.load(get_adj_50_path(person, ind, split=self.split_num))
                     # For threshold operations, zero out lower triangle (including diagonal)
                     corr_arr[np.tril_indices(self.num_nodes)] = 0
 

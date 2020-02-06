@@ -23,12 +23,14 @@ CONV_STRATEGY = ConvStrategy('entire')
 POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
+TIME_LENGTH = 1200
 
 torch.manual_seed(1)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
+                                           time_length=1200,
                                            target_var=TARGET_VAR,
                                            threshold=THRESHOLD,
                                            normalisation=NORMALISATION,
@@ -36,6 +38,7 @@ name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
                                            disconnect_nodes=REMOVE_NODES)
 print("Going for", name_dataset)
 dataset = HCPDataset(root=name_dataset,
+                     time_length=1200,
                      num_nodes=NUM_NODES,
                      target_var=TARGET_VAR,
                      threshold=THRESHOLD,
@@ -43,7 +46,7 @@ dataset = HCPDataset(root=name_dataset,
                      connectivity_type=CONN_TYPE,
                      disconnect_nodes=REMOVE_NODES)
 
-model = SpatioTemporalModel(num_time_length=75,
+model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                             dropout_perc=0.3,
                             pooling=POOLING,
                             channels_conv=CHANNELS_CONV,

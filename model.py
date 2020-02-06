@@ -244,6 +244,7 @@ class SpatioTemporalModel(nn.Module):
 
     def to_string_name(self):
         model_vars = ['V_' + self.VERSION,
+                      'TL_' + str(self.num_time_length),
                       'D_' + str(self.dropout),
                       'A_' + self.activation_str,
                       'P_' + self.pooling.value,

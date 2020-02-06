@@ -313,9 +313,11 @@ def get_timeseries_final_path(person, session_day, direction=False):
                 f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}_RL.npy')
 
 
-def create_name_for_hcp_dataset(num_nodes, target_var, threshold, connectivity_type, normalisation,
+def create_name_for_hcp_dataset(num_nodes, time_length, target_var, threshold, connectivity_type, normalisation,
                                 disconnect_nodes=False,
-                                prefix_location='./pytorch_data/balanced_hcp_16split_'):
+                                prefix_location='./pytorch_data/balanced_hcp_4split_'):
+    if time_length == 75:
+        prefix_location = './pytorch_data/balanced_hcp_16split_'
     name_combination = '_'.join(
         [target_var, connectivity_type.value, str(num_nodes), str(threshold), normalisation.value,
          str(disconnect_nodes)])
