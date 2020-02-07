@@ -134,7 +134,7 @@ def get_array_data(data_fold):
     tmp_y = []
 
     for d in data_fold:
-        tmp_array.append(flatten_correlations[(d.hcp_id.item(), d.session.item(), d.direction.item())])
+        tmp_array.append(flatten_correlations[(d.hcp_id.item(), d.index.item())])
         tmp_y.append(d.y.item())
 
     return np.array(tmp_array), np.array(tmp_y)
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     parser.add_argument("--fold_num", type=int)
     parser.add_argument("--target_var")
     parser.add_argument("--activation", default='relu')
-    parser.add_argument("--threshold", default=20, type=int)
+    parser.add_argument("--threshold", default=5, type=int)
     parser.add_argument("--num_nodes", default=50, type=int)
     parser.add_argument("--num_epochs", default=20, type=int)
     parser.add_argument("--batch_size", default=150, type=int)
@@ -199,6 +199,7 @@ if __name__ == '__main__':
     NORMALISATION = Normalisation(args.normalisation)
     ANALYSIS_TYPE = AnalysisType(args.analysis_type)
     TIME_LENGTH = args.time_length
+    TS_SPIT_NUM = int(4800 / TIME_LENGTH)
 
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
@@ -236,7 +237,7 @@ if __name__ == '__main__':
                          connectivity_type=CONN_TYPE,
                          disconnect_nodes=REMOVE_NODES)
     if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
-        flatten_correlations = create_hcp_correlation_vals(NUM_NODES)
+        flatten_correlations = create_hcp_correlation_vals(NUM_NODES, ts_split_num=TS_SPIT_NUM)
 
     N_OUT_SPLITS = 5
     N_INNER_SPLITS = 5

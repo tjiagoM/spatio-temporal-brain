@@ -16,8 +16,8 @@ PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 def get_struct_path(person):
     return f'../hcp_multimodal_parcellation/HCP_tracks_matrices_BN_withcerebellum/{person}/{person}_{person}_BN_Atlas_246_1mm_geom_withcerebellum_RS.txt'
 
-def get_adj_50_path(person, index, split):
-    return f'../../../space/hcp_50_timeseries/processed_{split}_split_50/{person}_{index}.npy'
+def get_adj_50_path(person, index, ts_split):
+    return f'../../../space/hcp_50_timeseries/processed_{ts_split}_split_50/{person}_{index}.npy'
 
 def get_50_ts_path(person):
     return f'../hcp_timecourses/3T_HCP1200_MSMAll_d50_ts2/{person}.txt'
@@ -57,10 +57,7 @@ class HCPDataset(InMemoryDataset):
         self.normalisation = normalisation
         self.time_length = time_length
 
-        if time_length == 75:
-            self.split_num = 16
-        elif time_length == 1200:
-            self.split_num = 4
+        self.ts_split_num = int(4800 / time_length)
 
         if self.disconnect_nodes:
             print("Warning: Removing disconnected nodes not yet developed in HCPDataset")
@@ -133,7 +130,7 @@ class HCPDataset(InMemoryDataset):
                 for ind, slice_start in enumerate(range(0, 4800, self.time_length)):
                     ts = all_ts[slice_start:slice_start + self.time_length, :]
 
-                    corr_arr = np.load(get_adj_50_path(person, ind, split=self.split_num))
+                    corr_arr = np.load(get_adj_50_path(person, ind, ts_split=self.ts_split_num))
                     # For threshold operations, zero out lower triangle (including diagonal)
                     corr_arr[np.tril_indices(self.num_nodes)] = 0
 
@@ -218,18 +215,15 @@ class HCPDataset(InMemoryDataset):
 
 
 
-def create_hcp_correlation_vals(num_nodes=50):
+def create_hcp_correlation_vals(num_nodes=50, ts_split_num=64):
     final_dict = {}
 
     for person in OLD_NETMATS_PEOPLE:
-        for ind in range(4):
-            corr_arr = np.load(get_adj_50_path(person, ind))
+        for ind in range(ts_split_num):
+            corr_arr = np.load(get_adj_50_path(person, ind, ts_split=ts_split_num))
             # For threshold operations, zero out lower triangle (including diagonal)
             flatten_array = corr_arr[np.triu_indices(num_nodes, k=1)]
 
-            session = 1 if ind < 2 else 2
-            direction = 0 if ind in [1, 3] else 1
-
-            final_dict[(person, session, direction)] = flatten_array
+            final_dict[(person, ind)] = flatten_array
 
     return final_dict
