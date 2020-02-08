@@ -238,6 +238,9 @@ if __name__ == '__main__':
                          disconnect_nodes=REMOVE_NODES)
     if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
         flatten_correlations = create_hcp_correlation_vals(NUM_NODES, ts_split_num=TS_SPIT_NUM)
+    elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
+        flatten_correlations = create_hcp_correlation_vals(NUM_NODES, ts_split_num=TS_SPIT_NUM,
+                                                           binarise=True, threshold=THRESHOLD)
 
     N_OUT_SPLITS = 5
     N_INNER_SPLITS = 5
@@ -281,7 +284,7 @@ if __name__ == '__main__':
                           'lr': [1e-4, 1e-5, 1e-6],
                           'dropout': [0, 0.5, 0.7]
                           }
-        elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+        elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
             param_grid = {
                 'min_child_weight': [1, 5, 10],
                 'gamma': [0.0, 1, 5],
@@ -332,7 +335,7 @@ if __name__ == '__main__':
                                                 ).to(device)
                     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                     print("Number of trainable params:", trainable_params)
-                elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+                elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
                     model = XGBClassifier(n_jobs=-1, seed=1111, random_state=1111, **params)
 
                 # Creating the various names for each metric
@@ -353,7 +356,7 @@ if __name__ == '__main__':
                 print("Inner Size is:", len(X_train_in), "/", len(X_val_in))
                 print("Inner Positive classes:", sum(X_train_in.data.y.numpy()), "/", sum(X_val_in.data.y.numpy()))
 
-                if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+                if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
                     X_train_in_array, y_train_in_array = get_array_data(X_train_in)
                     X_val_in_array, y_val_in_array = get_array_data(X_val_in)
 
@@ -438,7 +441,7 @@ if __name__ == '__main__':
             print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
                   ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
                             test_metrics['sensitivity'], test_metrics['specificity']))
-        elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
+        elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
             for met_name, best_name, best_val in [('acc', best_model_name_outer_fold_auc, best_outer_metric_auc),
                                                   ('auc', best_model_name_outer_fold_acc, best_outer_metric_acc)]:
                 print(f'Best params if {met_name}: {best_name} ( {best_val} )')

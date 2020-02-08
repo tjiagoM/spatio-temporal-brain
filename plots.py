@@ -127,6 +127,7 @@ from scipy import interp
 tprs = []
 aucs = []
 mean_fpr = np.linspace(0, 1, 100)
+colours_plot = ['r', 'g', 'c', 'y', 'm']
 
 fig, ax = plt.subplots()
 for fold, ord_index in enumerate(range(4, 40, 8)):
@@ -137,7 +138,7 @@ for fold, ord_index in enumerate(range(4, 40, 8)):
     fpr, tpr, _ = roc_curve(labels, predictions)
     roc_val = auc(fpr, tpr)
 
-    ax.plot(fpr, tpr, lw=2, alpha=0.5, label=f'Roc fold {fold}')
+    ax.plot(fpr, tpr, lw=2, alpha=0.5, label=f'Roc Fold {fold+1}', color=colours_plot[fold])
     interp_tpr = interp(mean_fpr, fpr, tpr)
     interp_tpr[0] = 0.0
     tprs.append(interp_tpr)

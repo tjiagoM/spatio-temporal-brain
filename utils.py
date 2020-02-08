@@ -33,6 +33,7 @@ class PoolingStrategy(str, Enum):
 class AnalysisType(str, Enum):
     SPATIOTEMOPRAL = 'spatiotemporal'
     FLATTEN_CORRS = 'flatten_corrs'
+    FLATTEN_CORRS_THRESHOLD = 'flatten_corrs_threshold'
 
 
 NEW_STRUCT_PEOPLE = [100206, 100307, 100408, 100610, 101107, 101309, 101410, 101915, 102008, 102311, 102513, 102614,
@@ -332,9 +333,9 @@ def create_name_for_model(target_var, model, params, outer_split_num, inner_spli
                           suffix='.pth'):
     if analysis_type == AnalysisType.SPATIOTEMOPRAL:
         model_str_representation = model.to_string_name()
-    elif analysis_type == AnalysisType.FLATTEN_CORRS:
+    elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
         suffix = '.pkl'
-        model_str_representation = ''
+        model_str_representation = analysis_type.value
         for key in ['min_child_weight', 'gamma', 'subsample', 'colsample_bytree', 'max_depth', 'n_estimators']:
             model_str_representation += key + '_' + str(model.get_xgb_params()[key])
         params['lr'] = None

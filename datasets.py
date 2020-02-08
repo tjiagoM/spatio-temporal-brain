@@ -22,6 +22,25 @@ def get_adj_50_path(person, index, ts_split):
 def get_50_ts_path(person):
     return f'../hcp_timecourses/3T_HCP1200_MSMAll_d50_ts2/{person}.txt'
 
+def threshold_adj_array(adj_array, threshold, num_nodes):
+    num_to_filter = int((threshold / 100.0) * (num_nodes * (num_nodes - 1) / 2))
+
+    # For threshold operations, zero out lower triangle (including diagonal)
+    adj_array[np.tril_indices(num_nodes)] = 0
+
+    # Following code is similar to bctpy
+    indices = np.where(adj_array)
+    sorted_indices = np.argsort(adj_array[indices])[::-1]
+    adj_array[(indices[0][sorted_indices][num_to_filter:], indices[1][sorted_indices][num_to_filter:])] = 0
+
+    # Just to get a symmetrical matrix
+    adj_array = adj_array + adj_array.T
+
+    # Diagonals need connection of 1 for graph operations
+    adj_array[np.diag_indices(num_nodes)] = 1.0
+
+    return adj_array
+
 class HCPDataset(InMemoryDataset):
     def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, normalisation, time_length=1200,
                  disconnect_nodes=False, transform=None, pre_transform=None):
@@ -91,18 +110,8 @@ class HCPDataset(InMemoryDataset):
         return timeseries
 
     def __create_thresholded_graph(self, adj_array):
-        num_to_filter = int((self.threshold / 100.0) * (self.num_nodes * (self.num_nodes - 1) / 2))
 
-        # Following code is similar to bctpy
-        indices = np.where(adj_array)
-        sorted_indices = np.argsort(adj_array[indices])[::-1]
-        adj_array[(indices[0][sorted_indices][num_to_filter:], indices[1][sorted_indices][num_to_filter:])] = 0
-
-        # Just to get a symmetrical matrix
-        adj_array = adj_array + adj_array.T
-
-        # Diagonals need connection of 1 for graph operations
-        adj_array[np.diag_indices(self.num_nodes)] = 1.0
+        adj_array = threshold_adj_array(adj_array, self.threshold, self.num_nodes)
 
         return nx.from_numpy_array(adj_array, create_using=nx.DiGraph)
 
@@ -131,8 +140,6 @@ class HCPDataset(InMemoryDataset):
                     ts = all_ts[slice_start:slice_start + self.time_length, :]
 
                     corr_arr = np.load(get_adj_50_path(person, ind, ts_split=self.ts_split_num))
-                    # For threshold operations, zero out lower triangle (including diagonal)
-                    corr_arr[np.tril_indices(self.num_nodes)] = 0
 
                     G = self.__create_thresholded_graph(corr_arr)
 
@@ -215,14 +222,20 @@ class HCPDataset(InMemoryDataset):
 
 
 
-def create_hcp_correlation_vals(num_nodes=50, ts_split_num=64):
+def create_hcp_correlation_vals(num_nodes=50, ts_split_num=64, binarise=False, threshold=100):
     final_dict = {}
 
     for person in OLD_NETMATS_PEOPLE:
         for ind in range(ts_split_num):
             corr_arr = np.load(get_adj_50_path(person, ind, ts_split=ts_split_num))
-            # For threshold operations, zero out lower triangle (including diagonal)
+
+            if binarise:
+                corr_arr = threshold_adj_array(corr_arr, threshold, num_nodes)
+            # Getting upper triangle only (without diagonal)
             flatten_array = corr_arr[np.triu_indices(num_nodes, k=1)]
+
+            if binarise:
+                flatten_array[flatten_array != 0] = 1
 
             final_dict[(person, ind)] = flatten_array
 
