@@ -1,0 +1,8 @@
+This run will not be deterministic
+Predicting gender 20 2 False relu 5 False 150 False 50 ConnType.FMRI ConvStrategy.CNN_ENTIRE PoolingStrategy.MEAN None 75
+Going for ./pytorch_data/balanced_hcp_16split_gender_fmri_50_5_roi_norm_False
+Size is: 48004 / 12028
+Positive classes: 24000.0 / 6016.0
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 38424 / 9580
+Inner Positive classes: 19200.0 / 4800.0

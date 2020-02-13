@@ -1,0 +1,982 @@
+This run will not be deterministic
+Predicting gender 20 5 False relu 20 False 150 False 50 ConnType.FMRI ConvStrategy.CNN_ENTIRE PoolingStrategy.MEAN None 1200
+Going for ./pytorch_data/balanced_hcp_4split_gender_fmri_50_20_roi_norm_False
+Size is: 3006 / 746
+Positive classes: 1504.0 / 372.0
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524834437086092, 'acc': 0.7524752475247525, 'f1': 0.7524752475247526, 'sensitivity': 0.75, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491286162425932, 'acc': 0.7491749174917491, 'f1': 0.7532467532467534, 'sensitivity': 0.7631578947368421, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7260805158591844, 'acc': 0.7260726072607261, 'f1': 0.7260726072607262, 'sensitivity': 0.7236842105263158, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7474729871035205, 'acc': 0.7475247524752475, 'f1': 0.7520259319286873, 'sensitivity': 0.7631578947368421, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7541063959567793, 'acc': 0.7541254125412541, 'f1': 0.7561374795417348, 'sensitivity': 0.7598684210526315, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475056639944232, 'acc': 0.7475247524752475, 'f1': 0.7495908346972177, 'sensitivity': 0.7532894736842105, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425496688741722, 'acc': 0.7425742574257426, 'f1': 0.7450980392156864, 'sensitivity': 0.75, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408831474381318, 'acc': 0.740924092409241, 'f1': 0.7447154471544716, 'sensitivity': 0.7532894736842105, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392601951899617, 'acc': 0.7392739273927392, 'f1': 0.740983606557377, 'sensitivity': 0.743421052631579, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557511327988847, 'acc': 0.7557755775577558, 'f1': 0.758169934640523, 'sensitivity': 0.7631578947368421, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7622974032764029, 'acc': 0.7623762376237624, 'f1': 0.7684887459807075, 'sensitivity': 0.7861842105263158, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491939700243987, 'acc': 0.7491749174917491, 'f1': 0.7483443708609273, 'sensitivity': 0.743421052631579, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7622974032764029, 'acc': 0.7623762376237624, 'f1': 0.7684887459807075, 'sensitivity': 0.7861842105263158, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7606635587312652, 'acc': 0.7607260726072608, 'f1': 0.7657512116316639, 'sensitivity': 0.7796052631578947, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458827117462531, 'acc': 0.7458745874587459, 'f1': 0.7458745874587459, 'sensitivity': 0.743421052631579, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7342606308818405, 'acc': 0.7343234323432343, 'f1': 0.7399030694668821, 'sensitivity': 0.7532894736842105, 'specificity': 0.7152317880794702}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.752439874520739, 'acc': 0.7524752475247525, 'f1': 0.755700325732899, 'sensitivity': 0.7631578947368421, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7359598292087837, 'acc': 0.735973597359736, 'f1': 0.7377049180327869, 'sensitivity': 0.7401315789473685, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7343150923666784, 'acc': 0.7343234323432343, 'f1': 0.7356321839080461, 'sensitivity': 0.7368421052631579, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7573196235622168, 'acc': 0.7574257425742574, 'f1': 0.7655502392344499, 'sensitivity': 0.7894736842105263, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491286162425932, 'acc': 0.7491749174917491, 'f1': 0.7532467532467534, 'sensitivity': 0.7631578947368421, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7508169222725689, 'acc': 0.7508250825082509, 'f1': 0.7520525451559934, 'sensitivity': 0.7532894736842105, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.730992941791565, 'acc': 0.731023102310231, 'f1': 0.7340946166394781, 'sensitivity': 0.7401315789473685, 'specificity': 0.7218543046357616}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7574721157197631, 'acc': 0.7574257425742574, 'f1': 0.7545909849749582, 'sensitivity': 0.743421052631579, 'specificity': 0.7715231788079471}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7574067619379574, 'acc': 0.7574257425742574, 'f1': 0.7594108019639936, 'sensitivity': 0.7631578947368421, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392166260020914, 'acc': 0.7392739273927392, 'f1': 0.7443365695792881, 'sensitivity': 0.756578947368421, 'specificity': 0.7218543046357616}
+For  {'colsample_bytree': 0.3, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475165562913906, 'acc': 0.7475247524752475, 'f1': 0.7487684729064039, 'sensitivity': 0.75, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557511327988847, 'acc': 0.7557755775577558, 'f1': 0.758169934640523, 'sensitivity': 0.7631578947368421, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408722551411642, 'acc': 0.740924092409241, 'f1': 0.7455429497568882, 'sensitivity': 0.756578947368421, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7260805158591844, 'acc': 0.7260726072607261, 'f1': 0.7260726072607262, 'sensitivity': 0.7236842105263158, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524616591146741, 'acc': 0.7524752475247525, 'f1': 0.7540983606557377, 'sensitivity': 0.756578947368421, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408831474381318, 'acc': 0.740924092409241, 'f1': 0.7447154471544716, 'sensitivity': 0.7532894736842105, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.749161293133496, 'acc': 0.7491749174917491, 'f1': 0.7508196721311474, 'sensitivity': 0.7532894736842105, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458827117462531, 'acc': 0.7458745874587459, 'f1': 0.7458745874587459, 'sensitivity': 0.743421052631579, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392601951899617, 'acc': 0.7392739273927392, 'f1': 0.740983606557377, 'sensitivity': 0.743421052631579, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458173579644475, 'acc': 0.7458745874587459, 'f1': 0.7508090614886731, 'sensitivity': 0.7631578947368421, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7556966713140468, 'acc': 0.7557755775577558, 'f1': 0.7620578778135048, 'sensitivity': 0.7796052631578947, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7622974032764029, 'acc': 0.7623762376237624, 'f1': 0.7684887459807075, 'sensitivity': 0.7861842105263158, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7573958696409899, 'acc': 0.7574257425742574, 'f1': 0.7601957585644372, 'sensitivity': 0.7664473684210527, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.752385413035901, 'acc': 0.7524752475247525, 'f1': 0.7596153846153846, 'sensitivity': 0.7796052631578947, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408940397350994, 'acc': 0.740924092409241, 'f1': 0.7438825448613376, 'sensitivity': 0.75, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7525161205995121, 'acc': 0.7524752475247525, 'f1': 0.7499999999999999, 'sensitivity': 0.7401315789473685, 'specificity': 0.7649006622516556}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7672533983966539, 'acc': 0.7673267326732673, 'f1': 0.7729468599033816, 'sensitivity': 0.7894736842105263, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7508060299756012, 'acc': 0.7508250825082509, 'f1': 0.7528641571194762, 'sensitivity': 0.756578947368421, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458500348553503, 'acc': 0.7458745874587459, 'f1': 0.7483660130718954, 'sensitivity': 0.7532894736842105, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491068316486581, 'acc': 0.7491749174917491, 'f1': 0.7548387096774193, 'sensitivity': 0.7697368421052632, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7308840188218891, 'acc': 0.731023102310231, 'f1': 0.7424960505529227, 'sensitivity': 0.7730263157894737, 'specificity': 0.6887417218543046}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7442488672011154, 'acc': 0.7442244224422442, 'f1': 0.7429519071310116, 'sensitivity': 0.7368421052631579, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557075636110142, 'acc': 0.7557755775577558, 'f1': 0.7612903225806452, 'sensitivity': 0.7763157894736842, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425387765772047, 'acc': 0.7425742574257426, 'f1': 0.7459283387622149, 'sensitivity': 0.7532894736842105, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7508060299756012, 'acc': 0.7508250825082509, 'f1': 0.7528641571194762, 'sensitivity': 0.756578947368421, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7540410421749738, 'acc': 0.7541254125412541, 'f1': 0.7608346709470305, 'sensitivity': 0.7796052631578947, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7540846113628441, 'acc': 0.7541254125412541, 'f1': 0.7577235772357724, 'sensitivity': 0.7664473684210527, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.3, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7409049320320669, 'acc': 0.740924092409241, 'f1': 0.7430441898527006, 'sensitivity': 0.7467105263157895, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7508060299756012, 'acc': 0.7508250825082509, 'f1': 0.7528641571194762, 'sensitivity': 0.756578947368421, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7293264203555246, 'acc': 0.7293729372937293, 'f1': 0.7337662337662338, 'sensitivity': 0.743421052631579, 'specificity': 0.7152317880794702}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557620250958521, 'acc': 0.7557755775577558, 'f1': 0.757377049180328, 'sensitivity': 0.7598684210526315, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7639639247124433, 'acc': 0.764026402640264, 'f1': 0.7689822294022617, 'sensitivity': 0.7828947368421053, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491721854304636, 'acc': 0.7491749174917491, 'f1': 0.75, 'sensitivity': 0.75, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524616591146741, 'acc': 0.7524752475247525, 'f1': 0.7540983606557377, 'sensitivity': 0.756578947368421, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7640183861972814, 'acc': 0.764026402640264, 'f1': 0.7651888341543515, 'sensitivity': 0.7664473684210527, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7474620948065528, 'acc': 0.7475247524752475, 'f1': 0.7528271405492731, 'sensitivity': 0.7664473684210527, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7376154583478565, 'acc': 0.7376237623762376, 'f1': 0.7389162561576356, 'sensitivity': 0.7401315789473685, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458609271523179, 'acc': 0.7458745874587459, 'f1': 0.7475409836065574, 'sensitivity': 0.75, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408395782502614, 'acc': 0.740924092409241, 'f1': 0.7479935794542536, 'sensitivity': 0.7664473684210527, 'specificity': 0.7152317880794702}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491830777274311, 'acc': 0.7491749174917491, 'f1': 0.7491749174917491, 'sensitivity': 0.7467105263157895, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458282502614151, 'acc': 0.7458745874587459, 'f1': 0.75, 'sensitivity': 0.7598684210526315, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7293264203555246, 'acc': 0.7293729372937293, 'f1': 0.7337662337662338, 'sensitivity': 0.743421052631579, 'specificity': 0.7152317880794702}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7558164865806901, 'acc': 0.7557755775577558, 'f1': 0.7533333333333334, 'sensitivity': 0.743421052631579, 'specificity': 0.7682119205298014}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7623954339491111, 'acc': 0.7623762376237624, 'f1': 0.7615894039735099, 'sensitivity': 0.756578947368421, 'specificity': 0.7682119205298014}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491177239456257, 'acc': 0.7491749174917491, 'f1': 0.7540453074433657, 'sensitivity': 0.7664473684210527, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.760750697107006, 'acc': 0.7607260726072608, 'f1': 0.7595356550580431, 'sensitivity': 0.7532894736842105, 'specificity': 0.7682119205298014}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475492331822935, 'acc': 0.7475247524752475, 'f1': 0.746268656716418, 'sensitivity': 0.7401315789473685, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491395085395607, 'acc': 0.7491749174917491, 'f1': 0.752442996742671, 'sensitivity': 0.7598684210526315, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524725514116417, 'acc': 0.7524752475247525, 'f1': 0.7532894736842106, 'sensitivity': 0.7532894736842105, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557620250958521, 'acc': 0.7557755775577558, 'f1': 0.757377049180328, 'sensitivity': 0.7598684210526315, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7260587312652492, 'acc': 0.7260726072607261, 'f1': 0.7278688524590164, 'sensitivity': 0.7302631578947368, 'specificity': 0.7218543046357616}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7623845416521435, 'acc': 0.7623762376237624, 'f1': 0.7623762376237624, 'sensitivity': 0.7598684210526315, 'specificity': 0.7649006622516556}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524616591146741, 'acc': 0.7524752475247525, 'f1': 0.7540983606557377, 'sensitivity': 0.756578947368421, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7640183861972814, 'acc': 0.764026402640264, 'f1': 0.7651888341543515, 'sensitivity': 0.7664473684210527, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 0.3, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7376154583478565, 'acc': 0.7376237623762376, 'f1': 0.7389162561576356, 'sensitivity': 0.7401315789473685, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408940397350994, 'acc': 0.740924092409241, 'f1': 0.7438825448613376, 'sensitivity': 0.75, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524725514116417, 'acc': 0.7524752475247525, 'f1': 0.7532894736842106, 'sensitivity': 0.7532894736842105, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7375718891599861, 'acc': 0.7376237623762376, 'f1': 0.7423014586709886, 'sensitivity': 0.7532894736842105, 'specificity': 0.7218543046357616}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.749161293133496, 'acc': 0.7491749174917491, 'f1': 0.7508196721311474, 'sensitivity': 0.7532894736842105, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7442379749041479, 'acc': 0.7442244224422442, 'f1': 0.743801652892562, 'sensitivity': 0.7401315789473685, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7474620948065528, 'acc': 0.7475247524752475, 'f1': 0.7528271405492731, 'sensitivity': 0.7664473684210527, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.742582345765075, 'acc': 0.7425742574257426, 'f1': 0.7425742574257426, 'sensitivity': 0.7401315789473685, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524725514116417, 'acc': 0.7524752475247525, 'f1': 0.7532894736842106, 'sensitivity': 0.7532894736842105, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.732648570930638, 'acc': 0.7326732673267327, 'f1': 0.7352941176470589, 'sensitivity': 0.7401315789473685, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7310038340885326, 'acc': 0.731023102310231, 'f1': 0.7332242225859247, 'sensitivity': 0.7368421052631579, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7507951376786337, 'acc': 0.7508250825082509, 'f1': 0.7536704730831973, 'sensitivity': 0.7598684210526315, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7474838794004879, 'acc': 0.7475247524752475, 'f1': 0.7512195121951218, 'sensitivity': 0.7598684210526315, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7508278145695364, 'acc': 0.7508250825082509, 'f1': 0.7512355848434926, 'sensitivity': 0.75, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7540737190658766, 'acc': 0.7541254125412541, 'f1': 0.7585089141004863, 'sensitivity': 0.7697368421052632, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7558164865806901, 'acc': 0.7557755775577558, 'f1': 0.7533333333333334, 'sensitivity': 0.743421052631579, 'specificity': 0.7682119205298014}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557620250958521, 'acc': 0.7557755775577558, 'f1': 0.757377049180328, 'sensitivity': 0.7598684210526315, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7359380446148484, 'acc': 0.735973597359736, 'f1': 0.739413680781759, 'sensitivity': 0.7467105263157895, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425169919832695, 'acc': 0.7425742574257426, 'f1': 0.7475728155339804, 'sensitivity': 0.7598684210526315, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458718194492854, 'acc': 0.7458745874587459, 'f1': 0.7467105263157896, 'sensitivity': 0.7467105263157895, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7507951376786337, 'acc': 0.7508250825082509, 'f1': 0.7536704730831973, 'sensitivity': 0.7598684210526315, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524507668177064, 'acc': 0.7524752475247525, 'f1': 0.7549019607843138, 'sensitivity': 0.7598684210526315, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491286162425932, 'acc': 0.7491749174917491, 'f1': 0.7532467532467534, 'sensitivity': 0.7631578947368421, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7276925758103869, 'acc': 0.7277227722772277, 'f1': 0.7308319738988581, 'sensitivity': 0.7368421052631579, 'specificity': 0.7185430463576159}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7294026664342977, 'acc': 0.7293729372937293, 'f1': 0.7275747508305649, 'sensitivity': 0.7203947368421053, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.762319187870338, 'acc': 0.7623762376237624, 'f1': 0.766990291262136, 'sensitivity': 0.7796052631578947, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491395085395607, 'acc': 0.7491749174917491, 'f1': 0.752442996742671, 'sensitivity': 0.7598684210526315, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.7, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425169919832695, 'acc': 0.7425742574257426, 'f1': 0.7475728155339804, 'sensitivity': 0.7598684210526315, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408940397350994, 'acc': 0.740924092409241, 'f1': 0.7438825448613376, 'sensitivity': 0.75, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524725514116417, 'acc': 0.7524752475247525, 'f1': 0.7532894736842106, 'sensitivity': 0.7532894736842105, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.764051063088184, 'acc': 0.764026402640264, 'f1': 0.7628524046434494, 'sensitivity': 0.756578947368421, 'specificity': 0.7715231788079471}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7376372429417916, 'acc': 0.7376237623762376, 'f1': 0.7371900826446282, 'sensitivity': 0.7335526315789473, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392384105960265, 'acc': 0.7392739273927392, 'f1': 0.7426710097719871, 'sensitivity': 0.75, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7441617288253748, 'acc': 0.7442244224422442, 'f1': 0.7495961227786753, 'sensitivity': 0.7631578947368421, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7541390728476821, 'acc': 0.7541254125412541, 'f1': 0.7537190082644627, 'sensitivity': 0.75, 'specificity': 0.7582781456953642}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7640183861972814, 'acc': 0.764026402640264, 'f1': 0.7651888341543515, 'sensitivity': 0.7664473684210527, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7441726211223422, 'acc': 0.7442244224422442, 'f1': 0.7487844408427876, 'sensitivity': 0.7598684210526315, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7442161903102126, 'acc': 0.7442244224422442, 'f1': 0.7454844006568144, 'sensitivity': 0.7467105263157895, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7442161903102126, 'acc': 0.7442244224422442, 'f1': 0.7454844006568144, 'sensitivity': 0.7467105263157895, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7442161903102126, 'acc': 0.7442244224422442, 'f1': 0.7454844006568144, 'sensitivity': 0.7467105263157895, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475056639944232, 'acc': 0.7475247524752475, 'f1': 0.7495908346972177, 'sensitivity': 0.7532894736842105, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7525052283025444, 'acc': 0.7524752475247525, 'f1': 0.7508305647840532, 'sensitivity': 0.743421052631579, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7573849773440223, 'acc': 0.7574257425742574, 'f1': 0.7609756097560976, 'sensitivity': 0.7697368421052632, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7541172882537469, 'acc': 0.7541254125412541, 'f1': 0.7553366174055828, 'sensitivity': 0.756578947368421, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.760696235622168, 'acc': 0.7607260726072608, 'f1': 0.763458401305057, 'sensitivity': 0.7697368421052632, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7375936737539213, 'acc': 0.7376237623762376, 'f1': 0.7406199021207178, 'sensitivity': 0.7467105263157895, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7540737190658766, 'acc': 0.7541254125412541, 'f1': 0.7585089141004863, 'sensitivity': 0.7697368421052632, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7508060299756012, 'acc': 0.7508250825082509, 'f1': 0.7528641571194762, 'sensitivity': 0.756578947368421, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7640183861972814, 'acc': 0.764026402640264, 'f1': 0.7651888341543515, 'sensitivity': 0.7664473684210527, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7507733530846985, 'acc': 0.7508250825082509, 'f1': 0.7552674230145867, 'sensitivity': 0.7664473684210527, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7441508365284071, 'acc': 0.7442244224422442, 'f1': 0.7504025764895331, 'sensitivity': 0.7664473684210527, 'specificity': 0.7218543046357616}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7474838794004879, 'acc': 0.7475247524752475, 'f1': 0.7512195121951218, 'sensitivity': 0.7598684210526315, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7689634890205648, 'acc': 0.768976897689769, 'f1': 0.7704918032786885, 'sensitivity': 0.7730263157894737, 'specificity': 0.7649006622516556}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557511327988847, 'acc': 0.7557755775577558, 'f1': 0.758169934640523, 'sensitivity': 0.7631578947368421, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.7, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.734347769257581, 'acc': 0.7343234323432343, 'f1': 0.7330016583747927, 'sensitivity': 0.7269736842105263, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.762319187870338, 'acc': 0.7623762376237624, 'f1': 0.766990291262136, 'sensitivity': 0.7796052631578947, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7343042000697106, 'acc': 0.7343234323432343, 'f1': 0.7364975450081834, 'sensitivity': 0.7401315789473685, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491504008365284, 'acc': 0.7491749174917491, 'f1': 0.7516339869281046, 'sensitivity': 0.756578947368421, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7276707912164517, 'acc': 0.7277227722772277, 'f1': 0.7325769854132902, 'sensitivity': 0.743421052631579, 'specificity': 0.7119205298013245}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557729173928197, 'acc': 0.7557755775577558, 'f1': 0.7565789473684209, 'sensitivity': 0.756578947368421, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392384105960265, 'acc': 0.7392739273927392, 'f1': 0.7426710097719871, 'sensitivity': 0.75, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458391425583827, 'acc': 0.7458745874587459, 'f1': 0.749185667752443, 'sensitivity': 0.756578947368421, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7772634193098642, 'acc': 0.7772277227722773, 'f1': 0.7753743760399334, 'sensitivity': 0.7664473684210527, 'specificity': 0.7880794701986755}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458282502614151, 'acc': 0.7458745874587459, 'f1': 0.75, 'sensitivity': 0.7598684210526315, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7508060299756012, 'acc': 0.7508250825082509, 'f1': 0.7528641571194762, 'sensitivity': 0.756578947368421, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7409158243290345, 'acc': 0.740924092409241, 'f1': 0.742200328407225, 'sensitivity': 0.743421052631579, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7326594632276053, 'acc': 0.7326732673267327, 'f1': 0.7344262295081967, 'sensitivity': 0.7368421052631579, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7342824154757754, 'acc': 0.7343234323432343, 'f1': 0.7382113821138212, 'sensitivity': 0.7467105263157895, 'specificity': 0.7218543046357616}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491830777274311, 'acc': 0.7491749174917491, 'f1': 0.7491749174917491, 'sensitivity': 0.7467105263157895, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425387765772047, 'acc': 0.7425742574257426, 'f1': 0.7459283387622149, 'sensitivity': 0.7532894736842105, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458282502614151, 'acc': 0.7458745874587459, 'f1': 0.75, 'sensitivity': 0.7598684210526315, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7492375392122691, 'acc': 0.7491749174917491, 'f1': 0.7449664429530201, 'sensitivity': 0.7302631578947368, 'specificity': 0.7682119205298014}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524943360055768, 'acc': 0.7524752475247525, 'f1': 0.7516556291390729, 'sensitivity': 0.7467105263157895, 'specificity': 0.7582781456953642}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7639639247124433, 'acc': 0.764026402640264, 'f1': 0.7689822294022617, 'sensitivity': 0.7828947368421053, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524507668177064, 'acc': 0.7524752475247525, 'f1': 0.7549019607843138, 'sensitivity': 0.7598684210526315, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491721854304636, 'acc': 0.7491749174917491, 'f1': 0.75, 'sensitivity': 0.75, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7705755489717672, 'acc': 0.7706270627062707, 'f1': 0.7747163695299839, 'sensitivity': 0.7861842105263158, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7540410421749738, 'acc': 0.7541254125412541, 'f1': 0.7608346709470305, 'sensitivity': 0.7796052631578947, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7409376089229696, 'acc': 0.740924092409241, 'f1': 0.740495867768595, 'sensitivity': 0.7368421052631579, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392384105960265, 'acc': 0.7392739273927392, 'f1': 0.7426710097719871, 'sensitivity': 0.75, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7705319797838969, 'acc': 0.7706270627062707, 'f1': 0.7776, 'sensitivity': 0.7993421052631579, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 0.7, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557620250958521, 'acc': 0.7557755775577558, 'f1': 0.757377049180328, 'sensitivity': 0.7598684210526315, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7573958696409899, 'acc': 0.7574257425742574, 'f1': 0.7601957585644372, 'sensitivity': 0.7664473684210527, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7591495294527709, 'acc': 0.759075907590759, 'f1': 0.7542087542087542, 'sensitivity': 0.7368421052631579, 'specificity': 0.7814569536423841}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7441944057162775, 'acc': 0.7442244224422442, 'f1': 0.7471451876019575, 'sensitivity': 0.7532894736842105, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7640619553851515, 'acc': 0.764026402640264, 'f1': 0.762063227953411, 'sensitivity': 0.7532894736842105, 'specificity': 0.7748344370860927}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7541281805507146, 'acc': 0.7541254125412541, 'f1': 0.7545304777594728, 'sensitivity': 0.7532894736842105, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475492331822935, 'acc': 0.7475247524752475, 'f1': 0.746268656716418, 'sensitivity': 0.7401315789473685, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7474729871035205, 'acc': 0.7475247524752475, 'f1': 0.7520259319286873, 'sensitivity': 0.7631578947368421, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7409485012199374, 'acc': 0.740924092409241, 'f1': 0.7396351575456053, 'sensitivity': 0.7335526315789473, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.742582345765075, 'acc': 0.7425742574257426, 'f1': 0.7425742574257426, 'sensitivity': 0.7401315789473685, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.754062826768909, 'acc': 0.7541254125412541, 'f1': 0.7592891760904685, 'sensitivity': 0.7730263157894737, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425169919832695, 'acc': 0.7425742574257426, 'f1': 0.7475728155339804, 'sensitivity': 0.7598684210526315, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.755794701986755, 'acc': 0.7557755775577558, 'f1': 0.7549668874172186, 'sensitivity': 0.75, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7458391425583827, 'acc': 0.7458745874587459, 'f1': 0.749185667752443, 'sensitivity': 0.756578947368421, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7541390728476821, 'acc': 0.7541254125412541, 'f1': 0.7537190082644627, 'sensitivity': 0.75, 'specificity': 0.7582781456953642}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425387765772047, 'acc': 0.7425742574257426, 'f1': 0.7459283387622149, 'sensitivity': 0.7532894736842105, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7507951376786337, 'acc': 0.7508250825082509, 'f1': 0.7536704730831973, 'sensitivity': 0.7598684210526315, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491830777274311, 'acc': 0.7491749174917491, 'f1': 0.7491749174917491, 'sensitivity': 0.7467105263157895, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7310038340885326, 'acc': 0.731023102310231, 'f1': 0.7332242225859247, 'sensitivity': 0.7368421052631579, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7574285465318926, 'acc': 0.7574257425742574, 'f1': 0.7578253706754531, 'sensitivity': 0.756578947368421, 'specificity': 0.7582781456953642}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7557184559079819, 'acc': 0.7557755775577558, 'f1': 0.7605177993527508, 'sensitivity': 0.7730263157894737, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.742527884280237, 'acc': 0.7425742574257426, 'f1': 0.7467532467532467, 'sensitivity': 0.756578947368421, 'specificity': 0.7284768211920529}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7573740850470547, 'acc': 0.7574257425742574, 'f1': 0.7617504051863858, 'sensitivity': 0.7730263157894737, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475056639944232, 'acc': 0.7475247524752475, 'f1': 0.7495908346972177, 'sensitivity': 0.7532894736842105, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7326812478215405, 'acc': 0.7326732673267327, 'f1': 0.7326732673267328, 'sensitivity': 0.7302631578947368, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7606853433252004, 'acc': 0.7607260726072608, 'f1': 0.7642276422764228, 'sensitivity': 0.7730263157894737, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7508822760543743, 'acc': 0.7508250825082509, 'f1': 0.7470686767169179, 'sensitivity': 0.7335526315789473, 'specificity': 0.7682119205298014}
+For  {'colsample_bytree': 1.0, 'gamma': 0.0, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7343150923666784, 'acc': 0.7343234323432343, 'f1': 0.7356321839080461, 'sensitivity': 0.7368421052631579, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7573958696409899, 'acc': 0.7574257425742574, 'f1': 0.7601957585644372, 'sensitivity': 0.7664473684210527, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7624498954339491, 'acc': 0.7623762376237624, 'f1': 0.7575757575757577, 'sensitivity': 0.7401315789473685, 'specificity': 0.7847682119205298}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7441944057162775, 'acc': 0.7442244224422442, 'f1': 0.7471451876019575, 'sensitivity': 0.7532894736842105, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.762373649355176, 'acc': 0.7623762376237624, 'f1': 0.7631578947368421, 'sensitivity': 0.7631578947368421, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7541281805507146, 'acc': 0.7541254125412541, 'f1': 0.7545304777594728, 'sensitivity': 0.7532894736842105, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7442270826071802, 'acc': 0.7442244224422442, 'f1': 0.7446457990115322, 'sensitivity': 0.743421052631579, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7606853433252004, 'acc': 0.7607260726072608, 'f1': 0.7642276422764228, 'sensitivity': 0.7730263157894737, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7409376089229696, 'acc': 0.740924092409241, 'f1': 0.740495867768595, 'sensitivity': 0.7368421052631579, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7376154583478565, 'acc': 0.7376237623762376, 'f1': 0.7389162561576356, 'sensitivity': 0.7401315789473685, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7525161205995121, 'acc': 0.7524752475247525, 'f1': 0.7499999999999999, 'sensitivity': 0.7401315789473685, 'specificity': 0.7649006622516556}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475601254792611, 'acc': 0.7475247524752475, 'f1': 0.7454242928452579, 'sensitivity': 0.7368421052631579, 'specificity': 0.7582781456953642}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524289822237713, 'acc': 0.7524752475247525, 'f1': 0.7564935064935066, 'sensitivity': 0.7664473684210527, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7606744510282327, 'acc': 0.7607260726072608, 'f1': 0.7649918962722853, 'sensitivity': 0.7763157894736842, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7490850470547228, 'acc': 0.7491749174917491, 'f1': 0.7564102564102564, 'sensitivity': 0.7763157894736842, 'specificity': 0.7218543046357616}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392275182990591, 'acc': 0.7392739273927392, 'f1': 0.7435064935064936, 'sensitivity': 0.7532894736842105, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408722551411642, 'acc': 0.740924092409241, 'f1': 0.7455429497568882, 'sensitivity': 0.756578947368421, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.762373649355176, 'acc': 0.7623762376237624, 'f1': 0.7631578947368421, 'sensitivity': 0.7631578947368421, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7375827814569538, 'acc': 0.7376237623762376, 'f1': 0.7414634146341464, 'sensitivity': 0.75, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491939700243987, 'acc': 0.7491749174917491, 'f1': 0.7483443708609273, 'sensitivity': 0.743421052631579, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392819797838969, 'acc': 0.7392739273927392, 'f1': 0.7392739273927393, 'sensitivity': 0.7368421052631579, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475056639944232, 'acc': 0.7475247524752475, 'f1': 0.7495908346972177, 'sensitivity': 0.7532894736842105, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7260696235622168, 'acc': 0.7260726072607261, 'f1': 0.7269736842105263, 'sensitivity': 0.7269736842105263, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7474512025095853, 'acc': 0.7475247524752475, 'f1': 0.7536231884057971, 'sensitivity': 0.7697368421052632, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7309602649006621, 'acc': 0.731023102310231, 'f1': 0.7366720516962842, 'sensitivity': 0.75, 'specificity': 0.7119205298013245}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7688654583478565, 'acc': 0.768976897689769, 'f1': 0.7770700636942676, 'sensitivity': 0.8026315789473685, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425605611711398, 'acc': 0.7425742574257426, 'f1': 0.7442622950819674, 'sensitivity': 0.7467105263157895, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 1.0, 'gamma': 1, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392710874869293, 'acc': 0.7392739273927392, 'f1': 0.7401315789473684, 'sensitivity': 0.7401315789473685, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7623409724642732, 'acc': 0.7623762376237624, 'f1': 0.765472312703583, 'sensitivity': 0.7730263157894737, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.760750697107006, 'acc': 0.7607260726072608, 'f1': 0.7595356550580431, 'sensitivity': 0.7532894736842105, 'specificity': 0.7682119205298014}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7343368769606134, 'acc': 0.7343234323432343, 'f1': 0.7338842975206611, 'sensitivity': 0.7302631578947368, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7392057337051237, 'acc': 0.7392739273927392, 'f1': 0.7451612903225807, 'sensitivity': 0.7598684210526315, 'specificity': 0.7185430463576159}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491721854304636, 'acc': 0.7491749174917491, 'f1': 0.75, 'sensitivity': 0.75, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7540955036598117, 'acc': 0.7541254125412541, 'f1': 0.7569331158238174, 'sensitivity': 0.7631578947368421, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7623300801673056, 'acc': 0.7623762376237624, 'f1': 0.7662337662337663, 'sensitivity': 0.7763157894736842, 'specificity': 0.7483443708609272}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7475383408853258, 'acc': 0.7475247524752475, 'f1': 0.747107438016529, 'sensitivity': 0.743421052631579, 'specificity': 0.7516556291390728}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 3, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7326812478215405, 'acc': 0.7326732673267327, 'f1': 0.7326732673267328, 'sensitivity': 0.7302631578947368, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.754062826768909, 'acc': 0.7541254125412541, 'f1': 0.7592891760904685, 'sensitivity': 0.7730263157894737, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524289822237713, 'acc': 0.7524752475247525, 'f1': 0.7564935064935066, 'sensitivity': 0.7664473684210527, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7376154583478565, 'acc': 0.7376237623762376, 'f1': 0.7389162561576356, 'sensitivity': 0.7401315789473685, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7606744510282327, 'acc': 0.7607260726072608, 'f1': 0.7649918962722853, 'sensitivity': 0.7763157894736842, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7425060996863019, 'acc': 0.7425742574257426, 'f1': 0.7483870967741936, 'sensitivity': 0.7631578947368421, 'specificity': 0.7218543046357616}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7408940397350994, 'acc': 0.740924092409241, 'f1': 0.7438825448613376, 'sensitivity': 0.75, 'specificity': 0.7317880794701986}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7375827814569538, 'acc': 0.7376237623762376, 'f1': 0.7414634146341464, 'sensitivity': 0.75, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7524834437086092, 'acc': 0.7524752475247525, 'f1': 0.7524752475247526, 'sensitivity': 0.75, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 4, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491395085395607, 'acc': 0.7491749174917491, 'f1': 0.752442996742671, 'sensitivity': 0.7598684210526315, 'specificity': 0.7384105960264901}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7375392122690833, 'acc': 0.7376237623762376, 'f1': 0.7447833065810593, 'sensitivity': 0.7631578947368421, 'specificity': 0.7119205298013245}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7541281805507146, 'acc': 0.7541254125412541, 'f1': 0.7545304777594728, 'sensitivity': 0.7532894736842105, 'specificity': 0.7549668874172185}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 1, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.737648135238759, 'acc': 0.7376237623762376, 'f1': 0.736318407960199, 'sensitivity': 0.7302631578947368, 'specificity': 0.7450331125827815}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7441617288253748, 'acc': 0.7442244224422442, 'f1': 0.7495961227786753, 'sensitivity': 0.7631578947368421, 'specificity': 0.7251655629139073}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491286162425932, 'acc': 0.7491749174917491, 'f1': 0.7532467532467534, 'sensitivity': 0.7631578947368421, 'specificity': 0.7350993377483444}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 5, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7491504008365284, 'acc': 0.7491749174917491, 'f1': 0.7516339869281046, 'sensitivity': 0.756578947368421, 'specificity': 0.7417218543046358}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.6}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7574394388288602, 'acc': 0.7574257425742574, 'f1': 0.7570247933884298, 'sensitivity': 0.7532894736842105, 'specificity': 0.7615894039735099}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 0.8}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7640401707912164, 'acc': 0.764026402640264, 'f1': 0.7636363636363637, 'sensitivity': 0.7598684210526315, 'specificity': 0.7682119205298014}
+For  {'colsample_bytree': 1.0, 'gamma': 5, 'max_depth': 5, 'min_child_weight': 10, 'n_estimators': 100, 'subsample': 1.0}
+Inner Size is: 2400 / 606
+Inner Positive classes: 1200.0 / 304.0
+{'loss': None, 'auc': 0.7342933077727432, 'acc': 0.7343234323432343, 'f1': 0.7373572593800979, 'sensitivity': 0.743421052631579, 'specificity': 0.7251655629139073}
+Best params if acc: logs/gender_5_0_auc_flatten_corrs_thresholdmin_child_weight_10gamma_5subsample_0.8colsample_bytree_0.7max_depth_3n_estimators_100_None_None_20_20_roi_norm_150_False_50_fmri.pkl ( 0.7772634193098642 )
+5-Final: Auc: 0.7064, Acc: 0.7064, Sens: 0.7070, Speci: 0.7059
+Best params if auc: logs/gender_5_0_acc_flatten_corrs_thresholdmin_child_weight_10gamma_5subsample_0.8colsample_bytree_0.7max_depth_3n_estimators_100_None_None_20_20_roi_norm_150_False_50_fmri.pkl ( 0.7772277227722773 )
+5-Final: Auc: 0.7064, Acc: 0.7064, Sens: 0.7070, Speci: 0.7059
+--- 1602.3927936553955 seconds to execute this script (0:26:42.392794)---

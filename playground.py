@@ -6,7 +6,7 @@ from datasets import HCPDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy
 
-device = 'cpu'
+device = 'cuda:0'
 
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
@@ -23,7 +23,7 @@ CONV_STRATEGY = ConvStrategy('entire')
 POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
-TIME_LENGTH = 75
+TIME_LENGTH = 1200
 
 torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True

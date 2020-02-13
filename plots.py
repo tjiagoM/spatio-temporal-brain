@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import friedmanchisquare
 
 from sklearn.metrics import roc_curve, auc, roc_auc_score, classification_report
 
@@ -223,3 +224,17 @@ patches = [ mpatches.Patch(color=im.cmap(im.norm(0)), label='No correlation'),
 plt.legend(handles=patches, loc='lower left', prop={"size":20})
 plt.tight_layout()
 plt.savefig('50_threshold_example.pdf', bbox_inches = 'tight', pad_inches = 0)
+
+
+#################
+######
+#All AUCs
+mean_cnn = [0.6895, 0.6388, 0.6871, 0.7488, 0.6807]
+mean_cnn_gcn5 = [0.7206, 0.6477, 0.6855, 0.7581, 0.6935]
+mean_cnn_gcn20 = [0.7216, 0.6460, 0.6840, 0.7588, 0.6897]
+xgboost_4split = [0.7875, 0.7723, 0.7853, 0.7859, 0.7950]
+
+stat, p = friedmanchisquare(mean_cnn,
+                            mean_cnn_gcn5,
+                            mean_cnn_gcn20)
+print(stat, p)

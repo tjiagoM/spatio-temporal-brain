@@ -16,7 +16,7 @@ from xgboost import XGBClassifier
 from datasets import HCPDataset, create_hcp_correlation_vals
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
-    StratifiedGroupKFold, PoolingStrategy, AnalysisType
+    StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others
 
 
 def train_classifier(model, train_loader):
@@ -124,11 +124,6 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     return val_metrics
 
 
-def merge_y_and_others(ys, indices):
-    tmp = torch.cat([ys.long().view(-1, 1),
-                     indices.view(-1, 1)], dim=1)
-    return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
-
 def get_array_data(data_fold):
     tmp_array = []
     tmp_y = []
@@ -141,9 +136,9 @@ def get_array_data(data_fold):
 
 if __name__ == '__main__':
 
-    import warnings
+    #import warnings
 
-    warnings.filterwarnings("ignore")
+    #warnings.filterwarnings("ignore")
     torch.manual_seed(1)
     # torch.backends.cudnn.deterministic = True
     #torch.backends.cudnn.benchmark = False
@@ -245,17 +240,13 @@ if __name__ == '__main__':
     N_OUT_SPLITS = 5
     N_INNER_SPLITS = 5
 
-    if TARGET_VAR == 'gender':
-        # Stratification will occur with regards to both the sex and session day
-        skf = StratifiedGroupKFold(n_splits=N_OUT_SPLITS, random_state=1111)
-        merged_labels = merge_y_and_others(dataset.data.y,
-                                           dataset.data.index)
-        skf_generator = skf.split(np.zeros((len(dataset), 1)),
-                                  merged_labels,
-                                  groups=dataset.data.hcp_id.tolist())
-    else:
-        print("Something wrong with target_var")
-        exit(-1)
+    # Stratification will occur with regards to both the sex and session day
+    skf = StratifiedGroupKFold(n_splits=N_OUT_SPLITS, random_state=1111)
+    merged_labels = merge_y_and_others(dataset.data.y,
+                                       dataset.data.index)
+    skf_generator = skf.split(np.zeros((len(dataset), 1)),
+                              merged_labels,
+                              groups=dataset.data.hcp_id.tolist())
 
     #
     # Main outer-loop

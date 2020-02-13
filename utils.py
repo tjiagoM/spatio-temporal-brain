@@ -3,6 +3,8 @@ from collections import Counter, defaultdict
 from enum import Enum, unique
 
 import numpy as np
+import torch
+from sklearn.preprocessing import LabelEncoder
 
 
 @unique
@@ -313,6 +315,10 @@ def get_timeseries_final_path(person, session_day, direction=False):
         return (f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}_LR.npy',
                 f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}_RL.npy')
 
+def merge_y_and_others(ys, indices):
+    tmp = torch.cat([ys.long().view(-1, 1),
+                     indices.view(-1, 1)], dim=1)
+    return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
 def create_name_for_hcp_dataset(num_nodes, time_length, target_var, threshold, connectivity_type, normalisation,
                                 disconnect_nodes=False,
