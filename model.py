@@ -108,10 +108,11 @@ class DiffPoolLayer(torch.nn.Module):
 
 class SpatioTemporalModel(nn.Module):
     def __init__(self, num_time_length, dropout_perc, pooling, channels_conv, activation, conv_strategy,
+                 encoding_model=None,
                  add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '2.1'
+        self.VERSION = '3.0'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL]:
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL")
@@ -126,7 +127,14 @@ class SpatioTemporalModel(nn.Module):
             print("You cannot have both GCN and GAT")
             exit(-1)
 
-        self.TEMPORAL_EMBED_SIZE = 256
+        if encoding_model is None:
+            self.TEMPORAL_EMBED_SIZE = 256
+            self.encoder_name = 'None'
+        else:
+            self.TEMPORAL_EMBED_SIZE = encoding_model.EMBED_SIZE
+            self.encoder_name = encoding_model.MODEL_NAME
+        self.encoder_model = encoding_model
+
         self.dropout = dropout_perc
         self.pooling = pooling
         dict_activations = {'relu': nn.ReLU(),
@@ -150,8 +158,11 @@ class SpatioTemporalModel(nn.Module):
             self.gcn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
                                      self.TEMPORAL_EMBED_SIZE)
 
-        if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
+        if self.encoder_model is not None:
+            pass # Just it does not go to convolutions
+        elif self.conv_strategy == ConvStrategy.TCN_ENTIRE:
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
+            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.TEMPORAL_EMBED_SIZE)
 
             self.temporal_conv = TemporalConvNet(1,
                                                   [self.channels_conv, self.channels_conv * 2,
@@ -164,6 +175,7 @@ class SpatioTemporalModel(nn.Module):
             stride = 2# if self.conv_strategy == ConvStrategy.CNN_ENTIRE else 1
             padding = 3# if self.conv_strategy == ConvStrategy.CNN_ENTIRE else 0
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
+            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.TEMPORAL_EMBED_SIZE)
 
             self.conv1d_1 = nn.Conv1d(1, self.channels_conv, 7, padding=padding, stride=stride)
             self.conv1d_2 = nn.Conv1d(self.channels_conv, self.channels_conv * 2, 7, padding=padding, stride=stride)
@@ -187,7 +199,7 @@ class SpatioTemporalModel(nn.Module):
 
             self.init_weights()
 
-        self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.TEMPORAL_EMBED_SIZE)
+
 
         if self.pooling == PoolingStrategy.DIFFPOOL:
             self.pre_final_linear = nn.Linear(3 * self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
@@ -208,15 +220,17 @@ class SpatioTemporalModel(nn.Module):
         x, edge_index = data.x, data.edge_index
 
         # Temporal Convolutions
-        x = x.view(-1, 1, self.num_time_length)
-        x = self.temporal_conv(x)
+        if self.encoder_model is None:
+            x = x.view(-1, 1, self.num_time_length)
+            x = self.temporal_conv(x)
 
-        # Concatenating for the final embedding per node
-        x = x.view(-1, self.size_before_lin_temporal)
-
-        x = self.lin_temporal(x)
-        x = self.activation(x)
-        x = F.dropout(x, p=self.dropout, training=self.training)
+            # Concatenating for the final embedding per node
+            x = x.view(-1, self.size_before_lin_temporal)
+            x = self.lin_temporal(x)
+            x = self.activation(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        else:
+            x = self.encoder_model.encode(x)
 
         if self.add_gcn:
             x = self.gcn_conv1(x, edge_index)
@@ -252,7 +266,8 @@ class SpatioTemporalModel(nn.Module):
                       'CHC_' + str(self.channels_conv),
                       'FS_' + str(self.final_sigmoid),
                       'GCN_' + str(self.add_gcn),
-                      'GAT_' + str(self.add_gat)
+                      'GAT_' + str(self.add_gat),
+                      'ENC_' + str(self.encoder_name)
                       ]
 
         return '__'.join(model_vars)

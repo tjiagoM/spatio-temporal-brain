@@ -4,7 +4,8 @@ import numpy as np
 
 from datasets import HCPDataset
 from model import SpatioTemporalModel
-from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy
+from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, EncodingStrategy, \
+    create_best_encoder_name
 
 device = 'cuda:0'
 
@@ -24,6 +25,7 @@ POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
 TIME_LENGTH = 1200
+ENCODING_STRATEGY = EncodingStrategy('3layerAE')
 
 torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True
@@ -45,6 +47,13 @@ dataset = HCPDataset(root=name_dataset,
                      normalisation=NORMALISATION,
                      connectivity_type=CONN_TYPE,
                      disconnect_nodes=REMOVE_NODES)
+if ENCODING_STRATEGY != EncodingStrategy.NONE:
+    from encoders import AE # Necessary to load
+    encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
+                                                         outer_split_num=SPLIT_TO_TEST,
+                                                         encoder_name=ENCODING_STRATEGY.value))
+else:
+    encoding_model = None
 
 model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                             dropout_perc=0.3,
@@ -55,7 +64,8 @@ model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                             add_gat=ADD_GAT,
                             add_gcn=ADD_GCN,
                             final_sigmoid=True,
-                            num_nodes=NUM_NODES
+                            num_nodes=NUM_NODES,
+                            encoding_model=encoding_model
                             ).to(device)
 pytorch_total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print(pytorch_total_trainable_params)

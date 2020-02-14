@@ -37,6 +37,11 @@ class AnalysisType(str, Enum):
     FLATTEN_CORRS = 'flatten_corrs'
     FLATTEN_CORRS_THRESHOLD = 'flatten_corrs_threshold'
 
+@unique
+class EncodingStrategy(str, Enum):
+    NONE = 'none'
+    AE3layers = '3layerAE'
+
 
 NEW_STRUCT_PEOPLE = [100206, 100307, 100408, 100610, 101107, 101309, 101410, 101915, 102008, 102311, 102513, 102614,
                      102715, 102816, 103010, 103111, 103212, 103414, 103515, 103818, 104012, 104416, 104820, 105014,
@@ -320,6 +325,7 @@ def merge_y_and_others(ys, indices):
                      indices.view(-1, 1)], dim=1)
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
+
 def create_name_for_hcp_dataset(num_nodes, time_length, target_var, threshold, connectivity_type, normalisation,
                                 disconnect_nodes=False,
                                 prefix_location='./pytorch_data/balanced_hcp_4split_'):
@@ -330,6 +336,22 @@ def create_name_for_hcp_dataset(num_nodes, time_length, target_var, threshold, c
          str(disconnect_nodes)])
 
     return prefix_location + name_combination
+
+def create_best_encoder_name(ts_length, outer_split_num, encoder_name,
+                             prefix_location = 'logs/',
+                             suffix = '.pth'):
+        return f'{prefix_location}{encoder_name}_{ts_length}_{outer_split_num}_best{suffix}'
+
+def create_name_for_encoder_model(ts_length, outer_split_num, encoder_name,
+                                  params,
+                                  prefix_location='logs/',
+                                  suffix='.pth'):
+    return prefix_location + '_'.join([encoder_name,
+                                       str(ts_length),
+                                       str(outer_split_num),
+                                       str(params['weight_decay']),
+                                       str(params['lr'])
+                                       ]) + suffix
 
 
 def create_name_for_model(target_var, model, params, outer_split_num, inner_split_num, n_epochs, threshold, batch_size,

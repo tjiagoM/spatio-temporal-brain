@@ -16,7 +16,7 @@ from xgboost import XGBClassifier
 from datasets import HCPDataset, create_hcp_correlation_vals
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
-    StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others
+    StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name
 
 
 def train_classifier(model, train_loader):
@@ -54,7 +54,7 @@ def train_classifier(model, train_loader):
 def return_metrics(labels, pred_binary, pred_prob, loss_value=None):
     roc_auc = roc_auc_score(labels, pred_prob)
     acc = accuracy_score(labels, pred_binary)
-    f1 = f1_score(labels, pred_binary)
+    f1 = f1_score(labels, pred_binary, zero_division=0)
     report = classification_report(labels, pred_binary, output_dict=True)
     sens = report['1.0']['recall']
     spec = report['0.0']['recall']
@@ -167,6 +167,7 @@ if __name__ == '__main__':
     parser.add_argument("--normalisation", default='roi_norm')
     parser.add_argument("--analysis_type", default='spatiotemporal')
     parser.add_argument("--time_length", type=int)
+    parser.add_argument("--encoding_strategy", default='none')
 
     args = parser.parse_args()
 
@@ -195,6 +196,7 @@ if __name__ == '__main__':
     ANALYSIS_TYPE = AnalysisType(args.analysis_type)
     TIME_LENGTH = args.time_length
     TS_SPIT_NUM = int(4800 / TIME_LENGTH)
+    ENCODING_STRATEGY = EncodingStrategy(args.encoding_strategy)
 
     if NUM_NODES == 300 and CHANNELS_CONV > 1:
         BATCH_SIZE = int(BATCH_SIZE / 3)
@@ -313,6 +315,13 @@ if __name__ == '__main__':
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
                 if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
+                    if ENCODING_STRATEGY != EncodingStrategy.NONE:
+                        from encoders import AE  # Necessary to load
+                        encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
+                                                                             outer_split_num=outer_split_num,
+                                                                             encoder_name=ENCODING_STRATEGY.value))
+                    else:
+                        encoding_model = None
                     model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                                                 dropout_perc=params['dropout'],
                                                 pooling=POOLING,
@@ -322,7 +331,8 @@ if __name__ == '__main__':
                                                 add_gat=ADD_GAT,
                                                 add_gcn=ADD_GCN,
                                                 final_sigmoid=model_with_sigmoid,
-                                                num_nodes=NUM_NODES
+                                                num_nodes=NUM_NODES,
+                                                encoding_model=encoding_model
                                                 ).to(device)
                     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                     print("Number of trainable params:", trainable_params)

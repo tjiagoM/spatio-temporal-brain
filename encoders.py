@@ -12,35 +12,44 @@ import numpy as np
 
 from datasets import HCPDataset
 from utils import ConnType, ConvStrategy, Normalisation, PoolingStrategy, create_name_for_hcp_dataset, \
-    StratifiedGroupKFold, merge_y_and_others
+    StratifiedGroupKFold, merge_y_and_others, create_name_for_encoder_model, create_best_encoder_name
 
 
 class AE(nn.Module):
     def __init__(self):
         super(AE, self).__init__()
 
+        self.MODEL_NAME = '3layerAE'
+        self.MODEL_VERSION = 1.0
+        self.EMBED_SIZE = 50
+        self.activation = nn.Tanh()
+
+
         self.fc12 = nn.Linear(1200, 600)
         self.fc23 = nn.Linear(600, 300)
-        self.fc34 = nn.Linear(300, 50)
+        self.fc34 = nn.Linear(300, self.EMBED_SIZE)
 
-
-        self.fc43 = nn.Linear(50, 300)
+        self.fc43 = nn.Linear(self.EMBED_SIZE, 300)
         self.fc32 = nn.Linear(300, 600)
         self.fc21 = nn.Linear(600, 1200)
 
+
     def encode(self, x):
-        h1 = F.tanh(self.fc12(x))
-        h2 = F.tanh(self.fc23(h1))
+        h1 = self.activation(self.fc12(x))
+        h2 = self.activation(self.fc23(h1))
         return self.fc34(h2)
 
     def decode(self, z):
-        h2 = F.tanh(self.fc43(z))
-        h4 = F.tanh(self.fc32(h2))
+        h2 = self.activation(self.fc43(z))
+        h4 = self.activation(self.fc32(h2))
         return self.fc21(h4)
 
     def forward(self, x):
         z = self.encode(x)
         return self.decode(z)
+
+    def to_string_name(self):
+        return self.MODEL_NAME + '_' + str(self.MODEL_VERSION)
 
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x):#, mu, logvar):
@@ -98,7 +107,6 @@ def evaluate_model(model, loader, save_comparison=False):
                 np.save(arr=orig_ts[id].cpu().numpy(), file=f'encoder_comparisons/{batch_id}_{id}_orig.npy')
                 np.save(arr=recons_ts[id].detach().cpu().numpy(), file=f'encoder_comparisons/{batch_id}_{id}_recons.npy')
 
-
     # len(train_loader) gives the number of batches
     # len(train_loader.dataset) gives the number of graphs
     return loss_all / (len(loader.dataset) * NUM_NODES)
@@ -112,7 +120,7 @@ def training_step(outer_split_no, inner_split_no, epoch, model, train_loader, va
 
     print(f'{outer_split_no}-{inner_split_no}-Epoch: {epoch}, Loss: {round(train_loss, 5)} / {round(val_loss, 5)}')
 
-    return val_loss
+    return train_loss, val_loss
 
 if __name__ == "__main__":
     torch.manual_seed(1)
@@ -247,17 +255,44 @@ if __name__ == "__main__":
                                              lr=params['lr'],
                                              weight_decay=params['weight_decay'])
 
-                best_metrics_fold_loss = 1000
+                inner_model_name = create_name_for_encoder_model(ts_length=TIME_LENGTH,
+                                                           outer_split_num=outer_split_num,
+                                                           encoder_name=model.to_string_name(),
+                                                           params=params)
+                loss_history_path = create_name_for_encoder_model(ts_length=TIME_LENGTH,
+                                                                  outer_split_num=outer_split_num,
+                                                                  encoder_name=model.to_string_name(),
+                                                                  params=params,
+                                                                  suffix='')
 
+                best_metrics_fold_loss = 1000
+                losses = {'train' : [],
+                          'val': []}
                 for epoch in range(N_EPOCHS):
-                    _ = training_step(outer_split_num,
+                    train_loss, val_loss = training_step(outer_split_num,
                                                   0,
                                                   epoch,
                                                   model,
                                                   train_in_loader,
                                                   val_loader)
+                    losses['train'].append(train_loss)
+                    losses['val'].append(val_loss)
+
+                    if val_loss < best_metrics_fold_loss:
+                        best_metrics_fold_loss = val_loss
+                        torch.save(model, inner_model_name)
+                        if val_loss < best_outer_metric_loss:
+                            best_outer_metric_loss = val_loss
+                            best_model_name_outer_fold_loss = inner_model_name
+                np.save(arr=np.array(losses['train']), file=loss_history_path + '_train.npy')
+                np.save(arr=np.array(losses['val']), file=loss_history_path + '_val.npy')
                 break
 
-            test_loss = evaluate_model(model, test_out_loader, save_comparison=True)
+        model = torch.load(best_model_name_outer_fold_loss)
+        test_loss = evaluate_model(model, test_out_loader, save_comparison=True)
+        print('Best params: ', best_model_name_outer_fold_loss, '(', best_outer_metric_loss, ')')
+        print(f'{outer_split_num}--Final Loss: {round(test_loss, 5)}')
 
-            print(f'{outer_split_num}--Final Loss: {round(test_loss, 5)}')
+        torch.save(model, create_best_encoder_name(ts_length=TIME_LENGTH,
+                                                   outer_split_num=outer_split_num,
+                                                   encoder_name=model.MODEL_NAME))
