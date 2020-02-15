@@ -8,6 +8,7 @@ from torch.nn import BatchNorm1d
 from torch_geometric.nn import global_mean_pool, GCNConv
 import torch_geometric.utils as pyg_utils
 from torch_geometric.nn import DenseSAGEConv, dense_diff_pool
+from torch_geometric.utils import to_dense_batch
 
 from utils import ConvStrategy, PoolingStrategy
 
@@ -112,10 +113,10 @@ class SpatioTemporalModel(nn.Module):
                  add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '3.0'
+        self.VERSION = '3.1'
 
-        if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL]:
-            print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL")
+        if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
+            print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT")
             exit(-1)
         if conv_strategy not in [ConvStrategy.TCN_ENTIRE, ConvStrategy.CNN_ENTIRE]:
             print("THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/TCN_ENTIRE")
@@ -144,6 +145,7 @@ class SpatioTemporalModel(nn.Module):
         self.activation_str = activation
 
         self.conv_strategy = conv_strategy
+        self.num_nodes = num_nodes
 
         self.channels_conv = channels_conv
         self.final_channels = 1 if channels_conv == 1 else channels_conv * 2
@@ -203,12 +205,13 @@ class SpatioTemporalModel(nn.Module):
 
         if self.pooling == PoolingStrategy.DIFFPOOL:
             self.pre_final_linear = nn.Linear(3 * self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
-            self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
 
             self.diff_pool = DiffPoolLayer(num_nodes,
                                            self.TEMPORAL_EMBED_SIZE)
-        else:
-            self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
+        elif self.pooling == PoolingStrategy.CONCAT:
+            self.pre_final_linear = nn.Linear(self.num_nodes * self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
+
+        self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
 
     def init_weights(self):
         self.conv1d_1.weight.data.normal_(0, 0.01)
@@ -245,7 +248,11 @@ class SpatioTemporalModel(nn.Module):
 
             x, link_loss, ent_loss = self.diff_pool(x_tmp, adj_tmp, batch_mask)
             x = F.dropout(x, p=self.dropout, training=self.training)
-            x = F.relu(self.pre_final_linear(x))
+            x = self.activation(self.pre_final_linear(x))
+        elif self.pooling == PoolingStrategy.CONCAT:
+            x, _ = to_dense_batch(x, data.batch)
+            x = x.view(-1, self.TEMPORAL_EMBED_SIZE * self.num_nodes)
+            x = self.activation(self.pre_final_linear(x))
 
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.final_linear(x)

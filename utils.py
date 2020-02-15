@@ -30,6 +30,7 @@ class ConvStrategy(str, Enum):
 class PoolingStrategy(str, Enum):
     MEAN = 'mean'
     DIFFPOOL = 'diff_pool'
+    CONCAT = 'concat'
 
 @unique
 class AnalysisType(str, Enum):

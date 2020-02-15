@@ -162,7 +162,7 @@ if __name__ == '__main__':
     parser.add_argument("--conn_type", default="struct")
     parser.add_argument("--conv_strategy", default="entire")
     parser.add_argument("--pooling",
-                        default="mean")  # 2) Try other pooling mechanisms CONCAT (only with fixed num_nodes across graphs),
+                        default="mean")
     parser.add_argument("--channels_conv", type=int)
     parser.add_argument("--normalisation", default='roi_norm')
     parser.add_argument("--analysis_type", default='spatiotemporal')
