@@ -55,7 +55,7 @@ def return_metrics(labels, pred_binary, pred_prob, loss_value=None):
     roc_auc = roc_auc_score(labels, pred_prob)
     acc = accuracy_score(labels, pred_binary)
     f1 = f1_score(labels, pred_binary, zero_division=0)
-    report = classification_report(labels, pred_binary, output_dict=True)
+    report = classification_report(labels, pred_binary, output_dict=True, zero_division=0)
     sens = report['1.0']['recall']
     spec = report['0.0']['recall']
 
