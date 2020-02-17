@@ -42,6 +42,7 @@ class AnalysisType(str, Enum):
 class EncodingStrategy(str, Enum):
     NONE = 'none'
     AE3layers = '3layerAE'
+    VAE3layers = '3layerVAE'
 
 
 NEW_STRUCT_PEOPLE = [100206, 100307, 100408, 100610, 101107, 101309, 101410, 101915, 102008, 102311, 102513, 102614,

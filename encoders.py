@@ -14,6 +14,49 @@ from datasets import HCPDataset
 from utils import ConnType, ConvStrategy, Normalisation, PoolingStrategy, create_name_for_hcp_dataset, \
     StratifiedGroupKFold, merge_y_and_others, create_name_for_encoder_model, create_best_encoder_name
 
+class VAE(nn.Module):
+    def __init__(self):
+        super(VAE, self).__init__()
+
+        self.MODEL_NAME = '3layerVAE'
+        self.MODEL_VERSION = 1.0
+        self.EMBED_SIZE = 50
+        self.activation = nn.Tanh()
+
+
+        self.fc12 = nn.Linear(1200, 600)
+        self.fc23 = nn.Linear(600, 300)
+        self.fc3_mean = nn.Linear(300, self.EMBED_SIZE)
+        self.fc3_logvar = nn.Linear(300, self.EMBED_SIZE)
+
+        self.fc_repr_3 = nn.Linear(self.EMBED_SIZE, 300)
+        self.fc32 = nn.Linear(300, 600)
+        self.fc21 = nn.Linear(600, 1200)
+
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + eps * std
+
+    def encode(self, x):
+        h1 = self.activation(self.fc12(x))
+        h2 = self.activation(self.fc23(h1))
+        return self.fc3_mean(h2), self.fc3_logvar(h2)
+
+    def decode(self, z):
+        h2 = self.activation(self.fc_repr_3(z))
+        h4 = self.activation(self.fc32(h2))
+        return self.fc21(h4)
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z), mu, logvar
+
+    def to_string_name(self):
+        return self.MODEL_NAME + '_' + str(self.MODEL_VERSION)
+
+
 
 class AE(nn.Module):
     def __init__(self):
@@ -51,20 +94,23 @@ class AE(nn.Module):
     def to_string_name(self):
         return self.MODEL_NAME + '_' + str(self.MODEL_VERSION)
 
-# Reconstruction + KL divergence losses summed over all elements and batch
-def loss_function(recon_x, x):#, mu, logvar):
-    #BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
+def loss_function_ae(recon_x, x):#, mu, logvar):
     reconstruction_loss = F.smooth_l1_loss(recon_x, x, reduction='sum')
 
     return reconstruction_loss
+
+# Reconstruction + KL divergence losses summed over all elements and batch
+def loss_function_vae(recon_x, x, mu, logvar):
+    #BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
+    reconstruction_loss = F.smooth_l1_loss(recon_x, x, reduction='sum')
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    #KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    kdl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    #return BCE + KLD
+    return reconstruction_loss + kdl_loss
 
 
 def train_model(model, train_loader):
