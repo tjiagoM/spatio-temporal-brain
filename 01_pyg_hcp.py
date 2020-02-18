@@ -268,12 +268,12 @@ if __name__ == '__main__':
         print("Positive classes:", sum(X_train_out.data.y.numpy()), "/", sum(X_test_out.data.y.numpy()))
 
         train_out_loader = DataLoader(X_train_out, batch_size=BATCH_SIZE, shuffle=True)
-        test_out_loader = DataLoader(X_test_out, batch_size=BATCH_SIZE, shuffle=True)
+        test_out_loader = DataLoader(X_test_out, batch_size=BATCH_SIZE, shuffle=False)
         #
         # Main inner-loop (for now, not really an inner loop - just one train/val inside
         #
         if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
-            param_grid = {'weight_decay': [0.005, 0.5, 0],
+            param_grid = {'weight_decay': [0.005, 0.5, 0, 1],
                           'lr': [1e-4, 1e-5, 1e-6],
                           'dropout': [0, 0.5, 0.7]
                           }
@@ -316,7 +316,10 @@ if __name__ == '__main__':
             for inner_train_index, inner_val_index in skf_inner_generator:
                 if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
                     if ENCODING_STRATEGY != EncodingStrategy.NONE:
-                        from encoders import AE  # Necessary to load
+                        if ENCODING_STRATEGY == EncodingStrategy.AE3layers:
+                            from encoders import AE  # Necessary to torch.load
+                        elif ENCODING_STRATEGY == EncodingStrategy.VAE3layers:
+                            from encoders import VAE
                         encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
                                                                              outer_split_num=outer_split_num,
                                                                              encoder_name=ENCODING_STRATEGY.value))
@@ -379,7 +382,7 @@ if __name__ == '__main__':
                 ###########
                 ### DataLoaders
                 train_in_loader = DataLoader(X_train_in, batch_size=BATCH_SIZE, shuffle=True)
-                val_loader = DataLoader(X_val_in, batch_size=BATCH_SIZE, shuffle=True)
+                val_loader = DataLoader(X_val_in, batch_size=BATCH_SIZE, shuffle=False)
 
                 optimizer = torch.optim.Adam(model.parameters(),
                                              lr=params['lr'],

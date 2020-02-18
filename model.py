@@ -10,7 +10,7 @@ import torch_geometric.utils as pyg_utils
 from torch_geometric.nn import DenseSAGEConv, dense_diff_pool
 from torch_geometric.utils import to_dense_batch
 
-from utils import ConvStrategy, PoolingStrategy
+from utils import ConvStrategy, PoolingStrategy, EncodingStrategy
 
 from torch.nn.utils import weight_norm
 from tcn import TemporalConvNet
@@ -232,6 +232,9 @@ class SpatioTemporalModel(nn.Module):
             x = self.lin_temporal(x)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
+        elif self.encoder_name == EncodingStrategy.VAE3layers.value:
+            mu, logvar = self.encoder_model.encode(x)
+            x = self.encoder_model.reparameterize(mu, logvar)
         else:
             x = self.encoder_model.encode(x)
 

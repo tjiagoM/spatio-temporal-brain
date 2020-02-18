@@ -12,7 +12,8 @@ import numpy as np
 
 from datasets import HCPDataset
 from utils import ConnType, ConvStrategy, Normalisation, PoolingStrategy, create_name_for_hcp_dataset, \
-    StratifiedGroupKFold, merge_y_and_others, create_name_for_encoder_model, create_best_encoder_name
+    StratifiedGroupKFold, merge_y_and_others, create_name_for_encoder_model, create_best_encoder_name, EncodingStrategy
+
 
 class VAE(nn.Module):
     def __init__(self):
@@ -121,8 +122,12 @@ def train_model(model, train_loader):
         data_ts = data.x.to(device)
         optimizer.zero_grad()
 
-        reconstructed_batch = model(data_ts)
-        loss = loss_function(reconstructed_batch, data_ts)
+        if ENCODING_STRATEGY == EncodingStrategy.AE3layers:
+            reconstructed_batch = model(data_ts)
+            loss = loss_function_ae(reconstructed_batch, data_ts)
+        elif ENCODING_STRATEGY == EncodingStrategy.VAE3layers:
+            reconstructed_batch, mu, logvar = model(data_ts)
+            loss = loss_function_vae(reconstructed_batch, data_ts, mu, logvar)
 
         loss.backward()
         loss_all += loss.item()
@@ -140,18 +145,23 @@ def evaluate_model(model, loader, save_comparison=False):
     for batch_id, data in enumerate(loader):
         data_ts = data.x.to(device)
 
-        reconstructed_batch = model(data_ts)
-        loss = loss_function(reconstructed_batch, data_ts)
+        if ENCODING_STRATEGY == EncodingStrategy.AE3layers:
+            reconstructed_batch = model(data_ts)
+            loss = loss_function_ae(reconstructed_batch, data_ts)
+        elif ENCODING_STRATEGY == EncodingStrategy.VAE3layers:
+            reconstructed_batch, mu, logvar = model(data_ts)
+            loss = loss_function_vae(reconstructed_batch, data_ts, mu, logvar)
 
         loss_all += loss.item()
 
         if save_comparison:
             orig_ts, batch_bool = to_dense_batch(data_ts, data.batch.to(device))
             recons_ts, _ = to_dense_batch(reconstructed_batch, data.batch.to(device))
+            sav_name = ENCODING_STRATEGY.value
 
             for id in range(len(batch_bool)):
-                np.save(arr=orig_ts[id].cpu().numpy(), file=f'encoder_comparisons/{batch_id}_{id}_orig.npy')
-                np.save(arr=recons_ts[id].detach().cpu().numpy(), file=f'encoder_comparisons/{batch_id}_{id}_recons.npy')
+                np.save(arr=orig_ts[id].cpu().numpy(), file=f'encoder_comparisons/{sav_name}_{SPLIT_TO_TEST}_{batch_id}_{id}_orig.npy')
+                np.save(arr=recons_ts[id].detach().cpu().numpy(), file=f'encoder_comparisons/{sav_name}_{SPLIT_TO_TEST}_{batch_id}_{id}_recons.npy')
 
     # len(train_loader) gives the number of batches
     # len(train_loader.dataset) gives the number of graphs
@@ -194,6 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("--channels_conv", type=int, default=8)
     parser.add_argument("--normalisation", default='roi_norm')
     parser.add_argument("--time_length", type=int, default=1200)
+    parser.add_argument("--encoding_strategy", default='none')
 
     args = parser.parse_args()
 
@@ -217,6 +228,8 @@ if __name__ == "__main__":
     NORMALISATION = Normalisation(args.normalisation)
     TIME_LENGTH = args.time_length
     TS_SPIT_NUM = int(4800 / TIME_LENGTH)
+    ENCODING_STRATEGY = EncodingStrategy(args.encoding_strategy)
+    print("Encoding strategy is:", ENCODING_STRATEGY)
 
     name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
                                                time_length=TIME_LENGTH,
@@ -264,7 +277,7 @@ if __name__ == "__main__":
         print("Positive classes:", sum(X_train_out.data.y.numpy()), "/", sum(X_test_out.data.y.numpy()))
 
         train_out_loader = DataLoader(X_train_out, batch_size=BATCH_SIZE, shuffle=True)
-        test_out_loader = DataLoader(X_test_out, batch_size=BATCH_SIZE, shuffle=True)
+        test_out_loader = DataLoader(X_test_out, batch_size=BATCH_SIZE, shuffle=False)
 
         param_grid = {'weight_decay': [0],
                       'lr': [1e-3]
@@ -287,7 +300,10 @@ if __name__ == "__main__":
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
 
-                model = AE().to(device)
+                if ENCODING_STRATEGY == EncodingStrategy.AE3layers:
+                    model = AE().to(device)
+                elif ENCODING_STRATEGY == EncodingStrategy.VAE3layers:
+                    model = VAE().to(device)
                 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                 print("Number of trainable params:", trainable_params)
 
@@ -295,7 +311,7 @@ if __name__ == "__main__":
                 X_val_in = X_train_out[torch.tensor(inner_val_index)]
 
                 train_in_loader = DataLoader(X_train_in, batch_size=BATCH_SIZE, shuffle=True)
-                val_loader = DataLoader(X_val_in, batch_size=BATCH_SIZE, shuffle=True)
+                val_loader = DataLoader(X_val_in, batch_size=BATCH_SIZE, shuffle=False)
 
                 optimizer = torch.optim.Adam(model.parameters(),
                                              lr=params['lr'],
