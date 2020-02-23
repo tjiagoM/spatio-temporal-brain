@@ -11,7 +11,7 @@ from torchvision.utils import save_image
 import numpy as np
 
 from datasets import BrainDataset
-from utils import ConnType, ConvStrategy, Normalisation, PoolingStrategy, create_name_for_hcp_dataset, \
+from utils import ConnType, ConvStrategy, Normalisation, PoolingStrategy, create_name_for_brain_dataset, \
     StratifiedGroupKFold, merge_y_and_others, create_name_for_encoder_model, create_best_encoder_name, EncodingStrategy
 
 
@@ -231,13 +231,13 @@ if __name__ == "__main__":
     ENCODING_STRATEGY = EncodingStrategy(args.encoding_strategy)
     print("Encoding strategy is:", ENCODING_STRATEGY)
 
-    name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
-                                               time_length=TIME_LENGTH,
-                                               target_var=TARGET_VAR,
-                                               threshold=THRESHOLD,
-                                               normalisation=NORMALISATION,
-                                               connectivity_type=CONN_TYPE,
-                                               disconnect_nodes=REMOVE_NODES)
+    name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
+                                                 time_length=TIME_LENGTH,
+                                                 target_var=TARGET_VAR,
+                                                 threshold=THRESHOLD,
+                                                 normalisation=NORMALISATION,
+                                                 connectivity_type=CONN_TYPE,
+                                                 disconnect_nodes=REMOVE_NODES)
     print("Going for", name_dataset)
     dataset = BrainDataset(root=name_dataset,
                            time_length=TIME_LENGTH,

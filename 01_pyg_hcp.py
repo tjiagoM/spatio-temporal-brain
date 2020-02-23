@@ -15,7 +15,7 @@ from xgboost import XGBClassifier
 
 from datasets import BrainDataset, create_hcp_correlation_vals
 from model import SpatioTemporalModel
-from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
+from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name
 
 
@@ -217,13 +217,13 @@ if __name__ == '__main__':
     #
     # Definition of general variables
     #
-    name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
-                                               time_length=TIME_LENGTH,
-                                               target_var=TARGET_VAR,
-                                               threshold=THRESHOLD,
-                                               normalisation=NORMALISATION,
-                                               connectivity_type=CONN_TYPE,
-                                               disconnect_nodes=REMOVE_NODES)
+    name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
+                                                 time_length=TIME_LENGTH,
+                                                 target_var=TARGET_VAR,
+                                                 threshold=THRESHOLD,
+                                                 normalisation=NORMALISATION,
+                                                 connectivity_type=CONN_TYPE,
+                                                 disconnect_nodes=REMOVE_NODES)
     print("Going for", name_dataset)
     dataset = BrainDataset(root=name_dataset,
                            time_length=TIME_LENGTH,

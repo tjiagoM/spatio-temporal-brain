@@ -48,6 +48,7 @@ class EncodingStrategy(str, Enum):
 UKB_IDS_PATH = os.path.join('meta_data', 'ukb_ids.npy')
 UKB_TIMESERIES_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'ts_raw')
 UKB_ADJ_ARR_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'cache_adj_arrs')
+UKB_PHENOTYPE_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'phenotype.csv')
 
 NEW_STRUCT_PEOPLE = [100206, 100307, 100408, 100610, 101107, 101309, 101410, 101915, 102008, 102311, 102513, 102614,
                      102715, 102816, 103010, 103111, 103212, 103414, 103515, 103818, 104012, 104416, 104820, 105014,
@@ -332,11 +333,13 @@ def merge_y_and_others(ys, indices):
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
 
-def create_name_for_hcp_dataset(num_nodes, time_length, target_var, threshold, connectivity_type, normalisation,
-                                disconnect_nodes=False,
-                                prefix_location='./pytorch_data/balanced_hcp_4split_'):
+def create_name_for_brain_dataset(num_nodes, time_length, target_var, threshold, connectivity_type, normalisation,
+                                  disconnect_nodes=False,
+                                  prefix_location='./pytorch_data/balanced_hcp_4split_'):
     if time_length == 75:
         prefix_location = './pytorch_data/balanced_hcp_64split_'
+    elif num_nodes == 376:
+        prefix_location = './pytorch_data/balanced_ukbiobank_'
     name_combination = '_'.join(
         [target_var, connectivity_type.value, str(num_nodes), str(threshold), normalisation.value,
          str(disconnect_nodes)])

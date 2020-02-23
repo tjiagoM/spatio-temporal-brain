@@ -2,13 +2,14 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
+import os
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
 from numpy.random import default_rng
 
 from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType, get_timeseries_final_path, \
-    OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH
+    OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH, UKB_TIMESERIES_PATH, UKB_PHENOTYPE_PATH
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
@@ -122,15 +123,43 @@ class BrainDataset(InMemoryDataset):
         # No sorted needed?
         if self.num_nodes == 50:
             filtered_people = OLD_NETMATS_PEOPLE
+        # UK BIOBANK PEOPLE!
+        elif self.num_nodes == 376:
+            filtered_people = np.load(UKB_IDS_PATH) # start simple for comparison
         else:
             filtered_people = sorted(list(set(NEW_MULTIMODAL_TIMESERIES).intersection(set(NEW_STRUCT_PEOPLE))))
 
-        info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
+        if self.num_nodes == 376:
+            info_df = pd.read_csv(UKB_PHENOTYPE_PATH, delimiter=',').set_index('eid')['31-0.0']
+            info_df = info_df.apply(lambda x: 1 if x == 'Male' else 0)
+        else:
+            info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
 
         ##########
         for person in filtered_people:
-            if self.connectivity_type == ConnType.FMRI:
-                if self.num_nodes != 50:
+            # UK Biobank
+            if self.num_nodes == 376:
+                ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
+                if ts.shape[1] == 523:
+                    ts = ts[:, :490]
+                # For normalisation part
+                ts = ts.T
+
+                corr_arr = np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
+                G = self.__create_thresholded_graph(corr_arr)
+                edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
+
+                timeseries = self.__normalise_timeseries(ts)
+                x = torch.tensor(timeseries, dtype=torch.float)
+
+                if self.target_var == 'gender':
+                    y = torch.tensor([info_df.loc[person]], dtype=torch.float)
+                data = Data(x=x, edge_index=edge_index, y=y)
+                data.ukb_id = torch.tensor([person])
+                data_list.append(data)
+
+            elif self.connectivity_type == ConnType.FMRI:
+                if self.num_nodes not in [50]:
                     print("ConnType.FMRI not ready for num_nodes != 50")
                     exit(-2)
 

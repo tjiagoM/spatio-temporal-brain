@@ -6,7 +6,7 @@ import numpy as np
 import torch_geometric.utils as pyg_utils
 from datasets import BrainDataset
 from model import SpatioTemporalModel
-from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, \
+from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, \
     StratifiedGroupKFold
 import torch.nn.functional as F
 
@@ -37,12 +37,12 @@ def merge_y_and_others(ys, sessions, directions):
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
 
-name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
-                                               target_var=TARGET_VAR,
-                                               threshold=THRESHOLD,
-                                               normalisation=NORMALISATION,
-                                               connectivity_type=CONN_TYPE,
-                                               disconnect_nodes=REMOVE_NODES)
+name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
+                                             target_var=TARGET_VAR,
+                                             threshold=THRESHOLD,
+                                             normalisation=NORMALISATION,
+                                             connectivity_type=CONN_TYPE,
+                                             disconnect_nodes=REMOVE_NODES)
 print("Going for", name_dataset)
 dataset = BrainDataset(root=name_dataset,
                        num_nodes=NUM_NODES,

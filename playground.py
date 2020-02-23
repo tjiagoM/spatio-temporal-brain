@@ -4,7 +4,7 @@ import numpy as np
 
 from datasets import BrainDataset
 from model import SpatioTemporalModel
-from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, EncodingStrategy, \
+from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, EncodingStrategy, \
     create_best_encoder_name
 
 device = 'cuda:0'
@@ -18,26 +18,26 @@ ADD_GCN = False
 ADD_GAT = False
 BATCH_SIZE = 150
 REMOVE_NODES = False
-NUM_NODES = 50
+NUM_NODES = 376
 CONN_TYPE = ConnType('fmri')
 CONV_STRATEGY = ConvStrategy('entire')
 POOLING = PoolingStrategy('concat')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
-TIME_LENGTH = 1200
+TIME_LENGTH = 490
 ENCODING_STRATEGY = EncodingStrategy('3layerAE')
 
 torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True
 #torch.backends.cudnn.benchmark = False
 
-name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
-                                           time_length=TIME_LENGTH,
-                                           target_var=TARGET_VAR,
-                                           threshold=THRESHOLD,
-                                           normalisation=NORMALISATION,
-                                           connectivity_type=CONN_TYPE,
-                                           disconnect_nodes=REMOVE_NODES)
+name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
+                                             time_length=TIME_LENGTH,
+                                             target_var=TARGET_VAR,
+                                             threshold=THRESHOLD,
+                                             normalisation=NORMALISATION,
+                                             connectivity_type=CONN_TYPE,
+                                             disconnect_nodes=REMOVE_NODES)
 print("Going for", name_dataset)
 dataset = BrainDataset(root=name_dataset,
                        time_length=TIME_LENGTH,
