@@ -1,6 +1,6 @@
 from sklearn.model_selection import ParameterGrid
 
-from datasets import HCPDataset
+from datasets import BrainDataset
 from utils import create_name_for_hcp_dataset, Normalisation, ConnType
 
 if __name__ == '__main__':
@@ -23,9 +23,9 @@ if __name__ == '__main__':
                                                    normalisation=Normalisation(p['normalisation']),
                                                    connectivity_type=ConnType(p['connectivity_type']))
         print("Going for:", name_dataset)
-        _ = HCPDataset(root=name_dataset,
-                       target_var=p['target_var'],
-                       num_nodes=p['num_nodes'],
-                       threshold=p['threshold'],
-                       normalisation=Normalisation(p['normalisation']),
-                       connectivity_type=ConnType(p['connectivity_type']))
+        _ = BrainDataset(root=name_dataset,
+                         target_var=p['target_var'],
+                         num_nodes=p['num_nodes'],
+                         threshold=p['threshold'],
+                         normalisation=Normalisation(p['normalisation']),
+                         connectivity_type=ConnType(p['connectivity_type']))

@@ -41,7 +41,7 @@ def threshold_adj_array(adj_array, threshold, num_nodes):
 
     return adj_array
 
-class HCPDataset(InMemoryDataset):
+class BrainDataset(InMemoryDataset):
     def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, normalisation, time_length=1200,
                  disconnect_nodes=False, transform=None, pre_transform=None):
         '''
@@ -81,7 +81,7 @@ class HCPDataset(InMemoryDataset):
         if self.disconnect_nodes:
             print("Warning: Removing disconnected nodes not yet developed in HCPDataset")
 
-        super(HCPDataset, self).__init__(root, transform, pre_transform)
+        super(BrainDataset, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property

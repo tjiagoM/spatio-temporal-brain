@@ -2,7 +2,7 @@ import torch
 from torch_geometric.data import DataLoader, DenseDataLoader
 import numpy as np
 
-from datasets import HCPDataset
+from datasets import BrainDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, EncodingStrategy, \
     create_best_encoder_name
@@ -39,14 +39,14 @@ name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
                                            connectivity_type=CONN_TYPE,
                                            disconnect_nodes=REMOVE_NODES)
 print("Going for", name_dataset)
-dataset = HCPDataset(root=name_dataset,
-                     time_length=TIME_LENGTH,
-                     num_nodes=NUM_NODES,
-                     target_var=TARGET_VAR,
-                     threshold=THRESHOLD,
-                     normalisation=NORMALISATION,
-                     connectivity_type=CONN_TYPE,
-                     disconnect_nodes=REMOVE_NODES)
+dataset = BrainDataset(root=name_dataset,
+                       time_length=TIME_LENGTH,
+                       num_nodes=NUM_NODES,
+                       target_var=TARGET_VAR,
+                       threshold=THRESHOLD,
+                       normalisation=NORMALISATION,
+                       connectivity_type=CONN_TYPE,
+                       disconnect_nodes=REMOVE_NODES)
 if ENCODING_STRATEGY != EncodingStrategy.NONE:
     from encoders import AE # Necessary to load
     encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,

@@ -10,7 +10,7 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 import numpy as np
 
-from datasets import HCPDataset
+from datasets import BrainDataset
 from utils import ConnType, ConvStrategy, Normalisation, PoolingStrategy, create_name_for_hcp_dataset, \
     StratifiedGroupKFold, merge_y_and_others, create_name_for_encoder_model, create_best_encoder_name, EncodingStrategy
 
@@ -239,14 +239,14 @@ if __name__ == "__main__":
                                                connectivity_type=CONN_TYPE,
                                                disconnect_nodes=REMOVE_NODES)
     print("Going for", name_dataset)
-    dataset = HCPDataset(root=name_dataset,
-                         time_length=TIME_LENGTH,
-                         num_nodes=NUM_NODES,
-                         target_var=TARGET_VAR,
-                         threshold=THRESHOLD,
-                         normalisation=NORMALISATION,
-                         connectivity_type=CONN_TYPE,
-                         disconnect_nodes=REMOVE_NODES)
+    dataset = BrainDataset(root=name_dataset,
+                           time_length=TIME_LENGTH,
+                           num_nodes=NUM_NODES,
+                           target_var=TARGET_VAR,
+                           threshold=THRESHOLD,
+                           normalisation=NORMALISATION,
+                           connectivity_type=CONN_TYPE,
+                           disconnect_nodes=REMOVE_NODES)
 
     N_OUT_SPLITS = 5
     N_INNER_SPLITS = 5

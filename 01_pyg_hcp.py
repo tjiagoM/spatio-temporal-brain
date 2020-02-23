@@ -13,7 +13,7 @@ from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader
 from xgboost import XGBClassifier
 
-from datasets import HCPDataset, create_hcp_correlation_vals
+from datasets import BrainDataset, create_hcp_correlation_vals
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name
@@ -225,14 +225,14 @@ if __name__ == '__main__':
                                                connectivity_type=CONN_TYPE,
                                                disconnect_nodes=REMOVE_NODES)
     print("Going for", name_dataset)
-    dataset = HCPDataset(root=name_dataset,
-                         time_length=TIME_LENGTH,
-                         num_nodes=NUM_NODES,
-                         target_var=TARGET_VAR,
-                         threshold=THRESHOLD,
-                         normalisation=NORMALISATION,
-                         connectivity_type=CONN_TYPE,
-                         disconnect_nodes=REMOVE_NODES)
+    dataset = BrainDataset(root=name_dataset,
+                           time_length=TIME_LENGTH,
+                           num_nodes=NUM_NODES,
+                           target_var=TARGET_VAR,
+                           threshold=THRESHOLD,
+                           normalisation=NORMALISATION,
+                           connectivity_type=CONN_TYPE,
+                           disconnect_nodes=REMOVE_NODES)
     if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
         flatten_correlations = create_hcp_correlation_vals(NUM_NODES, ts_split_num=TS_SPIT_NUM)
     elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:

@@ -4,7 +4,7 @@ from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader, DenseDataLoader
 import numpy as np
 import torch_geometric.utils as pyg_utils
-from datasets import HCPDataset
+from datasets import BrainDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_hcp_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, \
     StratifiedGroupKFold
@@ -44,13 +44,13 @@ name_dataset = create_name_for_hcp_dataset(num_nodes=NUM_NODES,
                                                connectivity_type=CONN_TYPE,
                                                disconnect_nodes=REMOVE_NODES)
 print("Going for", name_dataset)
-dataset = HCPDataset(root=name_dataset,
-                     num_nodes=NUM_NODES,
-                     target_var=TARGET_VAR,
-                     threshold=THRESHOLD,
-                     normalisation=NORMALISATION,
-                     connectivity_type=CONN_TYPE,
-                     disconnect_nodes=REMOVE_NODES)
+dataset = BrainDataset(root=name_dataset,
+                       num_nodes=NUM_NODES,
+                       target_var=TARGET_VAR,
+                       threshold=THRESHOLD,
+                       normalisation=NORMALISATION,
+                       connectivity_type=CONN_TYPE,
+                       disconnect_nodes=REMOVE_NODES)
 
 N_OUT_SPLITS = 5
 N_INNER_SPLITS = 5
