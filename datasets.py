@@ -8,7 +8,7 @@ from torch_geometric.data import InMemoryDataset, Data
 from numpy.random import default_rng
 
 from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType, get_timeseries_final_path, \
-    OLD_NETMATS_PEOPLE
+    OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
@@ -221,6 +221,19 @@ class HCPDataset(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
+
+def create_ukb_corrs_flatten(num_nodes=376):
+    final_dict = {}
+
+    for person in np.load(UKB_IDS_PATH):
+        corr_arr = np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
+
+        # Getting upper triangle only (without diagonal)
+        flatten_array = corr_arr[np.triu_indices(num_nodes, k=1)]
+
+        final_dict[person] = flatten_array
+
+    return final_dict
 
 def create_hcp_correlation_vals(num_nodes=50, ts_split_num=64, binarise=False, threshold=100):
     final_dict = {}

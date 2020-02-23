@@ -1,6 +1,7 @@
 import random
 from collections import Counter, defaultdict
 from enum import Enum, unique
+import os
 
 import numpy as np
 import torch
@@ -44,6 +45,9 @@ class EncodingStrategy(str, Enum):
     AE3layers = '3layerAE'
     VAE3layers = '3layerVAE'
 
+UKB_IDS_PATH = os.path.join('meta_data', 'ukb_ids.npy')
+UKB_TIMESERIES_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'ts_raw')
+UKB_ADJ_ARR_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'cache_adj_arrs')
 
 NEW_STRUCT_PEOPLE = [100206, 100307, 100408, 100610, 101107, 101309, 101410, 101915, 102008, 102311, 102513, 102614,
                      102715, 102816, 103010, 103111, 103212, 103414, 103515, 103818, 104012, 104416, 104820, 105014,
