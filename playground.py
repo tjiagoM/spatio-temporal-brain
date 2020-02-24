@@ -14,18 +14,18 @@ TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
 THRESHOLD = 5
 SPLIT_TO_TEST = 1
-ADD_GCN = False
+ADD_GCN = True
 ADD_GAT = False
-BATCH_SIZE = 150
+BATCH_SIZE = 500
 REMOVE_NODES = False
-NUM_NODES = 376
+NUM_NODES = 50
 CONN_TYPE = ConnType('fmri')
 CONV_STRATEGY = ConvStrategy('entire')
-POOLING = PoolingStrategy('concat')
+POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('roi_norm')
-TIME_LENGTH = 490
-ENCODING_STRATEGY = EncodingStrategy('3layerAE')
+TIME_LENGTH = 1200
+ENCODING_STRATEGY = EncodingStrategy('none')
 
 torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True

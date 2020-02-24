@@ -8,7 +8,7 @@ from sys import exit
 import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
-from sklearn.model_selection import ParameterGrid
+from sklearn.model_selection import ParameterGrid, StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader
 from xgboost import XGBClassifier
@@ -242,13 +242,19 @@ if __name__ == '__main__':
     N_OUT_SPLITS = 5
     N_INNER_SPLITS = 5
 
-    # Stratification will occur with regards to both the sex and session day
-    skf = StratifiedGroupKFold(n_splits=N_OUT_SPLITS, random_state=1111)
-    merged_labels = merge_y_and_others(dataset.data.y,
-                                       dataset.data.index)
-    skf_generator = skf.split(np.zeros((len(dataset), 1)),
-                              merged_labels,
-                              groups=dataset.data.hcp_id.tolist())
+    # UK Biobank
+    if NUM_NODES == 376:
+        skf = StratifiedKFold(n_splits=N_OUT_SPLITS, shuffle=True, random_state=1111)
+        skf_generator = skf.split(np.zeros((len(dataset), 1)),
+                                  dataset.data.y.numpy())
+    else:
+        # Stratification will occur with regards to both the sex and session day
+        skf = StratifiedGroupKFold(n_splits=N_OUT_SPLITS, random_state=1111)
+        merged_labels = merge_y_and_others(dataset.data.y,
+                                           dataset.data.index)
+        skf_generator = skf.split(np.zeros((len(dataset), 1)),
+                                  merged_labels,
+                                  groups=dataset.data.hcp_id.tolist())
 
     #
     # Main outer-loop
@@ -284,7 +290,7 @@ if __name__ == '__main__':
                 'subsample': [0.6, 0.8, 1.0],
                 'colsample_bytree': [0.3, 0.7, 1.0],
                 'max_depth': [3, 4, 5],
-                'n_estimators': [100]
+                'n_estimators': [100, 500]
             }
         # param_grid = {'weight_decay': [0],
         #              'lr': [0.05],
@@ -302,15 +308,20 @@ if __name__ == '__main__':
         for params in grid:
             print("For ", params)
 
-            if TARGET_VAR == 'gender':
+            # UK Biobank
+            if NUM_NODES == 376:
+                skf_inner = StratifiedKFold(n_splits=N_INNER_SPLITS, shuffle=True, random_state=1111)
+                skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)),
+                                                      X_train_out.data.y.numpy())
+            else:
                 skf_inner = StratifiedGroupKFold(n_splits=N_INNER_SPLITS, random_state=1111)
                 merged_labels_inner = merge_y_and_others(X_train_out.data.y,
                                                          X_train_out.data.index)
                 skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)),
                                                       merged_labels_inner,
                                                       groups=X_train_out.data.hcp_id.tolist())
-                model_with_sigmoid = True
-                metrics = ['acc', 'f1', 'auc', 'loss']
+            model_with_sigmoid = True
+            metrics = ['acc', 'f1', 'auc', 'loss']
 
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
@@ -319,7 +330,7 @@ if __name__ == '__main__':
                         if ENCODING_STRATEGY == EncodingStrategy.AE3layers:
                             from encoders import AE  # Necessary to torch.load
                         elif ENCODING_STRATEGY == EncodingStrategy.VAE3layers:
-                            from encoders import VAE
+                            from encoders import VAE  # Necessary to torch.load
                         encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
                                                                              outer_split_num=outer_split_num,
                                                                              encoder_name=ENCODING_STRATEGY.value))
