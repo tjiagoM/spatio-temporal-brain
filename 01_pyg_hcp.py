@@ -94,7 +94,6 @@ def evaluate_classifier(loader, save_path_preds=None):
             label = data.y.detach().cpu().numpy()
             predictions.append(pred)
             labels.append(label)
-
     predictions = np.hstack(predictions)
     labels = np.hstack(labels)
 
@@ -246,15 +245,15 @@ if __name__ == '__main__':
     if NUM_NODES == 376:
         skf = StratifiedKFold(n_splits=N_OUT_SPLITS, shuffle=True, random_state=1111)
         skf_generator = skf.split(np.zeros((len(dataset), 1)),
-                                  dataset.data.y.numpy())
+                                  np.array([data.y.item() for data in dataset]))
     else:
         # Stratification will occur with regards to both the sex and session day
         skf = StratifiedGroupKFold(n_splits=N_OUT_SPLITS, random_state=1111)
-        merged_labels = merge_y_and_others(dataset.data.y,
-                                           dataset.data.index)
+        merged_labels = merge_y_and_others(torch.cat([data.y for data in dataset], dim=0),
+                                           torch.cat([data.index for data in dataset], dim=0))
         skf_generator = skf.split(np.zeros((len(dataset), 1)),
                                   merged_labels,
-                                  groups=dataset.data.hcp_id.tolist())
+                                  groups=[data.hcp_id.item() for data in dataset])
 
     #
     # Main outer-loop
@@ -271,7 +270,8 @@ if __name__ == '__main__':
         X_test_out = dataset[torch.tensor(test_index)]
 
         print("Size is:", len(X_train_out), "/", len(X_test_out))
-        print("Positive classes:", sum(X_train_out.data.y.numpy()), "/", sum(X_test_out.data.y.numpy()))
+        print("Positive classes:", sum([data.y.item() for data in X_train_out]),
+              "/", sum([data.y.item() for data in X_test_out]))
 
         train_out_loader = DataLoader(X_train_out, batch_size=BATCH_SIZE, shuffle=True)
         test_out_loader = DataLoader(X_test_out, batch_size=BATCH_SIZE, shuffle=False)
@@ -312,14 +312,14 @@ if __name__ == '__main__':
             if NUM_NODES == 376:
                 skf_inner = StratifiedKFold(n_splits=N_INNER_SPLITS, shuffle=True, random_state=1111)
                 skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)),
-                                                      X_train_out.data.y.numpy())
+                                                      np.array([data.y.item() for data in X_train_out]))
             else:
                 skf_inner = StratifiedGroupKFold(n_splits=N_INNER_SPLITS, random_state=1111)
-                merged_labels_inner = merge_y_and_others(X_train_out.data.y,
-                                                         X_train_out.data.index)
+                merged_labels_inner = merge_y_and_others(torch.cat([data.y for data in X_train_out], dim=0),
+                                                         torch.cat([data.index for data in X_train_out], dim=0))
                 skf_inner_generator = skf_inner.split(np.zeros((len(X_train_out), 1)),
                                                       merged_labels_inner,
-                                                      groups=X_train_out.data.hcp_id.tolist())
+                                                      groups=[data.hcp_id.item() for data in X_train_out])
             model_with_sigmoid = True
             metrics = ['acc', 'f1', 'auc', 'loss']
 
@@ -369,7 +369,8 @@ if __name__ == '__main__':
                 X_val_in = X_train_out[torch.tensor(inner_val_index)]
 
                 print("Inner Size is:", len(X_train_in), "/", len(X_val_in))
-                print("Inner Positive classes:", sum(X_train_in.data.y.numpy()), "/", sum(X_val_in.data.y.numpy()))
+                print("Inner Positive classes:", sum([data.y.item() for data in X_train_in]),
+                      "/", sum([data.y.item() for data in X_val_in]))
 
                 if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
                     X_train_in_array, y_train_in_array = get_array_data(X_train_in)
