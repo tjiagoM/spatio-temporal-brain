@@ -383,7 +383,7 @@ if __name__ == '__main__':
                     X_val_in_array, y_val_in_array = get_array_data(X_val_in, num_nodes=NUM_NODES)
 
                     model.fit(X_train_in_array, y_train_in_array)
-                    y_pred = model.predict(X_val_in_array, num_nodes=NUM_NODES)
+                    y_pred = model.predict(X_val_in_array)
 
                     val_metrics = return_metrics(y_val_in_array, y_pred, y_pred)
                     print(val_metrics)
