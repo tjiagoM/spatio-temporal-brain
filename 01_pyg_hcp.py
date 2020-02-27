@@ -13,7 +13,7 @@ from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader
 from xgboost import XGBClassifier
 
-from datasets import BrainDataset, create_hcp_correlation_vals
+from datasets import BrainDataset, create_hcp_correlation_vals, create_ukb_corrs_flatten
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name
@@ -123,12 +123,15 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     return val_metrics
 
 
-def get_array_data(data_fold):
+def get_array_data(data_fold, num_nodes=50):
     tmp_array = []
     tmp_y = []
 
     for d in data_fold:
-        tmp_array.append(flatten_correlations[(d.hcp_id.item(), d.index.item())])
+        if num_nodes == 376:
+            tmp_array.append(flatten_correlations[d.ukb_id.item()])
+        else:
+            tmp_array.append(flatten_correlations[(d.hcp_id.item(), d.index.item())])
         tmp_y.append(d.y.item())
 
     return np.array(tmp_array), np.array(tmp_y)
@@ -233,7 +236,10 @@ if __name__ == '__main__':
                            connectivity_type=CONN_TYPE,
                            disconnect_nodes=REMOVE_NODES)
     if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS:
-        flatten_correlations = create_hcp_correlation_vals(NUM_NODES, ts_split_num=TS_SPIT_NUM)
+        if NUM_NODES == 376:
+            flatten_correlations = create_ukb_corrs_flatten()
+        else:
+            flatten_correlations = create_hcp_correlation_vals(NUM_NODES, ts_split_num=TS_SPIT_NUM)
     elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
         flatten_correlations = create_hcp_correlation_vals(NUM_NODES, ts_split_num=TS_SPIT_NUM,
                                                            binarise=True, threshold=THRESHOLD)
@@ -373,11 +379,11 @@ if __name__ == '__main__':
                       "/", sum([data.y.item() for data in X_val_in]))
 
                 if ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
-                    X_train_in_array, y_train_in_array = get_array_data(X_train_in)
-                    X_val_in_array, y_val_in_array = get_array_data(X_val_in)
+                    X_train_in_array, y_train_in_array = get_array_data(X_train_in, num_nodes=NUM_NODES)
+                    X_val_in_array, y_val_in_array = get_array_data(X_val_in, num_nodes=NUM_NODES)
 
                     model.fit(X_train_in_array, y_train_in_array)
-                    y_pred = model.predict(X_val_in_array)
+                    y_pred = model.predict(X_val_in_array, num_nodes=NUM_NODES)
 
                     val_metrics = return_metrics(y_val_in_array, y_pred, y_pred)
                     print(val_metrics)
@@ -463,7 +469,7 @@ if __name__ == '__main__':
                 print(f'Best params if {met_name}: {best_name} ( {best_val} )')
                 model = pickle.load(open(best_name, "rb"))
 
-                X_test_array, y_test_array = get_array_data(X_test_out)
+                X_test_array, y_test_array = get_array_data(X_test_out, num_nodes=NUM_NODES)
                 y_pred = model.predict(X_test_array)
                 test_metrics = return_metrics(y_test_array, y_pred, y_pred)
                 print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
