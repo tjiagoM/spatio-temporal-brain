@@ -3,6 +3,7 @@ import datetime
 import os
 import pickle
 import time
+from random import random
 from sys import exit
 
 import numpy as np
@@ -145,6 +146,8 @@ if __name__ == '__main__':
     # torch.backends.cudnn.deterministic = True
     #torch.backends.cudnn.benchmark = False
     np.random.seed(1111)
+    random.seed(1111)
+    torch.cuda.manual_seed_all(1111)
 
     parser = argparse.ArgumentParser()
 
