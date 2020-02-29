@@ -3,7 +3,7 @@ import datetime
 import os
 import pickle
 import time
-from random import random
+import random
 from sys import exit
 
 import numpy as np
@@ -294,17 +294,14 @@ if __name__ == '__main__':
                           }
         elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
             param_grid = {
-                'min_child_weight': [1, 5, 10],
+                'min_child_weight': [1, 5],
                 'gamma': [0.0, 1, 5],
-                'subsample': [0.6, 0.8, 1.0],
-                'colsample_bytree': [0.3, 0.7, 1.0],
-                'max_depth': [3, 4, 5],
+                'subsample': [0.6, 1.0],
+                'colsample_bytree': [0.6, 1.0],
+                'max_depth': [3, 5],
                 'n_estimators': [100, 500]
             }
-        # param_grid = {'weight_decay': [0],
-        #              'lr': [0.05],
-        #              'dropout': [0]
-        #              }
+
         grid = ParameterGrid(param_grid)
         # best_metric = -100
         # best_params = None
