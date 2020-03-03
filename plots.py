@@ -238,3 +238,39 @@ stat, p = friedmanchisquare(mean_cnn,
                             mean_cnn_gcn5,
                             mean_cnn_gcn20)
 print(stat, p)
+
+
+####################################################################
+##########################################################################
+## Check graphs and timeseries in UK Biobank
+from datasets import BrainDataset
+from utils import create_name_for_brain_dataset, Normalisation, ConnType
+
+NUM_NODES = 376
+TIME_LENGTH = 490
+TARGET_VAR = 'gender'
+THRESHOLD = 5
+NORMALISATION = Normalisation('roi_norm')
+CONN_TYPE = ConnType('fmri')
+REMOVE_NODES = False
+name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
+                                             time_length=TIME_LENGTH,
+                                             target_var=TARGET_VAR,
+                                             threshold=THRESHOLD,
+                                             normalisation=NORMALISATION,
+                                             connectivity_type=CONN_TYPE,
+                                             disconnect_nodes=REMOVE_NODES)
+
+dataset = BrainDataset(root=name_dataset,
+                       time_length=TIME_LENGTH,
+                       num_nodes=NUM_NODES,
+                       target_var=TARGET_VAR,
+                       threshold=THRESHOLD,
+                       normalisation=NORMALISATION,
+                       connectivity_type=CONN_TYPE,
+                       disconnect_nodes=REMOVE_NODES)
+
+rand_indices = [134, 321, 731, 764, 1319, 2334, 3302, 7078, 7587, 7631, 7909, 8061, 10956, 11752, 15061]
+#(utils)to_networkx(dataset[rand_indices][0])
+#---> this last line will create a DiGraph, make it an undirected graph and PR
+

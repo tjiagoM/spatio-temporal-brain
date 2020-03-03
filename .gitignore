@@ -3,6 +3,7 @@ pytorch_data/
 logs/
 encoder_comparisons/
 results/
+execute_*.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
