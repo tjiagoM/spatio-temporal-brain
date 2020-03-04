@@ -294,12 +294,12 @@ if __name__ == '__main__':
                           }
         elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
             param_grid = {
-                'min_child_weight': [1, 5],
+                'min_child_weight': [1],#, 5],
                 'gamma': [0.0, 1, 5],
                 'subsample': [0.6, 1.0],
                 'colsample_bytree': [0.6, 1.0],
-                'max_depth': [3, 5],
-                'n_estimators': [100, 500]
+                'max_depth': [3],#, 5],
+                'n_estimators': [100]
             }
 
         grid = ParameterGrid(param_grid)

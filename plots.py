@@ -245,6 +245,52 @@ print(stat, p)
 ## Check graphs and timeseries in UK Biobank
 from datasets import BrainDataset
 from utils import create_name_for_brain_dataset, Normalisation, ConnType
+import networkx as nx
+import torch_geometric.utils as pygutils
+
+from torch_geometric.utils import loop
+
+# check return documentation of self_loop in utils.loop something and include in the PR
+def to_networkx2(data, node_attrs=None, edge_attrs=None, to_undirected=False, remove_self_loops=False):
+    r"""Converts a :class:`torch_geometric.data.Data` instance to a
+    :obj:`networkx.DiGraph` if :attr:`to_undirected` is set to :obj:`True`, or an undirected
+    :obj:`networkx.Graph` otherwise.
+
+    Args:
+        data (torch_geometric.data.Data): The data object.
+        node_attrs (iterable of str, optional): The node attributes to be
+            copied. (default: :obj:`None`)
+        edge_attrs (iterable of str, optional): The edge attributes to be
+            copied. (default: :obj:`None`)
+        to_undirected (bool, optional): If set to :obj:`True`, it will return a :obj:`networkx.Graph`.
+            In practice, the undirected graph will correspond to the upper triangle of the
+            corresponding adjacency matrix. (default: :obj:`False`)
+        remove_self_loops (bool, optional): If set to :obj:`True`, it will not include self loops in
+            the returning graph.  (default: :obj:`False`)
+    """
+
+    if to_undirected:
+        G = nx.Graph()
+    else:
+        G = nx.DiGraph()
+    G.add_nodes_from(range(data.num_nodes))
+
+    values = {key: data[key].squeeze().tolist() for key in data.keys}
+
+    for i, (u, v) in enumerate(data.edge_index.t().tolist()):
+        if to_undirected and v > u:
+            continue
+        if u == v and remove_self_loops:
+            continue
+        G.add_edge(u, v)
+        for key in edge_attrs if edge_attrs is not None else []:
+            G[u][v][key] = values[key][i]
+
+    for key in node_attrs if node_attrs is not None else []:
+        for i, feat_dict in G.nodes(data=True):
+            feat_dict.update({key: values[key][i]})
+
+    return G
 
 NUM_NODES = 376
 TIME_LENGTH = 490
