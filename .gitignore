@@ -4,6 +4,7 @@ logs/
 encoder_comparisons/
 results/
 execute_*.sh
+figures/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

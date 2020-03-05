@@ -299,7 +299,7 @@ if __name__ == '__main__':
                 'subsample': [0.6, 1.0],
                 'colsample_bytree': [0.6, 1.0],
                 'max_depth': [3],#, 5],
-                'n_estimators': [100]
+                'n_estimators': [100, 500]
             }
 
         grid = ParameterGrid(param_grid)

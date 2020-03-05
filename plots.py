@@ -242,15 +242,15 @@ print(stat, p)
 
 ####################################################################
 ##########################################################################
-## Check graphs and timeseries in UK Biobank
+# Check graphs and timeseries
 from datasets import BrainDataset
 from utils import create_name_for_brain_dataset, Normalisation, ConnType
 import networkx as nx
-import torch_geometric.utils as pygutils
+import os
+import matplotlib.pyplot as plt
+import numpy as np
 
-from torch_geometric.utils import loop
 
-# check return documentation of self_loop in utils.loop something and include in the PR
 def to_networkx2(data, node_attrs=None, edge_attrs=None, to_undirected=False, remove_self_loops=False):
     r"""Converts a :class:`torch_geometric.data.Data` instance to a
     :obj:`networkx.DiGraph` if :attr:`to_undirected` is set to :obj:`True`, or an undirected
@@ -292,31 +292,61 @@ def to_networkx2(data, node_attrs=None, edge_attrs=None, to_undirected=False, re
 
     return G
 
-NUM_NODES = 376
-TIME_LENGTH = 490
-TARGET_VAR = 'gender'
-THRESHOLD = 5
-NORMALISATION = Normalisation('roi_norm')
-CONN_TYPE = ConnType('fmri')
-REMOVE_NODES = False
-name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
-                                             time_length=TIME_LENGTH,
-                                             target_var=TARGET_VAR,
-                                             threshold=THRESHOLD,
-                                             normalisation=NORMALISATION,
-                                             connectivity_type=CONN_TYPE,
-                                             disconnect_nodes=REMOVE_NODES)
 
-dataset = BrainDataset(root=name_dataset,
-                       time_length=TIME_LENGTH,
-                       num_nodes=NUM_NODES,
-                       target_var=TARGET_VAR,
-                       threshold=THRESHOLD,
-                       normalisation=NORMALISATION,
-                       connectivity_type=CONN_TYPE,
-                       disconnect_nodes=REMOVE_NODES)
+for NUM_NODES, TIME_LENGTH in [(50, 1200), (376, 490)]:
+    TARGET_VAR = 'gender'
+    THRESHOLD = 5
+    NORMALISATION = Normalisation('roi_norm')
+    CONN_TYPE = ConnType('fmri')
+    REMOVE_NODES = False
 
-rand_indices = [134, 321, 731, 764, 1319, 2334, 3302, 7078, 7587, 7631, 7909, 8061, 10956, 11752, 15061]
-#(utils)to_networkx(dataset[rand_indices][0])
-#---> this last line will create a DiGraph, make it an undirected graph and PR
+    name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
+                                                 time_length=TIME_LENGTH,
+                                                 target_var=TARGET_VAR,
+                                                 threshold=THRESHOLD,
+                                                 normalisation=NORMALISATION,
+                                                 connectivity_type=CONN_TYPE,
+                                                 disconnect_nodes=REMOVE_NODES)
+
+    dataset = BrainDataset(root=name_dataset,
+                           time_length=TIME_LENGTH,
+                           num_nodes=NUM_NODES,
+                           target_var=TARGET_VAR,
+                           threshold=THRESHOLD,
+                           normalisation=NORMALISATION,
+                           connectivity_type=CONN_TYPE,
+                           disconnect_nodes=REMOVE_NODES)
+
+    female_ind = [ind for ind, data in enumerate(dataset) if data.y == 0]
+    male_ind = [ind for ind, data in enumerate(dataset) if data.y == 1]
+
+    np.random.seed(seed=11)
+
+    rand_indices = np.random.randint(low=0, high=int(len(dataset) / 2), size=15).tolist()
+
+    data_0 = dataset[female_ind][rand_indices]
+    data_1 = dataset[male_ind][rand_indices]
+
+    for i, _ in enumerate(rand_indices):
+        g_fem = to_networkx2(data_0[i])
+        g_mal = to_networkx2(data_1[i])
+
+        for sex_type, G in [['Female', g_fem], ['Male', g_mal]]:
+            fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+
+            ax[0].set_axis_off()
+            ax[0].set_title('Spring Layout, 500 iters, k=5')
+            pos = nx.spring_layout(G, k=5, iterations=500, scale=5)
+            nx.draw_networkx(G, pos, ax=ax[0], with_labels=False, node_size=5, width=0.1, arrows=False)
+
+            ax[1].set_axis_off()
+            ax[1].set_title('Kamada Kawai Layout')
+            pos = nx.kamada_kawai_layout(G)
+            nx.draw_networkx(G, pos, ax=ax[1], with_labels=False, node_size=5, width=0.1, arrows=False)
+
+            fig.suptitle(f'Random Person {i}, {sex_type}', fontsize=20)
+            plt.tight_layout()
+
+            plt.savefig(os.path.join('figures', f'graph_{NUM_NODES}_{sex_type}_{i}.png'))
+            plt.close()
 
