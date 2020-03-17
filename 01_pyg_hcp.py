@@ -5,6 +5,7 @@ import pickle
 import time
 import random
 from sys import exit
+from collections import deque
 
 import numpy as np
 import torch
@@ -137,14 +138,15 @@ def get_array_data(data_fold, num_nodes=50):
 
     return np.array(tmp_array), np.array(tmp_y)
 
+
 if __name__ == '__main__':
 
-    #import warnings
+    # import warnings
 
-    #warnings.filterwarnings("ignore")
+    # warnings.filterwarnings("ignore")
     torch.manual_seed(1)
     # torch.backends.cudnn.deterministic = True
-    #torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.benchmark = False
     np.random.seed(1111)
     random.seed(1111)
     torch.cuda.manual_seed_all(1111)
@@ -158,7 +160,7 @@ if __name__ == '__main__':
     parser.add_argument("--activation", default='relu')
     parser.add_argument("--threshold", default=5, type=int)
     parser.add_argument("--num_nodes", default=50, type=int)
-    parser.add_argument("--num_epochs", default=20, type=int)
+    parser.add_argument("--num_epochs", default=100, type=int)
     parser.add_argument("--batch_size", default=150, type=int)
     parser.add_argument("--add_gcn", type=bool, default=False)  # to make true just include flag with 1
     parser.add_argument("--add_gat", type=bool, default=False)  # to make true just include flag with 1
@@ -173,6 +175,7 @@ if __name__ == '__main__':
     parser.add_argument("--analysis_type", default='spatiotemporal')
     parser.add_argument("--time_length", type=int)
     parser.add_argument("--encoding_strategy", default='none')
+    parser.add_argument("--early_stop_steps", default=30, type=int)
 
     args = parser.parse_args()
 
@@ -202,9 +205,7 @@ if __name__ == '__main__':
     TIME_LENGTH = args.time_length
     TS_SPIT_NUM = int(4800 / TIME_LENGTH)
     ENCODING_STRATEGY = EncodingStrategy(args.encoding_strategy)
-
-    if NUM_NODES == 300 and CHANNELS_CONV > 1:
-        BATCH_SIZE = int(BATCH_SIZE / 3)
+    EARLY_STOP_STEPS = args.early_stop_steps
 
     #if CONV_STRATEGY != ConvStrategy.TCN_ENTIRE:
     #    print("Setting to deterministic runs")
@@ -306,11 +307,9 @@ if __name__ == '__main__':
         # best_metric = -100
         # best_params = None
         best_model_name_outer_fold_auc = None
-        best_model_name_outer_fold_acc = None
         best_model_name_outer_fold_loss = None
         best_outer_metric_loss = 1000
         best_outer_metric_auc = -1000
-        best_outer_metric_acc = -1000
         for params in grid:
             print("For ", params)
 
@@ -327,7 +326,7 @@ if __name__ == '__main__':
                                                       merged_labels_inner,
                                                       groups=[data.hcp_id.item() for data in X_train_out])
             model_with_sigmoid = True
-            metrics = ['acc', 'f1', 'auc', 'loss']
+            metrics = ['auc', 'loss']
 
             # This for-cycle will only be executed once (for now)
             for inner_train_index, inner_val_index in skf_inner_generator:
@@ -366,10 +365,6 @@ if __name__ == '__main__':
                                                            THRESHOLD, BATCH_SIZE, REMOVE_NODES, NUM_NODES, CONN_TYPE,
                                                            NORMALISATION, ANALYSIS_TYPE,
                                                            m)
-                # If there is one of the metrics saved, then I assume this inner part was already calculated
-                if os.path.isfile(model_names[metrics[0]]):
-                    print("Saved model exists, thus skipping this search...")
-                    break  # break because I'm in the "inner" fold, which is being done only once
 
                 X_train_in = X_train_out[torch.tensor(inner_train_index)]
                 X_val_in = X_train_out[torch.tensor(inner_val_index)]
@@ -412,6 +407,9 @@ if __name__ == '__main__':
                         best_metrics_fold[m] = 1000
                     else:
                         best_metrics_fold[m] = -1000
+                # Only for loss
+                last_losses_val = deque([1000 for _ in range(EARLY_STOP_STEPS)], maxlen=EARLY_STOP_STEPS)
+
                 for epoch in range(1, N_EPOCHS):
                     if TARGET_VAR == 'gender':
                         val_metrics = classifier_step(outer_split_num,
@@ -420,6 +418,12 @@ if __name__ == '__main__':
                                                       model,
                                                       train_in_loader,
                                                       val_loader)
+                        if sum([val_metrics['loss'] > loss for loss in last_losses_val]) == EARLY_STOP_STEPS:
+                            print("EARLY STOPPING IT")
+                            break
+
+                        last_losses_val.append(val_metrics['loss'])
+
                         if val_metrics['loss'] < best_metrics_fold['loss']:
                             best_metrics_fold['loss'] = val_metrics['loss']
                             torch.save(model, model_names['loss'])
