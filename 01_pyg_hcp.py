@@ -9,6 +9,7 @@ from sys import exit
 
 import numpy as np
 import torch
+import wandb
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
 from sklearn.model_selection import ParameterGrid, StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
@@ -19,6 +20,7 @@ from datasets import BrainDataset, create_hcp_correlation_vals, create_ukb_corrs
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name
+from wandb_utils import SWEEP_GENERAL
 
 
 def train_classifier(model, train_loader):
@@ -138,8 +140,7 @@ def get_array_data(data_fold, num_nodes=50):
     return np.array(tmp_array), np.array(tmp_y)
 
 
-if __name__ == '__main__':
-
+def main_loop():
     # import warnings
 
     # warnings.filterwarnings("ignore")
@@ -149,34 +150,6 @@ if __name__ == '__main__':
     np.random.seed(1111)
     random.seed(1111)
     torch.cuda.manual_seed_all(1111)
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--device", default="cuda")
-
-    parser.add_argument("--fold_num", type=int)
-    parser.add_argument("--target_var")
-    parser.add_argument("--activation", default='relu')
-    parser.add_argument("--threshold", default=5, type=int)
-    parser.add_argument("--num_nodes", default=50, type=int)
-    parser.add_argument("--num_epochs", default=100, type=int)
-    parser.add_argument("--batch_size", default=150, type=int)
-    parser.add_argument("--add_gcn", type=bool, default=False)  # to make true just include flag with 1
-    parser.add_argument("--add_gat", type=bool, default=False)  # to make true just include flag with 1
-    parser.add_argument("--remove_disconnected_nodes", type=bool,
-                        default=False)  # to make true just include flag with 1
-    parser.add_argument("--conn_type", default="struct")
-    parser.add_argument("--conv_strategy", default="entire")
-    parser.add_argument("--pooling",
-                        default="mean")
-    parser.add_argument("--channels_conv", type=int)
-    parser.add_argument("--normalisation", default='roi_norm')
-    parser.add_argument("--analysis_type", default='spatiotemporal')
-    parser.add_argument("--time_length", type=int)
-    parser.add_argument("--encoding_strategy", default='none')
-    parser.add_argument("--early_stop_steps", default=30, type=int)
-
-    args = parser.parse_args()
 
     # To check time execution
     start_time = time.time()
@@ -457,3 +430,43 @@ if __name__ == '__main__':
     total_seconds = time.time() - start_time
     total_time = str(datetime.timedelta(seconds=total_seconds))
     print(f'--- {total_seconds} seconds to execute this script ({total_time})---')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--device", default="cuda")
+
+    parser.add_argument("--fold_num", type=int)
+    parser.add_argument("--target_var")
+    parser.add_argument("--activation", default='relu')
+    parser.add_argument("--threshold", default=5, type=int)
+    parser.add_argument("--num_nodes", default=50, type=int)
+    parser.add_argument("--num_epochs", default=100, type=int)
+    parser.add_argument("--batch_size", default=150, type=int)
+    parser.add_argument("--add_gcn", type=bool, default=False)  # to make true just include flag with 1
+    parser.add_argument("--add_gat", type=bool, default=False)  # to make true just include flag with 1
+    parser.add_argument("--remove_disconnected_nodes", type=bool,
+                        default=False)  # to make true just include flag with 1
+    parser.add_argument("--conn_type", default="struct")
+    parser.add_argument("--conv_strategy", default="entire")
+    parser.add_argument("--pooling",
+                        default="mean")
+    parser.add_argument("--channels_conv", type=int)
+    parser.add_argument("--normalisation", default='roi_norm')
+    parser.add_argument("--analysis_type", default='spatiotemporal')
+    parser.add_argument("--time_length", type=int)
+    parser.add_argument("--encoding_strategy", default='none')
+    parser.add_argument("--early_stop_steps", default=30, type=int)
+
+    TODO: check "gcn_layers"" option
+    TODO: check how to give name to a specific sweep (from sweep keys?)
+
+    args = parser.parse_args()
+
+    sweep_config = SWEEP_GENERAL
+    sweep_config['name'] = NNNN
+    # also, put the n_epoch in the config part.
+    sweep_id = wandb.sweep(sweep_config, entity='tjiagom', project="pytorch-intro")
+
+    wandb.agent(sweep_id, function=main_loop)
