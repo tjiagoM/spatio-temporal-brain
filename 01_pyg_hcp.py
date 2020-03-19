@@ -2,10 +2,10 @@ import argparse
 import datetime
 import os
 import pickle
-import time
 import random
-from sys import exit
+import time
 from collections import deque
+from sys import exit
 
 import numpy as np
 import torch
@@ -53,6 +53,7 @@ def train_classifier(model, train_loader):
     # Returning a weighted average according to number of graphs
     return loss_all / len(train_loader.dataset)
 
+
 def return_metrics(labels, pred_binary, pred_prob, loss_value=None):
     roc_auc = roc_auc_score(labels, pred_prob)
     acc = accuracy_score(labels, pred_binary)
@@ -68,6 +69,7 @@ def return_metrics(labels, pred_binary, pred_prob, loss_value=None):
             'sensitivity': sens,
             'specificity': spec
             }
+
 
 def evaluate_classifier(loader, save_path_preds=None):
     model.eval()
@@ -104,9 +106,6 @@ def evaluate_classifier(loader, save_path_preds=None):
         np.save('results/predictions_' + save_path_preds, predictions)
 
     pred_binary = np.where(predictions > 0.5, 1, 0)
-
-    # TODO: Define accuracy at optimal AUC point
-    # https://stackoverflow.com/questions/28719067/roc-curve-and-cut-off-point-python
 
     return return_metrics(labels, pred_binary, predictions, loss_value=test_error / len(loader.dataset))
 
@@ -207,10 +206,10 @@ if __name__ == '__main__':
     ENCODING_STRATEGY = EncodingStrategy(args.encoding_strategy)
     EARLY_STOP_STEPS = args.early_stop_steps
 
-    #if CONV_STRATEGY != ConvStrategy.TCN_ENTIRE:
+    # if CONV_STRATEGY != ConvStrategy.TCN_ENTIRE:
     #    print("Setting to deterministic runs")
     #    torch.backends.cudnn.deterministic = True
-    #else:
+    # else:
     #    print("This run will not be deterministic")
     print("This run will not be deterministic")
     if TARGET_VAR not in ['gender']:
@@ -295,11 +294,11 @@ if __name__ == '__main__':
                           }
         elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
             param_grid = {
-                'min_child_weight': [1],#, 5],
+                'min_child_weight': [1],  # , 5],
                 'gamma': [0.0, 1, 5],
                 'subsample': [0.6, 1.0],
                 'colsample_bytree': [0.6, 1.0],
-                'max_depth': [3],#, 5],
+                'max_depth': [3],  # , 5],
                 'n_estimators': [100, 500]
             }
 
@@ -386,10 +385,6 @@ if __name__ == '__main__':
                         pickle.dump(model, open(model_names['auc'], "wb"))
                         best_outer_metric_auc = val_metrics['auc']
                         best_model_name_outer_fold_auc = model_names['auc']
-                    if val_metrics['acc'] > best_outer_metric_acc:
-                        pickle.dump(model, open(model_names['acc'], "wb"))
-                        best_outer_metric_acc = val_metrics['acc']
-                        best_model_name_outer_fold_acc = model_names['acc']
                     break
 
                 ###########
@@ -421,7 +416,6 @@ if __name__ == '__main__':
                         if sum([val_metrics['loss'] > loss for loss in last_losses_val]) == EARLY_STOP_STEPS:
                             print("EARLY STOPPING IT")
                             break
-
                         last_losses_val.append(val_metrics['loss'])
 
                         if val_metrics['loss'] < best_metrics_fold['loss']:
@@ -430,48 +424,23 @@ if __name__ == '__main__':
                             if val_metrics['loss'] < best_outer_metric_loss:
                                 best_outer_metric_loss = val_metrics['loss']
                                 best_model_name_outer_fold_loss = model_names['loss']
-                        if val_metrics['auc'] > best_metrics_fold['auc']:
-                            best_metrics_fold['auc'] = val_metrics['auc']
-                            torch.save(model, model_names['auc'])
-                            if val_metrics['auc'] > best_outer_metric_auc:
-                                best_outer_metric_auc = val_metrics['auc']
-                                best_model_name_outer_fold_auc = model_names['auc']
 
-                # End of inner-fold, put best val_metric in the array
-                # if best_metric_fold > best_metric:
-                #    best_metric = best_metric_fold
-                #    print("New best val metric", best_metric)
-                #    best_params = params
-                #    torch.save(model, "logs/best_model_" + TARGET_VAR + "_" + str(ADD_GCN) + "_" + str(
-                #        outer_split_num) + ".pth")
                 break  # Just one inner "loop"
 
         # After all parameters are searched, get best and train on that, evaluating on test set
         if ANALYSIS_TYPE == AnalysisType.SPATIOTEMOPRAL:
-            print("Best params if AUC: ", best_model_name_outer_fold_auc, "(", best_outer_metric_auc, ")")
-            model = torch.load(best_model_name_outer_fold_auc)
-            test_metrics = evaluate_classifier(test_out_loader,
-                                               save_path_preds=best_model_name_outer_fold_auc.replace('logs/',
-                                                                                                      '').replace(
-                                                   '.pth', '.npy'))
+            print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
+            model = torch.load(best_model_name_outer_fold_loss)
+            saving_path = best_model_name_outer_fold_loss.replace('logs/', '').replace('.pth', '.npy')
+            test_metrics = evaluate_classifier(test_out_loader, save_path_preds=saving_path)
+
             print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
                   ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
                             test_metrics['sensitivity'], test_metrics['specificity']))
 
-            print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
-            model = torch.load(best_model_name_outer_fold_loss)
-            test_metrics = evaluate_classifier(test_out_loader,
-                                               save_path_preds=best_model_name_outer_fold_loss.replace('logs/',
-                                                                                                       '').replace(
-                                                   '.pth', '.npy'))
-            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
-                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
-                            test_metrics['sensitivity'], test_metrics['specificity']))
         elif ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS or ANALYSIS_TYPE == AnalysisType.FLATTEN_CORRS_THRESHOLD:
-            for met_name, best_name, best_val in [('acc', best_model_name_outer_fold_auc, best_outer_metric_auc),
-                                                  ('auc', best_model_name_outer_fold_acc, best_outer_metric_acc)]:
-                print(f'Best params if {met_name}: {best_name} ( {best_val} )')
-                model = pickle.load(open(best_name, "rb"))
+                print(f'Best params if auc: {best_model_name_outer_fold_auc} ( {best_outer_metric_auc} )')
+                model = pickle.load(open(best_model_name_outer_fold_auc, "rb"))
 
                 X_test_array, y_test_array = get_array_data(X_test_out, num_nodes=NUM_NODES)
                 y_pred = model.predict(X_test_array)
@@ -480,7 +449,7 @@ if __name__ == '__main__':
                       ''.format(outer_split_num, test_metrics['auc'], test_metrics['acc'],
                                 test_metrics['sensitivity'], test_metrics['specificity']))
 
-                save_path_preds = best_name.replace('logs/','').replace('.pkl', '.npy')
+                save_path_preds = best_model_name_outer_fold_auc.replace('logs/', '').replace('.pkl', '.npy')
 
                 np.save('results/labels_' + save_path_preds, y_test_array)
                 np.save('results/predictions_' + save_path_preds, y_pred)
