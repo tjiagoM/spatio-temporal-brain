@@ -22,9 +22,14 @@ SWEEP_GENERAL = {
             'distribution': 'categorical',
             'values': ['mean', 'diff_pool', 'concat']
         },
-        'gcn_layers': {
+        'gnn_type': {
             'distribution': 'categorical',
-            'values': [0, 1, 2]
+            'values': ['gcn', 'none']
+        },
+        'gnn_layers': {
+            'distribution': 'int_uniform',
+            'min': 0,
+            'max': 2
         },
         'threshold': {
             'distribution': 'categorical',
@@ -44,6 +49,49 @@ SWEEP_GENERAL = {
             'distribution': 'uniform',
             'min': 0.0,
             'max': 0.9
+        },
+        'remove_disconnected_nodes': {
+            'value': False
+        },
+        'channels_conv': {
+            'value': 8
+        },
+        'normalisation': {
+            'distribution': 'categorical',
+            'values': ['subject_norm']
+        },
+
+        #### Values that change in each run
+        # If Nones are not changed, wandb will have some errors
+        'device': {
+            'value': None
+        },
+        'fold_num': {
+            'value': None
+        },
+        'num_nodes': {
+            'value': None
+        },
+        'target_var': {
+            'value': None
+        },
+        'num_epochs': {
+            'value': None
+        },
+        'batch_size': {
+            'value': None
+        },
+        'conn_type': {
+            'value': None
+        },
+        'analysis_type': {
+            'value': None
+        },
+        'time_length': {
+            'value': None
+        },
+        'early_stop_steps': {
+            'value': None
         }
     }
 }
