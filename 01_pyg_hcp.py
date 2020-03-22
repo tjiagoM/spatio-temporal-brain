@@ -310,15 +310,16 @@ def main_loop():
 
         skf_inner_generator = create_fold_generator(X_train_out, num_nodes, N_INNER_SPLITS)
         # Metrics are loss (for st model) and auc (for xgboost)
-        metrics = ['auc', 'loss']
+        metrics = ['auc', 'loss', 'sensitivity', 'specificity']
 
         # Getting the best values from previous run
         best_loss_path, best_name_path = get_best_model_paths(analysis_type.value, num_nodes, time_length, target_var,
-                             split_to_test, param_conn_type.value, num_epochs, batch_size)
+                                                              split_to_test, param_conn_type.value,
+                                                              num_epochs, batch_size)
         with open(best_name_path, 'r') as f:
             best_model_name_outer_fold_loss = f.read()
         best_outer_metric_loss = np.load(best_loss_path)[0]
-        print('Previous best loss value/name:', best_outer_metric_loss, best_model_name_outer_fold_loss)
+        print('Previous best loss values/name:', best_outer_metric_loss, best_model_name_outer_fold_loss)
         #################
         # Main inner-loop (for now, not really an inner loop - just one train/val inside
         #################
@@ -393,12 +394,12 @@ def main_loop():
                                          lr=param_lr,
                                          weight_decay=param_weight_decay)
 
-            best_metrics_fold = {}
+            best_metrics_run = {}
             for m in metrics:
                 if m == 'loss':
-                    best_metrics_fold[m] = 9999
+                    best_metrics_run[m] = 9999
                 else:
-                    best_metrics_fold[m] = -9999
+                    best_metrics_run[m] = -9999
             # Only for loss
             last_losses_val = deque([9999 for _ in range(early_stop_steps)], maxlen=early_stop_steps)
 
@@ -418,16 +419,19 @@ def main_loop():
                         break
                     last_losses_val.append(val_metrics['loss'])
 
-                    if val_metrics['loss'] < best_metrics_fold['loss']:
-                        best_metrics_fold['loss'] = val_metrics['loss']
+                    if val_metrics['loss'] < best_metrics_run['loss']:
+                        best_metrics_run['loss'] = val_metrics['loss']
+                        best_metrics_run['sensitivity'] = val_metrics['sensitivity']
+                        best_metrics_run['specificity'] = val_metrics['specificity']
                         torch.save(model, model_names['loss'])
                         if val_metrics['loss'] < best_outer_metric_loss:
                             best_outer_metric_loss = val_metrics['loss']
                             best_model_name_outer_fold_loss = model_names['loss']
                             wandb.save('best_model.h5')
 
-            wandb.run.summary["best_val_loss"] = best_metrics_fold['loss']
-
+            wandb.run.summary["best_val_loss"] = best_metrics_run['loss']
+            wandb.run.summary["corresponding_val_sens"] = best_metrics_run['sensitivity']
+            wandb.run.summary["corresponding_val_spec"] = best_metrics_run['specificity']
 
             np.save(file=best_loss_path, arr=np.array([best_outer_metric_loss], dtype=float))
             with open(best_name_path, 'w') as f:
