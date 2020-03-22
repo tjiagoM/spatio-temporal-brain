@@ -346,6 +346,24 @@ def create_name_for_brain_dataset(num_nodes, time_length, target_var, threshold,
 
     return prefix_location + name_combination
 
+def get_best_model_paths(analysis_type, num_nodes, time_length, target_var,
+                         fold_num, conn_type, num_epochs, batch_size,
+                         first_time=False,
+                         prefix_location = 'logs/'):
+    m_name = '_'.join([analysis_type, str(num_nodes), str(time_length), target_var,
+                       str(fold_num), conn_type, str(num_epochs), str(batch_size)])
+
+    loss_val = prefix_location + m_name + '_loss.npy'
+    model_name = prefix_location + m_name + '_name.txt'
+
+    if (not os.path.exists(loss_val)) or first_time:
+        np.save(file=loss_val, arr=np.array([9999.99], dtype=float))
+        with open(model_name, 'w') as f:
+            f.write('None')
+
+    return loss_val, model_name
+
+
 def create_best_encoder_name(ts_length, outer_split_num, encoder_name,
                              prefix_location = 'logs/',
                              suffix = '.pth'):
@@ -363,9 +381,10 @@ def create_name_for_encoder_model(ts_length, outer_split_num, encoder_name,
                                        ]) + suffix
 
 
-def create_name_for_model(target_var, model, params, outer_split_num, inner_split_num, n_epochs, threshold, batch_size,
+def create_name_for_model(target_var, model, outer_split_num, inner_split_num, n_epochs, threshold, batch_size,
                           remove_disconnect_nodes, num_nodes, conn_type, normalisation,
                           analysis_type, metric_evaluated,
+                          lr=None, weight_decay=None,
                           prefix_location='logs/',
                           suffix='.pth'):
     if analysis_type == AnalysisType.SPATIOTEMOPRAL:
@@ -375,18 +394,16 @@ def create_name_for_model(target_var, model, params, outer_split_num, inner_spli
         model_str_representation = analysis_type.value
         for key in ['min_child_weight', 'gamma', 'subsample', 'colsample_bytree', 'max_depth', 'n_estimators']:
             model_str_representation += key + '_' + str(model.get_xgb_params()[key])
-        params['lr'] = None
-        params['weight_decay'] = None
 
     return prefix_location + '_'.join([target_var,
                                        str(outer_split_num),
                                        str(inner_split_num),
                                        metric_evaluated,
                                        model_str_representation,
-                                       str(params['lr']),
-                                       str(params['weight_decay']),
+                                       str(lr),
+                                       str(weight_decay),
                                        str(n_epochs),
-                                       str(threshold),
+                                       'THRE_' + str(threshold),
                                        normalisation.value,
                                        str(batch_size),
                                        str(remove_disconnect_nodes),

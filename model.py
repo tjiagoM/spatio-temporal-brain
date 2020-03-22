@@ -1,6 +1,9 @@
 from sys import exit
 from math import ceil
 
+# dill used for proper serialisation with wandb
+import dill
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -109,11 +112,11 @@ class DiffPoolLayer(torch.nn.Module):
 
 class SpatioTemporalModel(nn.Module):
     def __init__(self, num_time_length, dropout_perc, pooling, channels_conv, activation, conv_strategy,
-                 encoding_model=None,
+                 encoding_model=None, num_gnn_layers=1,
                  add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '3.1'
+        self.VERSION = '4.0'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT")
@@ -156,9 +159,13 @@ class SpatioTemporalModel(nn.Module):
         self.num_time_length = num_time_length
         self.final_feature_size = ceil(self.num_time_length / 2 / 8)
 
+        self.num_gnn_layers = num_gnn_layers
         if self.add_gcn:
             self.gcn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
                                      self.TEMPORAL_EMBED_SIZE)
+            if self.num_gnn_layers == 2:
+                self.gcn_conv2 = GCNConv(self.TEMPORAL_EMBED_SIZE,
+                                         self.TEMPORAL_EMBED_SIZE)
 
         if self.encoder_model is not None:
             pass # Just it does not go to convolutions
@@ -242,6 +249,10 @@ class SpatioTemporalModel(nn.Module):
             x = self.gcn_conv1(x, edge_index)
             x = self.activation(x)
             x = F.dropout(x, training=self.training)
+            if self.num_gnn_layers == 2:
+                x = self.gcn_conv2(x, edge_index)
+                x = self.activation(x)
+                x = F.dropout(x, training=self.training)
 
         if self.pooling == PoolingStrategy.MEAN:
             x = global_mean_pool(x, data.batch)
@@ -277,6 +288,7 @@ class SpatioTemporalModel(nn.Module):
                       'FS_' + str(self.final_sigmoid),
                       'GCN_' + str(self.add_gcn),
                       'GAT_' + str(self.add_gat),
+                      'NGNN_' + str(self.num_gnn_layers),
                       'ENC_' + str(self.encoder_name)
                       ]
 

@@ -10,7 +10,7 @@ SWEEP_GENERAL = {
             'distribution': 'categorical',
             'values': ['relu']
         },
-        'encoding': {
+        'encoding_strategy': {
             'distribution': 'categorical',
             'values': ['none']
         },
@@ -26,7 +26,7 @@ SWEEP_GENERAL = {
             'distribution': 'categorical',
             'values': ['gcn', 'none']
         },
-        'gnn_layers': {
+        'num_gnn_layers': {
             'distribution': 'int_uniform',
             'min': 0,
             'max': 2
@@ -61,7 +61,7 @@ SWEEP_GENERAL = {
             'values': ['subject_norm']
         },
 
-        #### Values that change in each run
+        #### Values that change in each sweep
         # If Nones are not changed, wandb will have some errors
         'device': {
             'value': None

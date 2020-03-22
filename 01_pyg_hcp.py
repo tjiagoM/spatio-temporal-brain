@@ -9,6 +9,7 @@ from sys import exit
 
 import numpy as np
 import torch
+torch.multiprocessing.set_start_method('spawn', force=True)
 import wandb
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
 from sklearn.model_selection import ParameterGrid, StratifiedKFold
@@ -18,9 +19,9 @@ from xgboost import XGBClassifier
 from datasets import BrainDataset, create_hcp_correlation_vals, create_ukb_corrs_flatten
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
-    StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name
+    StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
+    get_best_model_paths
 from wandb_utils import SWEEP_GENERAL
-
 
 def train_classifier(model, train_loader, optimizer, pooling_mechanism):
     model.train()
@@ -72,7 +73,7 @@ def return_metrics(labels, pred_binary, pred_prob, loss_value=None):
             }
 
 
-def evaluate_classifier(model, loader, pooling_mechanism, save_path_preds=None):
+def evaluate_classifier(model, loader, pooling_mechanism, device, save_path_preds=None):
     model.eval()
     criterion = torch.nn.BCELoss()
 
@@ -82,7 +83,7 @@ def evaluate_classifier(model, loader, pooling_mechanism, save_path_preds=None):
 
     for data in loader:
         with torch.no_grad():
-            data = data.to(wandb.config.device)
+            data = data.to(device)
             if pooling_mechanism == PoolingStrategy.DIFFPOOL:
                 output_batch, link_loss, ent_loss = model(data)
                 output_batch = output_batch.flatten()
@@ -112,16 +113,23 @@ def evaluate_classifier(model, loader, pooling_mechanism, save_path_preds=None):
 
 
 def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader, optimizer,
-                    pooling_mechanism):
+                    pooling_mechanism, device):
     loss = train_classifier(model, train_loader, optimizer, pooling_mechanism)
-    train_metrics = evaluate_classifier(model, train_loader, pooling_mechanism)
-    val_metrics = evaluate_classifier(model, val_loader, pooling_mechanism)
+    train_metrics = evaluate_classifier(model, train_loader, pooling_mechanism, device)
+    val_metrics = evaluate_classifier(model, val_loader, pooling_mechanism, device)
 
     print('{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
           ' {:.4f} '.format(outer_split_no, inner_split_no, epoch, loss, val_metrics['loss'],
                             train_metrics['auc'], val_metrics['auc'],
                             train_metrics['acc'], val_metrics['acc'],
                             train_metrics['f1'], val_metrics['f1']))
+    wandb.log({
+        'train_loss': loss, 'val_loss': val_metrics['loss'],
+        'train_auc': train_metrics['auc'], 'val_auc': val_metrics['auc'],
+        'train_acc': train_metrics['acc'], 'val_acc': val_metrics['acc'],
+        'train_sens': train_metrics['sensitivity'], 'val_sens': val_metrics['sensitivity'],
+        'train_spec': train_metrics['specificity'], 'val_spec': val_metrics['specificity']
+        })
 
     return val_metrics
 
@@ -177,6 +185,10 @@ def main_loop():
 
     # Device part
     device = torch.device(config.device)
+    # Needed because of forked problems with DataLoader
+    #kwargs = {'num_workers': 1, 'pin_memory': True} if config.device.startswith('cuda') else {}
+    #kwargs = {}
+    #print('PP', kwargs)
 
     # Making a single variable for each argument
     num_epochs = config.num_epochs
@@ -204,6 +216,7 @@ def main_loop():
     param_weight_decay = config.weight_decay
     param_lr = config.lr
 
+    model_with_sigmoid = True
 
     N_OUT_SPLITS = 5
     N_INNER_SPLITS = 5
@@ -254,9 +267,9 @@ def main_loop():
                                                            binarise=True, threshold=param_threshold)
 
     skf_outer_generator = create_fold_generator(dataset, num_nodes, N_OUT_SPLITS)
-    #
+    #################
     # Main outer-loop
-    #
+    #################
     outer_split_num = 0
     for train_index, test_index in skf_outer_generator:
         outer_split_num += 1
@@ -274,9 +287,7 @@ def main_loop():
 
         train_out_loader = DataLoader(X_train_out, batch_size=batch_size, shuffle=True)
         test_out_loader = DataLoader(X_test_out, batch_size=batch_size, shuffle=False)
-        #
-        # Main inner-loop (for now, not really an inner loop - just one train/val inside
-        #
+
         #elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
         #    param_grid = {
         #        'min_child_weight': [1],  # , 5],
@@ -298,17 +309,26 @@ def main_loop():
         #    print("For ", params)
 
         skf_inner_generator = create_fold_generator(X_train_out, num_nodes, N_INNER_SPLITS)
-        model_with_sigmoid = True
+        # Metrics are loss (for st model) and auc (for xgboost)
         metrics = ['auc', 'loss']
 
-        # This for-cycle will only be executed once (for now)
+        # Getting the best values from previous run
+        best_loss_path, best_name_path = get_best_model_paths(analysis_type.value, num_nodes, time_length, target_var,
+                             split_to_test, param_conn_type.value, num_epochs, batch_size)
+        with open(best_name_path, 'r') as f:
+            best_model_name_outer_fold_loss = f.read()
+        best_outer_metric_loss = np.load(best_loss_path)[0]
+        print('Previous best loss value/name:', best_outer_metric_loss, best_model_name_outer_fold_loss)
+        #################
+        # Main inner-loop (for now, not really an inner loop - just one train/val inside
+        #################
         for inner_train_index, inner_val_index in skf_inner_generator:
             if analysis_type == AnalysisType.SPATIOTEMOPRAL:
                 if param_encoding_strategy != EncodingStrategy.NONE:
                     if param_encoding_strategy == EncodingStrategy.AE3layers:
-                        pass
+                        from encoders import AE  # Necessary to torch.load
                     elif param_encoding_strategy == EncodingStrategy.VAE3layers:
-                        pass
+                        from encoders import VAE  # Necessary to torch.load
                     encoding_model = torch.load(create_best_encoder_name(ts_length=time_length,
                                                                          outer_split_num=outer_split_num,
                                                                          encoder_name=param_encoding_strategy.value))
@@ -324,8 +344,10 @@ def main_loop():
                                             add_gcn=param_add_gcn,
                                             final_sigmoid=model_with_sigmoid,
                                             num_nodes=num_nodes,
+                                            num_gnn_layers=param_num_gnn_layers,
                                             encoding_model=encoding_model
                                             ).to(device)
+                wandb.watch(model, log=None)
                 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                 print("Number of trainable params:", trainable_params)
             #elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
@@ -374,11 +396,11 @@ def main_loop():
             best_metrics_fold = {}
             for m in metrics:
                 if m == 'loss':
-                    best_metrics_fold[m] = 1000
+                    best_metrics_fold[m] = 9999
                 else:
-                    best_metrics_fold[m] = -1000
+                    best_metrics_fold[m] = -9999
             # Only for loss
-            last_losses_val = deque([1000 for _ in range(early_stop_steps)], maxlen=early_stop_steps)
+            last_losses_val = deque([9999 for _ in range(early_stop_steps)], maxlen=early_stop_steps)
 
             for epoch in range(num_epochs):
                 if target_var == 'gender':
@@ -389,7 +411,8 @@ def main_loop():
                                                   train_in_loader,
                                                   val_loader,
                                                   optimizer,
-                                                  param_pooling)
+                                                  param_pooling,
+                                                  device)
                     if sum([val_metrics['loss'] > loss for loss in last_losses_val]) == early_stop_steps:
                         print("EARLY STOPPING IT")
                         break
@@ -401,35 +424,16 @@ def main_loop():
                         if val_metrics['loss'] < best_outer_metric_loss:
                             best_outer_metric_loss = val_metrics['loss']
                             best_model_name_outer_fold_loss = model_names['loss']
+                            wandb.save('best_model.h5')
 
+            wandb.run.summary["best_val_loss"] = best_metrics_fold['loss']
+
+
+            np.save(file=best_loss_path, arr=np.array([best_outer_metric_loss], dtype=float))
+            with open(best_name_path, 'w') as f:
+                f.write(best_model_name_outer_fold_loss)
             break  # Just one inner "loop"
 
-        # After all parameters are searched, get best and train on that, evaluating on test set
-        if analysis_type == AnalysisType.SPATIOTEMOPRAL:
-            print("Best params if loss: ", best_model_name_outer_fold_loss, "(", best_outer_metric_loss, ")")
-            model = torch.load(best_model_name_outer_fold_loss)
-            saving_path = best_model_name_outer_fold_loss.replace('logs/', '').replace('.pth', '.npy')
-            test_metrics = evaluate_classifier(model, test_out_loader, param_pooling, save_path_preds=saving_path)
-
-            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
-                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
-                            test_metrics['sensitivity'], test_metrics['specificity']))
-
-        elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
-            print(f'Best params if auc: {best_model_name_outer_fold_auc} ( {best_outer_metric_auc} )')
-            model = pickle.load(open(best_model_name_outer_fold_auc, "rb"))
-
-            X_test_array, y_test_array = get_array_data(flatten_correlations, X_test_out, num_nodes=num_nodes)
-            y_pred = model.predict(X_test_array)
-            test_metrics = return_metrics(y_test_array, y_pred, y_pred)
-            print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
-                  ''.format(outer_split_num, test_metrics['auc'], test_metrics['acc'],
-                            test_metrics['sensitivity'], test_metrics['specificity']))
-
-            save_path_preds = best_model_name_outer_fold_auc.replace('logs/', '').replace('.pkl', '.npy')
-
-            np.save('results/labels_' + save_path_preds, y_test_array)
-            np.save('results/predictions_' + save_path_preds, y_pred)
 
     total_seconds = time.time() - start_time
     total_time = str(datetime.timedelta(seconds=total_seconds))
@@ -445,7 +449,7 @@ if __name__ == '__main__':
     parser.add_argument("--num_nodes", default=50, type=int)
     parser.add_argument("--num_epochs", default=100, type=int)
     parser.add_argument("--batch_size", default=400, type=int)
-    parser.add_argument("--conn_type", default="struct")
+    parser.add_argument("--conn_type", default="fmri")
     parser.add_argument("--analysis_type", default='spatiotemporal')
     parser.add_argument("--time_length", type=int)
     parser.add_argument("--early_stop_steps", default=30, type=int)
@@ -467,8 +471,97 @@ if __name__ == '__main__':
     sweep_config['parameters']['time_length']['value'] = args.time_length
     sweep_config['parameters']['early_stop_steps']['value'] = args.early_stop_steps
 
+    # First time, so it needs to clear the previous logs
+    _, _ = get_best_model_paths(args.analysis_type, args.num_nodes,
+                                args.time_length, args.target_var,
+                                args.fold_num, args.conn_type,
+                                args.num_epochs, args.batch_size,
+                                first_time=True)
+
     sweep_id = wandb.sweep(sweep_config, entity='tjiagom', project="spatio-temporal-brain")
 
     wandb.agent(sweep_id, function=main_loop, count=args.hyperparam_count)
 
-    print("It needs to report final test stuff here.")
+    #############
+    # Reporting final metrics on test set
+    #############
+    print("Sweep done, reporting metrics on final test set")
+    #print(dill.license()) # jsut for refactor does not delete import
+    # Getting the best results from the sweep
+    best_sweep_loss_path, best_sweep_name_path = get_best_model_paths(args.analysis_type, args.num_nodes,
+                                                                      args.time_length, args.target_var,
+                                                                      args.fold_num, args.conn_type,
+                                                                      args.num_epochs, args.batch_size)
+    with open(best_sweep_name_path, 'r') as f:
+        best_model_name_sweep = f.read()
+    best_loss_sweep = np.load(best_sweep_loss_path)[0]
+
+    best_pooling = best_model_name_sweep.split('P_')[1].split('__')[0]
+    best_threshold = int(best_model_name_sweep.split('THRE_')[1].split('_')[0])
+
+    param_pooling = PoolingStrategy(best_pooling)
+    analysis_type = AnalysisType(args.analysis_type)
+    param_conn_type = ConnType(args.conn_type)
+    param_normalisation = Normalisation(sweep_config['parameters']['normalisation']['values'][0])
+
+    # This is a bit inefficient, but because of wandb, global variables seem to behave strangely
+    N_OUT_SPLITS = 5
+    name_dataset = create_name_for_brain_dataset(num_nodes=args.num_nodes,
+                                                 time_length=args.time_length,
+                                                 target_var=args.target_var,
+                                                 threshold=best_threshold,
+                                                 normalisation=param_normalisation,
+                                                 connectivity_type=param_conn_type,
+                                                 disconnect_nodes=sweep_config['parameters']['remove_disconnected_nodes']['value'])
+    print("Going for", name_dataset)
+    dataset = BrainDataset(root=name_dataset,
+                           time_length=args.time_length,
+                           num_nodes=args.num_nodes,
+                           target_var=args.target_var,
+                           threshold=best_threshold,
+                           normalisation=param_normalisation,
+                           connectivity_type=param_conn_type,
+                           disconnect_nodes=sweep_config['parameters']['remove_disconnected_nodes']['value'])
+
+    skf_outer_generator = create_fold_generator(dataset, args.num_nodes, N_OUT_SPLITS)
+    outer_split_num = 0
+    for train_index, test_index in skf_outer_generator:
+        outer_split_num += 1
+
+        # Only run for the specific fold defined in the script arguments.
+        if outer_split_num != args.fold_num:
+            continue
+
+        X_test_out = dataset[torch.tensor(test_index)]
+        test_out_loader = DataLoader(X_test_out, batch_size=args.batch_size, shuffle=False)
+        break
+
+
+
+    device = torch.device(args.device)
+    if args.analysis_type == AnalysisType.SPATIOTEMOPRAL.value:
+        print("Best val loss: ", best_loss_sweep, "(", best_model_name_sweep, ")")
+        model = torch.load(best_model_name_sweep)
+        saving_path = best_model_name_sweep.replace('logs/', '').replace('.pth', '.npy')
+        test_metrics = evaluate_classifier(model, test_out_loader, param_pooling, device, save_path_preds=saving_path)
+
+        print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+              ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                        test_metrics['sensitivity'], test_metrics['specificity']))
+    '''
+    elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
+        print(f'Best params if auc: {best_model_name_outer_fold_auc} ( {best_outer_metric_auc} )')
+        model = pickle.load(open(best_model_name_outer_fold_auc, "rb"))
+
+        X_test_array, y_test_array = get_array_data(flatten_correlations, X_test_out, num_nodes=num_nodes)
+        y_pred = model.predict(X_test_array)
+        test_metrics = return_metrics(y_test_array, y_pred, y_pred)
+        print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+              ''.format(outer_split_num, test_metrics['auc'], test_metrics['acc'],
+                        test_metrics['sensitivity'], test_metrics['specificity']))
+
+        save_path_preds = best_model_name_outer_fold_auc.replace('logs/', '').replace('.pkl', '.npy')
+
+        np.save('results/labels_' + save_path_preds, y_test_array)
+        np.save('results/predictions_' + save_path_preds, y_pred)
+        '''
