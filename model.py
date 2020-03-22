@@ -1,9 +1,5 @@
 from sys import exit
 from math import ceil
-
-# dill used for proper serialisation with wandb
-import dill
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
