@@ -347,11 +347,12 @@ def create_name_for_brain_dataset(num_nodes, time_length, target_var, threshold,
     return prefix_location + name_combination
 
 def get_best_model_paths(analysis_type, num_nodes, time_length, target_var,
-                         fold_num, conn_type, num_epochs, batch_size,
+                         fold_num, conn_type, num_epochs,
+                         sweep_type,
                          first_time=False,
                          prefix_location = 'logs/'):
     m_name = '_'.join([analysis_type, str(num_nodes), str(time_length), target_var,
-                       str(fold_num), conn_type, str(num_epochs), str(batch_size)])
+                       str(fold_num), conn_type, sweep_type, str(num_epochs)])
 
     loss_val = prefix_location + m_name + '_loss.npy'
     model_name = prefix_location + m_name + '_name.txt'

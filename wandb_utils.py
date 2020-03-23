@@ -1,3 +1,46 @@
+from enum import Enum, unique
+
+@unique
+class SweepType(str, Enum):
+    DIFFPOOL = 'diff_pool'
+    MESSAGE_PASSING = 'message_passing'
+
+OPTIONS_DIFFPOOL = {
+    'pooling' : {
+        'value': 'diff_pool'
+    },
+    'threshold': {
+        'distribution': 'categorical',
+        'values': [5, 20]
+    }
+}
+
+OPTIONS_MESSAGE_PASSING = {
+    'pooling': {
+        'distribution': 'categorical',
+        'values': ['mean', 'concat']
+    },
+    'gnn_type': {
+        'distribution': 'categorical',
+        'values': ['none',
+                   #
+                   'GCN-1-5',
+                   'GCN-1-20',
+                   'GCN-2-5',
+                   'GCN-2-20',
+                   #
+                   'GAT-1-1-5',
+                   'GAT-1-1-20',
+                   'GAT-2-1-5',
+                   'GAT-2-1-20',
+                   'GAT-1-5-5',
+                   'GAT-1-5-20',
+                   'GAT-2-5-5',
+                   'GAT-2-5-20']
+    }
+}
+
+
 SWEEP_GENERAL = {
     # name to be defined elsewhere
     'metric': {
@@ -17,23 +60,6 @@ SWEEP_GENERAL = {
         'conv_strategy': {
             'distribution': 'categorical',
             'values': ['entire', 'tcn_entire']
-        },
-        'pooling': {
-            'distribution': 'categorical',
-            'values': ['mean', 'diff_pool', 'concat']
-        },
-        'gnn_type': {
-            'distribution': 'categorical',
-            'values': ['gcn', 'none']
-        },
-        'num_gnn_layers': {
-            'distribution': 'int_uniform',
-            'min': 0,
-            'max': 2
-        },
-        'threshold': {
-            'distribution': 'categorical',
-            'values': [5, 20]
         },
         'lr': {
             'distribution': 'log_uniform',
@@ -91,6 +117,9 @@ SWEEP_GENERAL = {
             'value': None
         },
         'early_stop_steps': {
+            'value': None
+        },
+        'sweep_type': {
             'value': None
         }
     }

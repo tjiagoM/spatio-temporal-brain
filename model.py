@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import BatchNorm1d
-from torch_geometric.nn import global_mean_pool, GCNConv
+from torch_geometric.nn import global_mean_pool, GCNConv, GATConv
 import torch_geometric.utils as pyg_utils
 from torch_geometric.nn import DenseSAGEConv, dense_diff_pool
 from torch_geometric.utils import to_dense_batch
@@ -108,11 +108,11 @@ class DiffPoolLayer(torch.nn.Module):
 
 class SpatioTemporalModel(nn.Module):
     def __init__(self, num_time_length, dropout_perc, pooling, channels_conv, activation, conv_strategy,
-                 encoding_model=None, num_gnn_layers=1,
+                 encoding_model=None, num_gnn_layers=1, gat_heads=0,
                  add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '4.0'
+        self.VERSION = '5.0'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT")
@@ -156,12 +156,25 @@ class SpatioTemporalModel(nn.Module):
         self.final_feature_size = ceil(self.num_time_length / 2 / 8)
 
         self.num_gnn_layers = num_gnn_layers
+        self.gat_heads = gat_heads
         if self.add_gcn:
-            self.gcn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
+            self.gnn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
                                      self.TEMPORAL_EMBED_SIZE)
             if self.num_gnn_layers == 2:
-                self.gcn_conv2 = GCNConv(self.TEMPORAL_EMBED_SIZE,
+                self.gnn_conv2 = GCNConv(self.TEMPORAL_EMBED_SIZE,
                                          self.TEMPORAL_EMBED_SIZE)
+        elif self.add_gat:
+            self.gnn_conv1 = GATConv(self.TEMPORAL_EMBED_SIZE,
+                                     self.TEMPORAL_EMBED_SIZE,
+                                     heads=self.gat_heads,
+                                     concat=False,
+                                     dropout=dropout_perc)
+            if self.num_gnn_layers == 2:
+                self.gnn_conv2 = GATConv(self.TEMPORAL_EMBED_SIZE,
+                                         self.TEMPORAL_EMBED_SIZE,
+                                         heads=self.gat_heads if self.gat_heads == 1 else int(self.gat_heads / 2),
+                                         concat=False,
+                                         dropout=dropout_perc)
 
         if self.encoder_model is not None:
             pass # Just it does not go to convolutions
@@ -241,12 +254,12 @@ class SpatioTemporalModel(nn.Module):
         else:
             x = self.encoder_model.encode(x)
 
-        if self.add_gcn:
-            x = self.gcn_conv1(x, edge_index)
+        if self.add_gcn or self.add_gat:
+            x = self.gnn_conv1(x, edge_index)
             x = self.activation(x)
             x = F.dropout(x, training=self.training)
             if self.num_gnn_layers == 2:
-                x = self.gcn_conv2(x, edge_index)
+                x = self.gnn_conv2(x, edge_index)
                 x = self.activation(x)
                 x = F.dropout(x, training=self.training)
 
@@ -284,6 +297,7 @@ class SpatioTemporalModel(nn.Module):
                       'FS_' + str(self.final_sigmoid),
                       'GCN_' + str(self.add_gcn),
                       'GAT_' + str(self.add_gat),
+                      'GATH_' + str(self.gat_heads),
                       'NGNN_' + str(self.num_gnn_layers),
                       'ENC_' + str(self.encoder_name)
                       ]

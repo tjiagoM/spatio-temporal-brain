@@ -21,7 +21,8 @@ from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
     get_best_model_paths
-from wandb_utils import SWEEP_GENERAL
+from wandb_utils import SWEEP_GENERAL, SweepType, OPTIONS_DIFFPOOL, OPTIONS_MESSAGE_PASSING
+
 
 def train_classifier(model, train_loader, optimizer, pooling_mechanism):
     model.train()
@@ -194,17 +195,12 @@ def main_loop():
     num_epochs = config.num_epochs
     target_var = config.target_var
     param_activation = config.activation
-    param_threshold = config.threshold
     split_to_test = config.fold_num
-    param_num_gnn_layers = config.num_gnn_layers
-    param_add_gcn = True if config.gnn_type == 'gcn' and param_num_gnn_layers > 0 else False
-    param_add_gat = True if config.gnn_type == 'gat' and param_num_gnn_layers > 0 else False
     batch_size = config.batch_size
     param_remove_nodes = config.remove_disconnected_nodes
     num_nodes = config.num_nodes
     param_conn_type = ConnType(config.conn_type)
     param_conv_strategy = ConvStrategy(config.conv_strategy)
-    param_pooling = PoolingStrategy(config.pooling)
     param_channels_conv = config.channels_conv
     param_normalisation = Normalisation(config.normalisation)
     analysis_type = AnalysisType(config.analysis_type)
@@ -216,6 +212,32 @@ def main_loop():
     param_weight_decay = config.weight_decay
     param_lr = config.lr
 
+    # Definitions depending on sweep_type
+    param_pooling = PoolingStrategy(config.pooling)
+    sweep_type = SweepType(config.sweep_type)
+    param_gat_heads = 0
+    if sweep_type == SweepType.DIFFPOOL:
+        param_threshold = config.threshold
+        param_num_gnn_layers = 0
+        param_add_gcn = False
+        param_add_gat = False
+    elif config.gnn_type == 'none':
+        param_threshold = 5 # just one for the dataset
+        param_num_gnn_layers = 0
+        param_add_gcn = False
+        param_add_gat = False
+    else:
+        gnn_configurations = config.gnn_type.split('-')
+        param_threshold = int(gnn_configurations[-1])
+        param_num_gnn_layers = int(gnn_configurations[1])
+        param_add_gcn = True if gnn_configurations[0] == 'GCN' else False
+        param_add_gat = True if gnn_configurations[0] == 'GAT' else False
+        if param_add_gat:
+            param_gat_heads = int(gnn_configurations[2])
+            batch_size -= 200
+
+    if param_pooling == PoolingStrategy.CONCAT:
+        batch_size -= 50
     model_with_sigmoid = True
 
     N_OUT_SPLITS = 5
@@ -310,12 +332,12 @@ def main_loop():
 
         skf_inner_generator = create_fold_generator(X_train_out, num_nodes, N_INNER_SPLITS)
         # Metrics are loss (for st model) and auc (for xgboost)
-        metrics = ['auc', 'loss', 'sensitivity', 'specificity']
+        metrics = ['auc', 'loss', 'sensitivity', 'specificity', 'acc', 'f1']
 
         # Getting the best values from previous run
         best_loss_path, best_name_path = get_best_model_paths(analysis_type.value, num_nodes, time_length, target_var,
                                                               split_to_test, param_conn_type.value,
-                                                              num_epochs, batch_size)
+                                                              num_epochs, sweep_type.value)
         with open(best_name_path, 'r') as f:
             best_model_name_outer_fold_loss = f.read()
         best_outer_metric_loss = np.load(best_loss_path)[0]
@@ -342,6 +364,7 @@ def main_loop():
                                             activation=param_activation,
                                             conv_strategy=param_conv_strategy,
                                             add_gat=param_add_gat,
+                                            gat_heads=param_gat_heads,
                                             add_gcn=param_add_gcn,
                                             final_sigmoid=model_with_sigmoid,
                                             num_nodes=num_nodes,
@@ -423,6 +446,8 @@ def main_loop():
                         best_metrics_run['loss'] = val_metrics['loss']
                         best_metrics_run['sensitivity'] = val_metrics['sensitivity']
                         best_metrics_run['specificity'] = val_metrics['specificity']
+                        best_metrics_run['acc'] = val_metrics['acc']
+                        best_metrics_run['f1'] = val_metrics['f1']
                         torch.save(model, model_names['loss'])
                         if val_metrics['loss'] < best_outer_metric_loss:
                             best_outer_metric_loss = val_metrics['loss']
@@ -432,6 +457,8 @@ def main_loop():
             wandb.run.summary["best_val_loss"] = best_metrics_run['loss']
             wandb.run.summary["corresponding_val_sens"] = best_metrics_run['sensitivity']
             wandb.run.summary["corresponding_val_spec"] = best_metrics_run['specificity']
+            wandb.run.summary["corresponding_val_acc"] = best_metrics_run['acc']
+            wandb.run.summary["corresponding_val_f1"] = best_metrics_run['f1']
 
             np.save(file=best_loss_path, arr=np.array([best_outer_metric_loss], dtype=float))
             with open(best_name_path, 'w') as f:
@@ -451,19 +478,35 @@ if __name__ == '__main__':
     parser.add_argument("--fold_num", type=int)
     parser.add_argument("--target_var")
     parser.add_argument("--num_nodes", default=50, type=int)
-    parser.add_argument("--num_epochs", default=100, type=int)
+    parser.add_argument("--num_epochs", default=150, type=int)
     parser.add_argument("--batch_size", default=400, type=int)
     parser.add_argument("--conn_type", default="fmri")
     parser.add_argument("--analysis_type", default='spatiotemporal')
     parser.add_argument("--time_length", type=int)
-    parser.add_argument("--early_stop_steps", default=30, type=int)
+    parser.add_argument("--early_stop_steps", default=50, type=int)
+    parser.add_argument("--sweep_id")
+    parser.add_argument("--sweep_type")
 
     parser.add_argument("--hyperparam_count", type=int, default=100)
 
     args = parser.parse_args()
 
     sweep_config = copy.deepcopy(SWEEP_GENERAL)
-    sweep_config['name'] = f'{args.analysis_type[:3]}_{args.num_nodes}_{args.target_var[:2]}_{args.fold_num}'
+
+    sweep_type = SweepType(args.sweep_type)
+    if sweep_type == SweepType.DIFFPOOL:
+        options_dict = copy.deepcopy(OPTIONS_DIFFPOOL)
+    elif sweep_type == SweepType.MESSAGE_PASSING:
+        options_dict = copy.deepcopy(OPTIONS_MESSAGE_PASSING)
+    # Be careful when adding more options here, doublecheck parameters reading in main_loop()
+    else:
+        print("No sweep type specified!!")
+        exit()
+    sweep_config['parameters']['sweep_type']['value'] = args.sweep_type
+    for key, value in options_dict.items():
+        sweep_config['parameters'][key] = value
+
+    sweep_config['name'] = f'{args.analysis_type[:3]}_{args.num_nodes}_{args.target_var[:2]}_{args.fold_num}_{args.sweep_type}'
     sweep_config['parameters']['device']['value'] = args.device
     sweep_config['parameters']['fold_num']['value'] = args.fold_num
     sweep_config['parameters']['target_var']['value'] = args.target_var
@@ -475,14 +518,16 @@ if __name__ == '__main__':
     sweep_config['parameters']['time_length']['value'] = args.time_length
     sweep_config['parameters']['early_stop_steps']['value'] = args.early_stop_steps
 
-    # First time, so it needs to clear the previous logs
-    _, _ = get_best_model_paths(args.analysis_type, args.num_nodes,
-                                args.time_length, args.target_var,
-                                args.fold_num, args.conn_type,
-                                args.num_epochs, args.batch_size,
-                                first_time=True)
-
-    sweep_id = wandb.sweep(sweep_config, entity='tjiagom', project="spatio-temporal-brain")
+    if args.sweep_id is None:
+        sweep_id = wandb.sweep(sweep_config, entity='tjiagom', project="spatio-temporal-brain")
+        # First time, so it needs to clear the previous logs
+        _, _ = get_best_model_paths(args.analysis_type, args.num_nodes,
+                                    args.time_length, args.target_var,
+                                    args.fold_num, args.conn_type,
+                                    args.num_epochs, args.sweep_type,
+                                    first_time=True)
+    else:
+        sweep_id = args.sweep_id
 
     wandb.agent(sweep_id, function=main_loop, count=args.hyperparam_count)
 
@@ -495,7 +540,7 @@ if __name__ == '__main__':
     best_sweep_loss_path, best_sweep_name_path = get_best_model_paths(args.analysis_type, args.num_nodes,
                                                                       args.time_length, args.target_var,
                                                                       args.fold_num, args.conn_type,
-                                                                      args.num_epochs, args.batch_size)
+                                                                      args.num_epochs, args.sweep_type)
     with open(best_sweep_name_path, 'r') as f:
         best_model_name_sweep = f.read()
     best_loss_sweep = np.load(best_sweep_loss_path)[0]
