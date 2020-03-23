@@ -129,7 +129,8 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
         'train_auc': train_metrics['auc'], 'val_auc': val_metrics['auc'],
         'train_acc': train_metrics['acc'], 'val_acc': val_metrics['acc'],
         'train_sens': train_metrics['sensitivity'], 'val_sens': val_metrics['sensitivity'],
-        'train_spec': train_metrics['specificity'], 'val_spec': val_metrics['specificity']
+        'train_spec': train_metrics['specificity'], 'val_spec': val_metrics['specificity'],
+        'train_f1': train_metrics['f1'], 'val_f1': val_metrics['f1']
         })
 
     return val_metrics
