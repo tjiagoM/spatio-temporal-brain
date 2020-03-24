@@ -7,6 +7,10 @@ import numpy as np
 import torch
 from sklearn.preprocessing import LabelEncoder
 
+@unique
+class SweepType(str, Enum):
+    DIFFPOOL = 'diff_pool'
+    MESSAGE_PASSING = 'message_passing'
 
 @unique
 class Normalisation(str, Enum):
