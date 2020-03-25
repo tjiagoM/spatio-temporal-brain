@@ -31,6 +31,8 @@ from utils import create_name_for_brain_dataset, create_name_for_model, Normalis
 def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
     model.train()
     loss_all = 0
+    loss_all_link = 0
+    loss_all_ent = 0
     criterion = torch.nn.BCELoss()
 
     grads = {'final_l': [],
@@ -42,6 +44,8 @@ def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
         if pooling_mechanism == PoolingStrategy.DIFFPOOL:
             output_batch, link_loss, ent_loss = model(data)
             loss = criterion(output_batch, data.y.unsqueeze(1)) + link_loss + ent_loss
+            loss_b_link = link_loss
+            loss_b_ent = ent_loss
         else:
             output_batch = model(data)
             loss = criterion(output_batch, data.y.unsqueeze(1))
@@ -52,16 +56,19 @@ def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
         grads['conv1d_1'].extend(model.final_linear.weight.grad.flatten().cpu().tolist())
 
         loss_all += loss.item() * data.num_graphs
+        if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+            loss_all_link += loss_b_link.item() * data.num_graphs
+            loss_all_ent += loss_b_ent.item() * data.num_graphs
         optimizer.step()
     print("GRAD", np.mean(grads['final_l']), np.std(grads['final_l']))
     # len(train_loader) gives the number of batches
     # len(train_loader.dataset) gives the number of graphs
 
     # Returning a weighted average according to number of graphs
-    return loss_all / len(train_loader.dataset)
+    return loss_all / len(train_loader.dataset), loss_all_link / len(train_loader.dataset), loss_all_ent / len(train_loader.dataset)
 
 
-def return_metrics(labels, pred_binary, pred_prob, loss_value=None):
+def return_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_value=None, ent_loss_value=None):
     roc_auc = roc_auc_score(labels, pred_prob)
     acc = accuracy_score(labels, pred_binary)
     f1 = f1_score(labels, pred_binary, zero_division=0)
@@ -70,6 +77,8 @@ def return_metrics(labels, pred_binary, pred_prob, loss_value=None):
     spec = report['0.0']['recall']
 
     return {'loss': loss_value,
+            'link_loss': link_loss_value,
+            'ent_loss': ent_loss_value,
             'auc': roc_auc,
             'acc': acc,
             'f1': f1,
@@ -85,6 +94,8 @@ def evaluate_classifier(model, loader, pooling_mechanism, device, save_path_pred
     predictions = []
     labels = []
     test_error = 0
+    test_link_loss = 0
+    test_ent_loss = 0
 
     for data in loader:
         with torch.no_grad():
@@ -93,12 +104,17 @@ def evaluate_classifier(model, loader, pooling_mechanism, device, save_path_pred
                 output_batch, link_loss, ent_loss = model(data)
                 output_batch = output_batch.flatten()
                 loss = criterion(output_batch, data.y) + link_loss + ent_loss
+                loss_b_link = link_loss
+                loss_b_ent = ent_loss
             else:
                 output_batch = model(data)
                 output_batch = output_batch.flatten()
                 loss = criterion(output_batch, data.y)
 
             test_error += loss.item() * data.num_graphs
+            if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+                test_link_loss += loss_b_link.item() * data.num_graphs
+                test_ent_loss += loss_b_ent.item() * data.num_graphs
 
             pred = output_batch.detach().cpu().numpy()
 
@@ -114,12 +130,15 @@ def evaluate_classifier(model, loader, pooling_mechanism, device, save_path_pred
 
     pred_binary = np.where(predictions > 0.5, 1, 0)
 
-    return return_metrics(labels, pred_binary, predictions, loss_value=test_error / len(loader.dataset))
+    return return_metrics(labels, pred_binary, predictions,
+                          loss_value=test_error / len(loader.dataset),
+                          link_loss_value=test_link_loss / len(loader.dataset),
+                          ent_loss_value=test_ent_loss / len(loader.dataset))
 
 
 def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader, optimizer,
                     pooling_mechanism, device):
-    loss = train_classifier(model, train_loader, optimizer, pooling_mechanism, device)
+    loss, link_loss, ent_loss = train_classifier(model, train_loader, optimizer, pooling_mechanism, device)
     train_metrics = evaluate_classifier(model, train_loader, pooling_mechanism, device)
     val_metrics = evaluate_classifier(model, val_loader, pooling_mechanism, device)
 
@@ -135,6 +154,11 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
         'train_sens': train_metrics['sensitivity'], 'val_sens': val_metrics['sensitivity'],
         'train_spec': train_metrics['specificity'], 'val_spec': val_metrics['specificity'],
         'train_f1': train_metrics['f1'], 'val_f1': val_metrics['f1']
+        })
+    if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+        wandb.log({
+            'train_link_loss': link_loss, 'val_link_loss': val_metrics['link_loss'],
+            'train_ent_loss': ent_loss, 'val_ent_loss': val_metrics['ent_loss']
         })
 
     return val_metrics
@@ -373,7 +397,7 @@ if __name__ == '__main__':
                                             num_gnn_layers=param_num_gnn_layers,
                                             encoding_model=encoding_model
                                             ).to(config.device)
-                wandb.watch(model, log=None)
+                #wandb.watch(model, log=None)
                 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                 print("Number of trainable params:", trainable_params)
             #elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
@@ -451,6 +475,9 @@ if __name__ == '__main__':
                         best_metrics_run['acc'] = val_metrics['acc']
                         best_metrics_run['f1'] = val_metrics['f1']
                         best_metrics_run['auc'] = val_metrics['auc']
+                        if param_pooling == PoolingStrategy.DIFFPOOL:
+                            best_metrics_run['ent_loss'] = val_metrics['ent_loss']
+                            best_metrics_run['link_loss'] = val_metrics['link_loss']
 
                         #wandb.unwatch()#[model])
                         torch.save(model, model_names['loss'])
@@ -466,6 +493,9 @@ if __name__ == '__main__':
             wandb.run.summary["corresponding_val_acc"] = best_metrics_run['acc']
             wandb.run.summary["corresponding_val_f1"] = best_metrics_run['f1']
             wandb.run.summary["corresponding_val_auc"] = best_metrics_run['auc']
+            if param_pooling == PoolingStrategy.DIFFPOOL:
+                best_metrics_run['corresponding_ent_loss'] = best_metrics_run['ent_loss']
+                best_metrics_run['corresponding_link_loss'] = best_metrics_run['link_loss']
 
             np.save(file=best_loss_path, arr=np.array([best_outer_metric_loss], dtype=float))
             with open(best_name_path, 'w') as f:
