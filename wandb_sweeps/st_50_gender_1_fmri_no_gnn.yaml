@@ -43,14 +43,11 @@ parameters:
     values:
     - none
   gnn_type:
-    value:
-    - none
+    value: none
   num_gnn_layers:
-    value:
-      - 0
+    value: 0
   threshold:
-    value:
-      - 5
+    value: 5
   lr:
     distribution: log_uniform
     max: 0

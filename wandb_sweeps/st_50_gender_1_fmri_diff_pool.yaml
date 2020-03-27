@@ -55,16 +55,14 @@ parameters:
     values:
     - diff_pool
   gnn_type:
-    value:
-      - diffpool
+    value: diffpool
   threshold:
     distribution: categorical
     values:
     - 5
     - 20
   num_gnn_layers:
-    value:
-      - 0
+    value: 0
   remove_disconnected_nodes:
     value: false
   target_var:

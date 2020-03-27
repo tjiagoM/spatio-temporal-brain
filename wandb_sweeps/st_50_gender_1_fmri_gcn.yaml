@@ -43,8 +43,7 @@ parameters:
     values:
     - none
   gnn_type:
-    value:
-      - gcn
+    value: gcn
   num_gnn_layers:
     distribution: int_uniform
     min: 1
