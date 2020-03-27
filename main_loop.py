@@ -198,6 +198,7 @@ def create_fold_generator(dataset, num_nodes, num_splits):
 
 
 if __name__ == '__main__':
+    # Because of strange bug with symbolic links in server
     os.environ['WANDB_DISABLE_CODE'] = 'true'
     wandb.init()
     config = wandb.config

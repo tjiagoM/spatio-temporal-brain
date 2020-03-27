@@ -10,7 +10,9 @@ from sklearn.preprocessing import LabelEncoder
 @unique
 class SweepType(str, Enum):
     DIFFPOOL = 'diff_pool'
-    MESSAGE_PASSING = 'message_passing'
+    NO_GNN = 'no_gnn'
+    GCN = 'gcn'
+    GAT = 'gat'
 
 @unique
 class Normalisation(str, Enum):
