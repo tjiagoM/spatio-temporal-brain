@@ -2,15 +2,15 @@ method: bayes
 metric:
   goal: minimize
   name: best_val_loss
-name: st_50_gender_2_fmri_message_passing
+name: st_50_gender_1_fmri_gcn
 program: main_loop.py
 parameters:
   device:
     value: cuda
   sweep_type:
-    value: message_passing
+    value: gcn
   fold_num:
-    value: 2
+    value: 1
   conn_type:
     value: fmri
   batch_size:
@@ -43,21 +43,17 @@ parameters:
     values:
     - none
   gnn_type:
+    value:
+      - gcn
+  num_gnn_layers:
+    distribution: int_uniform
+    min: 1
+    max: 2
+  threshold:
     distribution: categorical
     values:
-    - none
-    - GCN-1-5
-    - GCN-1-20
-    - GCN-2-5
-    - GCN-2-20
-    - GAT-1-1-5
-    - GAT-1-1-20
-    - GAT-2-1-5
-    - GAT-2-1-20
-    - GAT-1-5-5
-    - GAT-1-5-20
-    - GAT-2-5-5
-    - GAT-2-5-20
+      - 5
+      - 20
   lr:
     distribution: log_uniform
     max: 0

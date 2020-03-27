@@ -1,11 +1,12 @@
 #######
-# 1) wandb sweep wandb_sweeps/st_50_gender_1_fmri_message_passing.yaml
-# 2) wandb agent tjiagom/spatio-temporal-brain/q8pom4zh
+# 1) wandb sweep wandb_sweeps/st_50_gender_1_fmri_diff_pool.yaml
+# 2) wandb agent tjiagom/spatio-temporal-brain/q8pom4zh --count=50 | tee outputs/wandb_1_diffpool.log
 #######
 
 import argparse
 import copy
 import datetime
+import os
 import pickle
 import random
 import time
@@ -197,6 +198,7 @@ def create_fold_generator(dataset, num_nodes, num_splits):
 
 
 if __name__ == '__main__':
+    os.environ['WANDB_DISABLE_CODE'] = 'true'
     wandb.init()
     config = wandb.config
     #torch.device(config.device)
@@ -237,30 +239,20 @@ if __name__ == '__main__':
     param_dropout = config.dropout
     param_weight_decay = config.weight_decay
     param_lr = config.lr
+    param_threshold = config.threshold
+    param_num_gnn_layers = config.num_gnn_layers
 
     # Definitions depending on sweep_type
     param_pooling = PoolingStrategy(config.pooling)
     sweep_type = SweepType(config.sweep_type)
     param_gat_heads = 0
-    if sweep_type == SweepType.DIFFPOOL:
-        param_threshold = config.threshold
-        param_num_gnn_layers = 0
-        param_add_gcn = False
-        param_add_gat = False
-    elif config.gnn_type == 'none':
-        param_threshold = 5 # just one for the dataset
-        param_num_gnn_layers = 0
-        param_add_gcn = False
-        param_add_gat = False
-    else:
-        gnn_configurations = config.gnn_type.split('-')
-        param_threshold = int(gnn_configurations[-1])
-        param_num_gnn_layers = int(gnn_configurations[1])
-        param_add_gcn = True if gnn_configurations[0] == 'GCN' else False
-        param_add_gat = True if gnn_configurations[0] == 'GAT' else False
-        if param_add_gat:
-            param_gat_heads = int(gnn_configurations[2])
-            batch_size -= 200
+    param_add_gcn = False
+    param_add_gat = False
+    if sweep_type == SweepType.GCN:
+        param_add_gcn = True
+    elif sweep_type == SweepType.GAT:
+        param_add_gat = True
+        param_gat_heads = config.gat_heads
 
     if param_pooling == PoolingStrategy.CONCAT:
         batch_size -= 50
@@ -397,7 +389,7 @@ if __name__ == '__main__':
                                             num_gnn_layers=param_num_gnn_layers,
                                             encoding_model=encoding_model
                                             ).to(config.device)
-                #wandb.watch(model, log=None)
+                wandb.watch(model, log=None)
                 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                 print("Number of trainable params:", trainable_params)
             #elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
