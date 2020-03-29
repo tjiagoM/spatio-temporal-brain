@@ -1,0 +1,73 @@
+method: bayes
+metric:
+  goal: minimize
+  name: best_val_loss
+name: st_50_gender_5_fmri_no_gnn
+program: main_loop.py
+parameters:
+  device:
+    value: cuda:1
+  sweep_type:
+    value: no_gnn
+  fold_num:
+    value: 5
+  conn_type:
+    value: fmri
+  batch_size:
+    value: 400
+  analysis_type:
+    value: spatiotemporal
+  num_epochs:
+    value: 150
+  num_nodes:
+    value: 50
+  activation:
+    distribution: categorical
+    values:
+    - relu
+  channels_conv:
+    value: 8
+  conv_strategy:
+    distribution: categorical
+    values:
+    - entire
+    - tcn_entire
+  dropout:
+    distribution: uniform
+    max: 0.9
+    min: 0
+  early_stop_steps:
+    value: 50
+  encoding_strategy:
+    distribution: categorical
+    values:
+    - none
+  gnn_type:
+    value: none
+  num_gnn_layers:
+    value: 0
+  threshold:
+    value: 5
+  lr:
+    distribution: log_uniform
+    max: 0
+    min: -13.815510557964274
+  normalisation:
+    distribution: categorical
+    values:
+    - subject_norm
+  pooling:
+    distribution: categorical
+    values:
+    - mean
+    - concat
+  remove_disconnected_nodes:
+    value: false
+  target_var:
+    value: gender
+  time_length:
+    value: 1200
+  weight_decay:
+    distribution: log_uniform
+    max: 0
+    min: -12.206072645530174
