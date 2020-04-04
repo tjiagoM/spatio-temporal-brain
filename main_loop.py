@@ -255,8 +255,10 @@ if __name__ == '__main__':
         param_add_gat = True
         param_gat_heads = config.gat_heads
 
-    if param_pooling == PoolingStrategy.CONCAT:
+    if param_pooling == PoolingStrategy.CONCAT and num_nodes == 50:
         batch_size -= 50
+    elif param_pooling == PoolingStrategy.CONCAT and num_nodes == 376:
+        batch_size -= 25
     model_with_sigmoid = True
 
     N_OUT_SPLITS = 5
@@ -390,7 +392,7 @@ if __name__ == '__main__':
                                             num_gnn_layers=param_num_gnn_layers,
                                             encoding_model=encoding_model
                                             ).to(config.device)
-                wandb.watch(model, log=None)
+                #wandb.watch(model, log=None)
                 trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                 print("Number of trainable params:", trainable_params)
             #elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
