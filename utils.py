@@ -326,13 +326,6 @@ OLD_NETMATS_PEOPLE = [100206, 100307, 100408, 100610, 101006, 101107, 101309, 10
                       990366, 991267, 992673, 992774, 993675, 994273, 996782]
 
 
-def get_timeseries_final_path(person, session_day, direction=False):
-    if not direction:
-        return f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}.npy'
-    else:
-        return (f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}_LR.npy',
-                f'../hcp_multimodal_parcellation/concatenated_timeseries/{person}_{session_day}_RL.npy')
-
 def merge_y_and_others(ys, indices):
     tmp = torch.cat([ys.long().view(-1, 1),
                      indices.view(-1, 1)], dim=1)

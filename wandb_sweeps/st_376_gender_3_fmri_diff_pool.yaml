@@ -2,7 +2,7 @@ method: bayes
 metric:
   goal: minimize
   name: best_val_loss
-name: st_50_gender_3_fmri_diff_pool
+name: st_376_gender_3_fmri_diff_pool
 program: main_loop.py
 parameters:
   device:
@@ -14,13 +14,13 @@ parameters:
   conn_type:
     value: fmri
   batch_size:
-    value: 400
+    value: 100
   analysis_type:
     value: spatiotemporal
   num_epochs:
-    value: 150
+    value: 100
   num_nodes:
-    value: 50
+    value: 376
   activation:
     distribution: categorical
     values:
@@ -37,7 +37,7 @@ parameters:
     max: 0.9
     min: 0
   early_stop_steps:
-    value: 50
+    value: 33
   encoding_strategy:
     distribution: categorical
     values:
@@ -68,7 +68,7 @@ parameters:
   target_var:
     value: gender
   time_length:
-    value: 1200
+    value: 490
   weight_decay:
     distribution: log_uniform
     max: 0

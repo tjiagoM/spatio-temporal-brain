@@ -8,14 +8,11 @@ from torch_geometric.data import InMemoryDataset, Data
 
 from numpy.random import default_rng
 
-from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType, get_timeseries_final_path, \
+from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType, \
     OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH, UKB_TIMESERIES_PATH, UKB_PHENOTYPE_PATH
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
-
-def get_struct_path(person):
-    return f'../hcp_multimodal_parcellation/HCP_tracks_matrices_BN_withcerebellum/{person}/{person}_{person}_BN_Atlas_246_1mm_geom_withcerebellum_RS.txt'
 
 def get_adj_50_path(person, index, ts_split):
     return f'../../../space/hcp_50_timeseries/processed_{ts_split}_split_50/{person}_{index}.npy'
@@ -186,44 +183,7 @@ class BrainDataset(InMemoryDataset):
                     data_list.append(data)
 
             elif self.connectivity_type == ConnType.STRUCT:
-                # arr_struct will only have values in the upper triangle
-                arr_struct = np.genfromtxt(get_struct_path(person))
-
-                G = self.__create_thresholded_graph(arr_struct)
-
-                for session_day in [1, 2]:
-                    edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
-
-                    try:
-                        path_lr, path_rl = get_timeseries_final_path(person, session_day, direction=True)
-                        timeseries_lr = np.load(path_lr).T
-                        timeseries_rl = np.load(path_rl).T
-                        #timeseries_lr = np.random.normal(0, 0.1, (100, 20))
-                        #timeseries_rl = np.random.normal(0, 0.1, (100, 20))
-
-                    except FileNotFoundError:
-                        print('W: No', person, session_day)
-                        continue
-
-                    for direction, timeseries in enumerate([timeseries_lr, timeseries_rl]):
-                        timeseries = self.__normalise_timeseries(timeseries)
-
-                        x = torch.tensor(timeseries, dtype=torch.float)  # torch.ones(50).unsqueeze(1)
-                        #x = x[[16, 165, 80, 46, 56, 133, 237, 171, 230, 8, 36, 191, 199, 13, 3, 17, 149, 59, 53, 115],:]
-
-                        if self.target_var == 'gender':
-                            y = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
-                        else:
-                            y = torch.tensor([0], dtype=torch.float)  # will be set later
-
-                        # edge_attr = torch.tensor(list(nx.get_edge_attributes(G, 'weight').values()),
-                        #                         dtype=torch.float).unsqueeze(1)
-
-                        data = Data(x=x, edge_index=edge_index, y=y)  # edge_attr=edge_attr,
-                        data.hcp_id = torch.tensor([person])
-                        data.session = torch.tensor([session_day])
-                        data.direction = torch.tensor([direction])
-                        data_list.append(data)
+                pass
 
         negative_num = len(list(filter(lambda x: x.y == 0, data_list)))
         positive_num = len(list(filter(lambda x: x.y == 1, data_list)))

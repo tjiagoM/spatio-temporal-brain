@@ -112,8 +112,12 @@ if __name__ == '__main__':
     arguments = parser.parse_args()
     N_OUT_SPLITS = 5
 
-    wandb.init(config={'test_results': True, 'sweep_type': arguments.sweep_type},
-               name=f'final_{arguments.sweep_type}',
+    wandb_config_dict = {'test_results': True,
+                         'sweep_type': arguments.sweep_type,
+                         'num_nodes': arguments.num_nodes}
+
+    wandb.init(config=wandb_config_dict,
+               name=f'final_{arguments.sweep_type}_{arguments.num_nodes}',
                project="spatio-temporal-brain")
     #config = wandb.config
 
