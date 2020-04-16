@@ -8,7 +8,7 @@ from torch_geometric.data import InMemoryDataset, Data
 
 from numpy.random import default_rng
 
-from utils import NEW_STRUCT_PEOPLE, NEW_MULTIMODAL_TIMESERIES, Normalisation, ConnType, \
+from utils import DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, Normalisation, ConnType, \
     OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH, UKB_TIMESERIES_PATH, UKB_PHENOTYPE_PATH
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
@@ -19,6 +19,9 @@ def get_adj_50_path(person, index, ts_split):
 
 def get_50_ts_path(person):
     return f'../hcp_timecourses/3T_HCP1200_MSMAll_d50_ts2/{person}.txt'
+
+def get_desikan_tracks_path(person):
+    return f'/space/desikan_tracks/{person}/{person}_conn_aparc+aseg_RS_sl.txt'
 
 def threshold_adj_array(adj_array, threshold, num_nodes):
     num_to_filter = int((threshold / 100.0) * (num_nodes * (num_nodes - 1) / 2))
@@ -123,8 +126,8 @@ class BrainDataset(InMemoryDataset):
         # UK BIOBANK PEOPLE!
         elif self.num_nodes == 376:
             filtered_people = np.load(UKB_IDS_PATH) # start simple for comparison
-        else:
-            filtered_people = sorted(list(set(NEW_MULTIMODAL_TIMESERIES).intersection(set(NEW_STRUCT_PEOPLE))))
+        else: # multimodal part
+            filtered_people = sorted(list(set(DESIKAN_COMPLETE_TS).intersection(set(DESIKAN_TRACKS))))
 
         if self.num_nodes == 376:
             info_df = pd.read_csv(UKB_PHENOTYPE_PATH, delimiter=',').set_index('eid')['31-0.0']
@@ -183,7 +186,16 @@ class BrainDataset(InMemoryDataset):
                     data_list.append(data)
 
             elif self.connectivity_type == ConnType.STRUCT:
-                pass
+                # TODO: warning if time_length is not 1200
+                # arr_struct will only have values in the upper triangle
+                arr_struct = np.genfromtxt(get_desikan_tracks_path(person))
+
+                G = self.__create_thresholded_graph(arr_struct)
+
+                for person in filtered_people:
+                    for ind in ['1_LR', '1_RL', '2_LR', '2_RL']:
+                        ts = np.genfromtxt(
+                            f'/space/desikan_timeseries/{person}_{ind}/{person}_rfMRI_REST{ind}_rfMRI_REST{ind}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt')
 
         negative_num = len(list(filter(lambda x: x.y == 0, data_list)))
         positive_num = len(list(filter(lambda x: x.y == 1, data_list)))
