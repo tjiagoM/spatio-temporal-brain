@@ -280,12 +280,12 @@ class SpatioTemporalModel(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.final_linear(x)
 
-        # TODO: try DynamicEdgeConv
         if self.final_sigmoid:
             return torch.sigmoid(x) if self.pooling != PoolingStrategy.DIFFPOOL else (torch.sigmoid(x), link_loss, ent_loss)
         else:
             return x if self.pooling != PoolingStrategy.DIFFPOOL else (x, link_loss, ent_loss)
 
+    # TODO: Change the right hand size parts to just include one character when possible
     def to_string_name(self):
         model_vars = ['V_' + self.VERSION,
                       'TL_' + str(self.num_time_length),

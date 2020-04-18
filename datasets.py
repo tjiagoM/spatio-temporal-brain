@@ -2,11 +2,9 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
-import os
+from numpy.random import default_rng
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
-
-from numpy.random import default_rng
 
 from utils import DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, Normalisation, ConnType, \
     OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH, UKB_TIMESERIES_PATH, UKB_PHENOTYPE_PATH
@@ -17,11 +15,18 @@ PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 def get_adj_50_path(person, index, ts_split):
     return f'../../../space/hcp_50_timeseries/processed_{ts_split}_split_50/{person}_{index}.npy'
 
+
 def get_50_ts_path(person):
     return f'../hcp_timecourses/3T_HCP1200_MSMAll_d50_ts2/{person}.txt'
 
+
 def get_desikan_tracks_path(person):
     return f'/space/desikan_tracks/{person}/{person}_conn_aparc+aseg_RS_sl.txt'
+
+
+def get_desikan_ts_path(person, direction):
+    return f'/space/desikan_timeseries/{person}_{direction}/{person}_rfMRI_REST{direction}_rfMRI_REST{direction}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt'
+
 
 def threshold_adj_array(adj_array, threshold, num_nodes):
     num_to_filter = int((threshold / 100.0) * (num_nodes * (num_nodes - 1) / 2))
@@ -41,6 +46,7 @@ def threshold_adj_array(adj_array, threshold, num_nodes):
     adj_array[np.diag_indices(num_nodes)] = 1.0
 
     return adj_array
+
 
 class BrainDataset(InMemoryDataset):
     def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, normalisation, time_length=1200,
@@ -98,6 +104,11 @@ class BrainDataset(InMemoryDataset):
         pass
 
     def __normalise_timeseries(self, timeseries):
+        """
+
+        :param timeseries: In  format TS x N
+        :return:
+        """
         if self.normalisation == Normalisation.ROI:
             scaler = RobustScaler().fit(timeseries)
             timeseries = scaler.transform(timeseries).T
@@ -125,8 +136,8 @@ class BrainDataset(InMemoryDataset):
             filtered_people = OLD_NETMATS_PEOPLE
         # UK BIOBANK PEOPLE!
         elif self.num_nodes == 376:
-            filtered_people = np.load(UKB_IDS_PATH) # start simple for comparison
-        else: # multimodal part
+            filtered_people = np.load(UKB_IDS_PATH)  # start simple for comparison
+        else:  # multimodal part
             filtered_people = sorted(list(set(DESIKAN_COMPLETE_TS).intersection(set(DESIKAN_TRACKS))))
 
         if self.num_nodes == 376:
@@ -169,9 +180,7 @@ class BrainDataset(InMemoryDataset):
                     ts = all_ts[slice_start:slice_start + self.time_length, :]
 
                     corr_arr = np.load(get_adj_50_path(person, ind, ts_split=self.ts_split_num))
-
                     G = self.__create_thresholded_graph(corr_arr)
-
                     edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
                     timeseries = self.__normalise_timeseries(ts)
@@ -181,21 +190,38 @@ class BrainDataset(InMemoryDataset):
                     data = Data(x=x, edge_index=edge_index, y=y)  # edge_attr=edge_attr,
                     data.hcp_id = torch.tensor([person])
                     data.index = torch.tensor([ind])
-                    #data.session = torch.tensor([1 if ind < 2 else 2])
-                    #data.direction = torch.tensor([0 if ind in [1, 3] else 1])
+                    # data.session = torch.tensor([1 if ind < 2 else 2])
+                    # data.direction = torch.tensor([0 if ind in [1, 3] else 1])
                     data_list.append(data)
 
             elif self.connectivity_type == ConnType.STRUCT:
-                # TODO: warning if time_length is not 1200
+                assert self.time_length == 1200
+
                 # arr_struct will only have values in the upper triangle
+                idx_to_filter = np.concatenate((np.arange(0, 34), np.arange(49, 83)))
                 arr_struct = np.genfromtxt(get_desikan_tracks_path(person))
+                # Removing non-cortical areas
+                arr_struct = arr_struct[idx_to_filter, :][:, idx_to_filter]
 
                 G = self.__create_thresholded_graph(arr_struct)
+                edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
-                for person in filtered_people:
-                    for ind in ['1_LR', '1_RL', '2_LR', '2_RL']:
-                        ts = np.genfromtxt(
-                            f'/space/desikan_timeseries/{person}_{ind}/{person}_rfMRI_REST{ind}_rfMRI_REST{ind}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt')
+                for ind, direction in enumerate(['1_LR', '1_RL', '2_LR', '2_RL']):
+                    ts = np.genfromtxt(
+                        f'/space/desikan_timeseries/{person}_{direction}/{person}_rfMRI_REST{direction}_rfMRI_REST{direction}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt')
+
+                    # Because of normalisation part
+                    ts = ts.T
+                    timeseries = self.__normalise_timeseries(ts)
+                    x = torch.tensor(timeseries, dtype=torch.float)
+
+                    if self.target_var == 'gender':
+                        y = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
+                    data = Data(x=x, edge_index=edge_index, y=y)
+                    data.hcp_id = torch.tensor([person])
+                    data.index = torch.tensor([ind])
+
+                    data_list.append(data)
 
         negative_num = len(list(filter(lambda x: x.y == 0, data_list)))
         positive_num = len(list(filter(lambda x: x.y == 1, data_list)))
@@ -207,7 +233,6 @@ class BrainDataset(InMemoryDataset):
 
         if positive_num > negative_num:
             negative_num, positive_num = positive_num, negative_num
-
 
         # Randomly undersampling
         rng = default_rng(seed=0)
@@ -222,7 +247,6 @@ class BrainDataset(InMemoryDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
-
 def create_ukb_corrs_flatten(num_nodes=376):
     final_dict = {}
 
@@ -235,6 +259,7 @@ def create_ukb_corrs_flatten(num_nodes=376):
         final_dict[person] = flatten_array
 
     return final_dict
+
 
 def create_hcp_correlation_vals(num_nodes=50, ts_split_num=64, binarise=False, threshold=100):
     final_dict = {}
