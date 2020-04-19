@@ -8,8 +8,9 @@ from numpy.random import default_rng
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
-from utils import DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, Normalisation, ConnType, \
-    OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH, UKB_TIMESERIES_PATH, UKB_PHENOTYPE_PATH, AnalysisType
+from utils import Normalisation, ConnType, AnalysisType
+from utils_datasets import OLD_NETMATS_PEOPLE, DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, UKB_IDS_PATH, UKB_PHENOTYPE_PATH, \
+    UKB_TIMESERIES_PATH, UKB_ADJ_ARR_PATH, NODE_FEATURES_NAMES, STRUCT_COLUMNS
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
@@ -142,6 +143,7 @@ class HCPDataset(BrainDataset):
 
         self.ts_split_num: int = int(4800 / time_length)
         self.info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
+        self.nodefeats_df = pd.read_csv('meta_data/node_features_powtransformer.csv', index_col=0)
 
         super(HCPDataset, self).__init__(root, target_var=target_var, num_nodes=num_nodes, threshold=threshold,
                                          connectivity_type=connectivity_type, normalisation=normalisation,
@@ -153,6 +155,7 @@ class HCPDataset(BrainDataset):
     def processed_file_names(self):
         return ['data_hcp_brain.dataset']
 
+
     def __create_data_object(self, person: int, ts: np.ndarray, ind: int, edge_index: torch.Tensor):
         assert ts.shape[0] > ts.shape[1]  # TS > N
 
@@ -161,8 +164,10 @@ class HCPDataset(BrainDataset):
         if self.analysis_type == AnalysisType.ST_UNIMODAL:
             x = torch.tensor(timeseries, dtype=torch.float)
         elif self.analysis_type == AnalysisType.ST_MULTIMODAL:
-            # TODO
-            print('Multimodal part still not finished!')
+            x = [self.nodefeats_df.loc[person, [f'fs_{col}_{feat}' for feat in NODE_FEATURES_NAMES]].values
+                                                                    for col in STRUCT_COLUMNS]
+            x = np.array(x)
+            x = torch.tensor(np.concatenate((x, timeseries), axis=1), dtype=torch.float)
 
         if self.target_var == 'gender':
             y = torch.tensor([self.info_df.loc[person, 'Gender']], dtype=torch.float)
@@ -187,9 +192,8 @@ class HCPDataset(BrainDataset):
 
         for person in filtered_people:
             if self.connectivity_type == ConnType.FMRI:
-                if self.num_nodes not in [50]:
-                    print("ConnType.FMRI not ready for num_nodes != 50")
-                    exit(-2)
+                print("ConnType.FMRI not ready now")
+                exit(-2)
 
                 all_ts = np.genfromtxt(get_50_ts_path(person))
 
@@ -205,7 +209,6 @@ class HCPDataset(BrainDataset):
                     data_list.append(data)
 
             elif self.connectivity_type == ConnType.STRUCT:
-
                 # arr_struct will only have values in the upper triangle
                 idx_to_filter = np.concatenate((np.arange(0, 34), np.arange(49, 83)))
                 arr_struct = np.genfromtxt(get_desikan_tracks_path(person))
@@ -219,6 +222,9 @@ class HCPDataset(BrainDataset):
                     ts = np.genfromtxt(get_desikan_ts_path(person, direction))
                     # Because of normalisation part
                     ts = ts.T
+                    ts = ts[:, idx_to_filter]
+                    assert ts.shape[0] == 1200
+                    assert ts.shape[1] == 68
 
                     data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_index=edge_index)
 
