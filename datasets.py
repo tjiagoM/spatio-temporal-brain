@@ -31,7 +31,7 @@ def get_desikan_ts_path(person: int, direction: str):
     return f'/space/desikan_timeseries/{person}_{direction}/{person}_rfMRI_REST{direction}_rfMRI_REST{direction}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt'
 
 
-def threshold_adj_array(adj_array: np.ndarray, threshold: int, num_nodes: int):
+def threshold_adj_array(adj_array: np.ndarray, threshold: int, num_nodes: int) -> np.ndarray:
     num_to_filter: int = int((threshold / 100.0) * (num_nodes * (num_nodes - 1) / 2))
 
     # For threshold operations, zero out lower triangle (including diagonal)
@@ -51,7 +51,7 @@ def threshold_adj_array(adj_array: np.ndarray, threshold: int, num_nodes: int):
     return adj_array
 
 
-def random_downsample(data_list: list):
+def random_downsample(data_list: list) -> list:
     negative_num = len(list(filter(lambda x: x.y == 0, data_list)))
     positive_num = len(list(filter(lambda x: x.y == 1, data_list)))
     print("Negative class:", negative_num)
@@ -71,6 +71,32 @@ def random_downsample(data_list: list):
     data_list = list(filter(lambda x: x.y == smallest_value, data_list))
     y_0 = [elem for id, elem in enumerate(y_0) if id in numbers_sample]
     data_list.extend(y_0)
+
+    return data_list
+
+def normalise_timeseries(timeseries: np.ndarray, normalisation: Normalisation) -> np.ndarray:
+    """
+    :param normalisation:
+    :param timeseries: In  format TS x N
+    :return:
+    """
+    if normalisation == Normalisation.ROI:
+        scaler = RobustScaler().fit(timeseries)
+        timeseries = scaler.transform(timeseries).T
+    elif normalisation == Normalisation.SUBJECT:
+        flatten_timeseries = timeseries.flatten().reshape(-1, 1)
+        scaler = RobustScaler().fit(flatten_timeseries)
+        timeseries = scaler.transform(flatten_timeseries).reshape(timeseries.shape).T
+    else:  # No normalisation
+        timeseries = timeseries.T
+
+    return timeseries
+
+def create_thresholded_graph(adj_array: np.ndarray, threshold: int, num_nodes: int) -> nx.DiGraph:
+
+    adj_array = threshold_adj_array(adj_array, threshold, num_nodes)
+
+    return nx.from_numpy_array(adj_array, create_using=nx.DiGraph)
 
 
 class BrainDataset(InMemoryDataset, ABC):
@@ -102,29 +128,6 @@ class BrainDataset(InMemoryDataset, ABC):
         # Download to `self.raw_dir`.
         pass
 
-    def __normalise_timeseries(self, timeseries: np.ndarray):
-        """
-        :param timeseries: In  format TS x N
-        :return:
-        """
-        if self.normalisation == Normalisation.ROI:
-            scaler = RobustScaler().fit(timeseries)
-            timeseries = scaler.transform(timeseries).T
-        elif self.normalisation == Normalisation.SUBJECT:
-            flatten_timeseries = timeseries.flatten().reshape(-1, 1)
-            scaler = RobustScaler().fit(flatten_timeseries)
-            timeseries = scaler.transform(flatten_timeseries).reshape(timeseries.shape).T
-        else:  # No normalisation
-            timeseries = timeseries.T
-
-        return timeseries
-
-    def __create_thresholded_graph(self, adj_array: np.ndarray):
-
-        adj_array = threshold_adj_array(adj_array, self.threshold, self.num_nodes)
-
-        return nx.from_numpy_array(adj_array, create_using=nx.DiGraph)
-
 
 class HCPDataset(BrainDataset):
     def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
@@ -134,10 +137,10 @@ class HCPDataset(BrainDataset):
         if target_var not in ['gender']:
             print("HCPDataset not prepared for that target_var!")
             exit(-2)
-        if connectivity_type not in [ConnType.FMRI, ConnType.STRUCT]:
+        if connectivity_type not in [ConnType.STRUCT]:
             print("HCPDataset not prepared for that connectivity_type!")
             exit(-2)
-        if analysis_type not in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
+        if analysis_type not in [AnalysisType.ST_MULTIMODAL]:
             print("HCPDataset not prepared for that analysis_type!")
             exit(-2)
 
@@ -155,17 +158,16 @@ class HCPDataset(BrainDataset):
     def processed_file_names(self):
         return ['data_hcp_brain.dataset']
 
-
     def __create_data_object(self, person: int, ts: np.ndarray, ind: int, edge_index: torch.Tensor):
         assert ts.shape[0] > ts.shape[1]  # TS > N
 
-        timeseries = self.__normalise_timeseries(ts)
+        timeseries = normalise_timeseries(timeseries=ts, normalisation=self.normalisation)
 
         if self.analysis_type == AnalysisType.ST_UNIMODAL:
             x = torch.tensor(timeseries, dtype=torch.float)
         elif self.analysis_type == AnalysisType.ST_MULTIMODAL:
             x = [self.nodefeats_df.loc[person, [f'fs_{col}_{feat}' for feat in NODE_FEATURES_NAMES]].values
-                                                                    for col in STRUCT_COLUMNS]
+                 for col in STRUCT_COLUMNS]
             x = np.array(x)
             x = torch.tensor(np.concatenate((x, timeseries), axis=1), dtype=torch.float)
 
@@ -201,7 +203,7 @@ class HCPDataset(BrainDataset):
                     ts = all_ts[slice_start:slice_start + self.time_length, :]
 
                     corr_arr = np.load(get_adj_50_path(person, ind, ts_split=self.ts_split_num))
-                    G = self.__create_thresholded_graph(corr_arr)
+                    G = create_thresholded_graph(corr_arr, threshold=self.threshold, num_nodes=self.num_nodes)
                     edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
                     data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_index=edge_index)
@@ -215,7 +217,7 @@ class HCPDataset(BrainDataset):
                 # Removing non-cortical areas
                 arr_struct = arr_struct[idx_to_filter, :][:, idx_to_filter]
 
-                G = self.__create_thresholded_graph(arr_struct)
+                G = create_thresholded_graph(arr_struct, threshold=self.threshold, num_nodes=self.num_nodes)
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
                 for ind, direction in enumerate(['1_LR', '1_RL', '2_LR', '2_RL']):

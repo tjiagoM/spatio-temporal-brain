@@ -285,21 +285,20 @@ class SpatioTemporalModel(nn.Module):
         else:
             return x if self.pooling != PoolingStrategy.DIFFPOOL else (x, link_loss, ent_loss)
 
-    # TODO: Change the right hand size parts to just include one character when possible
     def to_string_name(self):
         model_vars = ['V_' + self.VERSION,
                       'TL_' + str(self.num_time_length),
                       'D_' + str(self.dropout),
                       'A_' + self.activation_str,
-                      'P_' + self.pooling.value,
-                      'CS_' + self.conv_strategy.value,
-                      'CHC_' + str(self.channels_conv),
-                      'FS_' + str(self.final_sigmoid),
-                      'GCN_' + str(self.add_gcn),
-                      'GAT_' + str(self.add_gat),
-                      'GATH_' + str(self.gat_heads),
-                      'NGNN_' + str(self.num_gnn_layers),
-                      'ENC_' + str(self.encoder_name)
+                      'P_' + self.pooling.value[:3],
+                      'CS_' + self.conv_strategy.value[:3],
+                      'CH_' + str(self.channels_conv),
+                      'FS_' + str(self.final_sigmoid)[:1],
+                      'GC_' + str(self.add_gcn)[:1],
+                      'GA_' + str(self.add_gat)[:1],
+                      'GH_' + str(self.gat_heads),
+                      'GL_' + str(self.num_gnn_layers),
+                      'E_' + str(self.encoder_name)
                       ]
 
-        return '__'.join(model_vars)
+        return ''.join(model_vars)
