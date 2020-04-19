@@ -1,8 +1,3 @@
-#######
-# 1) wandb sweep wandb_sweeps/st_50_gender_1_fmri_diff_pool.yaml
-# 2) wandb agent tjiagom/spatio-temporal-brain/q8pom4zh --count=50 | tee outputs/wandb_1_diffpool.log
-#######
-
 import argparse
 import copy
 import datetime
@@ -226,7 +221,6 @@ if __name__ == '__main__':
     param_activation = config.activation
     split_to_test = config.fold_num
     batch_size = config.batch_size
-    param_remove_nodes = config.remove_disconnected_nodes
     num_nodes = config.num_nodes
     param_conn_type = ConnType(config.conn_type)
     param_conv_strategy = ConvStrategy(config.conv_strategy)
@@ -279,7 +273,7 @@ if __name__ == '__main__':
         exit(-1)
     else:
         print("Predicting", target_var, num_epochs, split_to_test, param_add_gcn, param_activation, param_threshold, param_add_gat,
-              batch_size, param_remove_nodes, num_nodes, param_conn_type, param_conv_strategy, param_pooling, param_channels_conv, time_length)
+              batch_size, num_nodes, param_conn_type, param_conv_strategy, param_pooling, param_channels_conv, time_length)
 
     #
     # Definition of general variables
@@ -289,8 +283,7 @@ if __name__ == '__main__':
                                                  target_var=target_var,
                                                  threshold=param_threshold,
                                                  normalisation=param_normalisation,
-                                                 connectivity_type=param_conn_type,
-                                                 disconnect_nodes=param_remove_nodes)
+                                                 connectivity_type=param_conn_type)
     print("Going for", name_dataset)
     dataset = BrainDataset(root=name_dataset,
                            time_length=time_length,
@@ -298,8 +291,7 @@ if __name__ == '__main__':
                            target_var=target_var,
                            threshold=param_threshold,
                            normalisation=param_normalisation,
-                           connectivity_type=param_conn_type,
-                           disconnect_nodes=param_remove_nodes)
+                           connectivity_type=param_conn_type)
     if analysis_type == AnalysisType.FLATTEN_CORRS:
         if num_nodes == 376:
             flatten_correlations = create_ukb_corrs_flatten()
@@ -402,7 +394,7 @@ if __name__ == '__main__':
             model_names = {}
             for m in metrics:
                 model_names[m] = create_name_for_model(target_var, model, outer_split_num, 0, num_epochs,
-                                                       param_threshold, batch_size, param_remove_nodes, num_nodes, param_conn_type,
+                                                       param_threshold, batch_size, num_nodes, param_conn_type,
                                                        param_normalisation, analysis_type,
                                                        m, param_lr, param_weight_decay)
 

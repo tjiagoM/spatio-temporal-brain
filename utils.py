@@ -14,6 +14,7 @@ class SweepType(str, Enum):
     GCN = 'gcn'
     GAT = 'gat'
 
+
 @unique
 class Normalisation(str, Enum):
     NONE = 'no_norm'
@@ -41,7 +42,12 @@ class PoolingStrategy(str, Enum):
 
 @unique
 class AnalysisType(str, Enum):
-    SPATIOTEMOPRAL = 'spatiotemporal'
+    """
+    ST_* represent the type of data in each node
+    FLATTEN_* represents the xgboost baseline
+    """
+    ST_UNIMODAL = 'st_unimodal'
+    ST_MULTIMODAL = 'st_multimodal'
     FLATTEN_CORRS = 'flatten_corrs'
     FLATTEN_CORRS_THRESHOLD = 'flatten_corrs_threshold'
 
@@ -154,15 +160,13 @@ def merge_y_and_others(ys, indices):
 
 
 def create_name_for_brain_dataset(num_nodes, time_length, target_var, threshold, connectivity_type, normalisation,
-                                  disconnect_nodes=False,
                                   prefix_location='./pytorch_data/balanced_hcp_4split_'):
     if time_length == 75:
         prefix_location = './pytorch_data/balanced_hcp_64split_'
     elif num_nodes == 376:
         prefix_location = './pytorch_data/balanced_ukbiobank_'
     name_combination = '_'.join(
-        [target_var, connectivity_type.value, str(num_nodes), str(threshold), normalisation.value,
-         str(disconnect_nodes)])
+        [target_var, connectivity_type.value, str(num_nodes), str(threshold), normalisation.value])
 
     return prefix_location + name_combination
 
@@ -203,7 +207,7 @@ def create_name_for_encoder_model(ts_length, outer_split_num, encoder_name,
 
 
 def create_name_for_model(target_var, model, outer_split_num, inner_split_num, n_epochs, threshold, batch_size,
-                          remove_disconnect_nodes, num_nodes, conn_type, normalisation,
+                          num_nodes, conn_type, normalisation,
                           analysis_type, metric_evaluated,
                           lr=None, weight_decay=None,
                           prefix_location='logs/',
@@ -227,7 +231,6 @@ def create_name_for_model(target_var, model, outer_split_num, inner_split_num, n
                                        'THRE_' + str(threshold),
                                        normalisation.value,
                                        str(batch_size),
-                                       str(remove_disconnect_nodes),
                                        str(num_nodes),
                                        conn_type.value
                                        ]) + suffix

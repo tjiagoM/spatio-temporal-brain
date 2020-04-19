@@ -1,3 +1,5 @@
+from abc import ABC
+
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -7,29 +9,29 @@ from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
 from utils import DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, Normalisation, ConnType, \
-    OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH, UKB_TIMESERIES_PATH, UKB_PHENOTYPE_PATH
+    OLD_NETMATS_PEOPLE, UKB_IDS_PATH, UKB_ADJ_ARR_PATH, UKB_TIMESERIES_PATH, UKB_PHENOTYPE_PATH, AnalysisType
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
 
-def get_adj_50_path(person, index, ts_split):
-    return f'../../../space/hcp_50_timeseries/processed_{ts_split}_split_50/{person}_{index}.npy'
+def get_adj_50_path(person: int, index: int, ts_split: int):
+    return f'/space/hcp_50_timeseries/processed_{ts_split}_split_50/{person}_{index}.npy'
 
 
-def get_50_ts_path(person):
+def get_50_ts_path(person: int):
     return f'../hcp_timecourses/3T_HCP1200_MSMAll_d50_ts2/{person}.txt'
 
 
-def get_desikan_tracks_path(person):
+def get_desikan_tracks_path(person: int):
     return f'/space/desikan_tracks/{person}/{person}_conn_aparc+aseg_RS_sl.txt'
 
 
-def get_desikan_ts_path(person, direction):
+def get_desikan_ts_path(person: int, direction: str):
     return f'/space/desikan_timeseries/{person}_{direction}/{person}_rfMRI_REST{direction}_rfMRI_REST{direction}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt'
 
 
-def threshold_adj_array(adj_array, threshold, num_nodes):
-    num_to_filter = int((threshold / 100.0) * (num_nodes * (num_nodes - 1) / 2))
+def threshold_adj_array(adj_array: np.ndarray, threshold: int, num_nodes: int):
+    num_to_filter: int = int((threshold / 100.0) * (num_nodes * (num_nodes - 1) / 2))
 
     # For threshold operations, zero out lower triangle (including diagonal)
     adj_array[np.tril_indices(num_nodes)] = 0
@@ -48,64 +50,59 @@ def threshold_adj_array(adj_array, threshold, num_nodes):
     return adj_array
 
 
-class BrainDataset(InMemoryDataset):
-    def __init__(self, root, target_var, num_nodes, threshold, connectivity_type, normalisation, time_length=1200,
-                 disconnect_nodes=False, transform=None, pre_transform=None):
-        '''
+def random_downsample(data_list: list):
+    negative_num = len(list(filter(lambda x: x.y == 0, data_list)))
+    positive_num = len(list(filter(lambda x: x.y == 1, data_list)))
+    print("Negative class:", negative_num)
+    print("Positive class:", positive_num)
 
-        :param root:
-        :param target_var:
-        :param num_nodes:
-        :param threshold: Between [0, 100]
-        :param connectivity_type:
-        :param transform:
-        :param pre_transform:
-        '''
-        if target_var not in ['gender']:
-            print("NOT A VALID target_var!")
-            exit(-2)
+    smallest_value = 1 if positive_num < negative_num else 0
+    highest_value = 0 if positive_num < negative_num else 1
+
+    if positive_num > negative_num:
+        negative_num, positive_num = positive_num, negative_num
+
+    # Randomly undersampling
+    rng = default_rng(seed=0)
+    numbers_sample = rng.choice(negative_num, size=positive_num, replace=False)
+
+    y_0 = list(filter(lambda x: x.y == highest_value, data_list))
+    data_list = list(filter(lambda x: x.y == smallest_value, data_list))
+    y_0 = [elem for id, elem in enumerate(y_0) if id in numbers_sample]
+    data_list.extend(y_0)
+
+
+class BrainDataset(InMemoryDataset, ABC):
+    def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
+                 normalisation: Normalisation, analysis_type: AnalysisType, time_length,
+                 transform=None, pre_transform=None):
         if threshold < 0 or threshold > 100:
             print("NOT A VALID threshold!")
             exit(-2)
-        if connectivity_type not in [ConnType.FMRI, ConnType.STRUCT]:
-            print("NOT A VALID connectivity_type!")
-            exit(-2)
         if normalisation not in [Normalisation.NONE, Normalisation.ROI, Normalisation.SUBJECT]:
-            print("NOT A VALID normalisation!")
+            print("BrainDataset not prepared for that normalisation!")
             exit(-2)
 
-        # TODO: check whether this matches the name inside root
-        self.target_var = target_var
-        self.num_nodes = num_nodes
-        self.threshold = threshold
-        self.connectivity_type = connectivity_type
-        self.disconnect_nodes = disconnect_nodes
-        self.normalisation = normalisation
-        self.time_length = time_length
-
-        self.ts_split_num = int(4800 / time_length)
-
-        if self.disconnect_nodes:
-            print("Warning: Removing disconnected nodes not yet developed in HCPDataset")
+        self.target_var: str = target_var
+        self.num_nodes: int = num_nodes
+        self.connectivity_type: ConnType = connectivity_type
+        self.time_length: int = time_length
+        self.threshold: int = threshold
+        self.normalisation: Normalisation = normalisation
+        self.analysis_type: AnalysisType = analysis_type
 
         super(BrainDataset, self).__init__(root, transform, pre_transform)
-        self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
     def raw_file_names(self):
         return []
 
-    @property
-    def processed_file_names(self):
-        return ['data_hcp_func.dataset']
-
     def download(self):
         # Download to `self.raw_dir`.
         pass
 
-    def __normalise_timeseries(self, timeseries):
+    def __normalise_timeseries(self, timeseries: np.ndarray):
         """
-
         :param timeseries: In  format TS x N
         :return:
         """
@@ -121,55 +118,75 @@ class BrainDataset(InMemoryDataset):
 
         return timeseries
 
-    def __create_thresholded_graph(self, adj_array):
+    def __create_thresholded_graph(self, adj_array: np.ndarray):
 
         adj_array = threshold_adj_array(adj_array, self.threshold, self.num_nodes)
 
         return nx.from_numpy_array(adj_array, create_using=nx.DiGraph)
 
+
+class HCPDataset(BrainDataset):
+    def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
+                 normalisation: Normalisation, analysis_type: AnalysisType, time_length=1200,
+                 transform=None, pre_transform=None):
+
+        if target_var not in ['gender']:
+            print("HCPDataset not prepared for that target_var!")
+            exit(-2)
+        if connectivity_type not in [ConnType.FMRI, ConnType.STRUCT]:
+            print("HCPDataset not prepared for that connectivity_type!")
+            exit(-2)
+        if analysis_type not in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
+            print("HCPDataset not prepared for that analysis_type!")
+            exit(-2)
+
+        self.ts_split_num: int = int(4800 / time_length)
+        self.info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
+
+        super(HCPDataset, self).__init__(root, target_var=target_var, num_nodes=num_nodes, threshold=threshold,
+                                         connectivity_type=connectivity_type, normalisation=normalisation,
+                                         analysis_type=analysis_type, time_length=time_length,
+                                         transform=transform, pre_transform=pre_transform)
+        self.data, self.slices = torch.load(self.processed_paths[0])
+
+    @property
+    def processed_file_names(self):
+        return ['data_hcp_brain.dataset']
+
+    def __create_data_object(self, person: int, ts: np.ndarray, ind: int, edge_index: torch.Tensor):
+        assert ts.shape[0] > ts.shape[1]  # TS > N
+
+        timeseries = self.__normalise_timeseries(ts)
+
+        if self.analysis_type == AnalysisType.ST_UNIMODAL:
+            x = torch.tensor(timeseries, dtype=torch.float)
+        elif self.analysis_type == AnalysisType.ST_MULTIMODAL:
+            # TODO
+            print('Multimodal part still not finished!')
+
+        if self.target_var == 'gender':
+            y = torch.tensor([self.info_df.loc[person, 'Gender']], dtype=torch.float)
+        data = Data(x=x, edge_index=edge_index, y=y)
+        data.hcp_id = torch.tensor([person])
+        data.index = torch.tensor([ind])
+
+        return data
+
     def process(self):
         # Read data into huge `Data` list.
-        data_list = []
+        data_list: list[Data] = []
+        assert self.time_length == 1200
 
         # No sorted needed?
         if self.num_nodes == 50:
+            print('TODO: This needs to be rethought')
             filtered_people = OLD_NETMATS_PEOPLE
-        # UK BIOBANK PEOPLE!
-        elif self.num_nodes == 376:
-            filtered_people = np.load(UKB_IDS_PATH)  # start simple for comparison
+            exit(-1)
         else:  # multimodal part
             filtered_people = sorted(list(set(DESIKAN_COMPLETE_TS).intersection(set(DESIKAN_TRACKS))))
 
-        if self.num_nodes == 376:
-            info_df = pd.read_csv(UKB_PHENOTYPE_PATH, delimiter=',').set_index('eid')['31-0.0']
-            info_df = info_df.apply(lambda x: 1 if x == 'Male' else 0)
-        else:
-            info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
-
-        ##########
         for person in filtered_people:
-            # UK Biobank
-            if self.num_nodes == 376:
-                ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
-                if ts.shape[1] == 523:
-                    ts = ts[:, :490]
-                # For normalisation part
-                ts = ts.T
-
-                corr_arr = np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
-                G = self.__create_thresholded_graph(corr_arr)
-                edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
-
-                timeseries = self.__normalise_timeseries(ts)
-                x = torch.tensor(timeseries, dtype=torch.float)
-
-                if self.target_var == 'gender':
-                    y = torch.tensor([info_df.loc[person]], dtype=torch.float)
-                data = Data(x=x, edge_index=edge_index, y=y)
-                data.ukb_id = torch.tensor([person])
-                data_list.append(data)
-
-            elif self.connectivity_type == ConnType.FMRI:
+            if self.connectivity_type == ConnType.FMRI:
                 if self.num_nodes not in [50]:
                     print("ConnType.FMRI not ready for num_nodes != 50")
                     exit(-2)
@@ -183,19 +200,11 @@ class BrainDataset(InMemoryDataset):
                     G = self.__create_thresholded_graph(corr_arr)
                     edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
-                    timeseries = self.__normalise_timeseries(ts)
-                    x = torch.tensor(timeseries, dtype=torch.float)
-                    if self.target_var == 'gender':
-                        y = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
-                    data = Data(x=x, edge_index=edge_index, y=y)  # edge_attr=edge_attr,
-                    data.hcp_id = torch.tensor([person])
-                    data.index = torch.tensor([ind])
-                    # data.session = torch.tensor([1 if ind < 2 else 2])
-                    # data.direction = torch.tensor([0 if ind in [1, 3] else 1])
+                    data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_index=edge_index)
+
                     data_list.append(data)
 
             elif self.connectivity_type == ConnType.STRUCT:
-                assert self.time_length == 1200
 
                 # arr_struct will only have values in the upper triangle
                 idx_to_filter = np.concatenate((np.arange(0, 34), np.arange(49, 83)))
@@ -207,41 +216,72 @@ class BrainDataset(InMemoryDataset):
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
                 for ind, direction in enumerate(['1_LR', '1_RL', '2_LR', '2_RL']):
-                    ts = np.genfromtxt(
-                        f'/space/desikan_timeseries/{person}_{direction}/{person}_rfMRI_REST{direction}_rfMRI_REST{direction}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt')
-
+                    ts = np.genfromtxt(get_desikan_ts_path(person, direction))
                     # Because of normalisation part
                     ts = ts.T
-                    timeseries = self.__normalise_timeseries(ts)
-                    x = torch.tensor(timeseries, dtype=torch.float)
 
-                    if self.target_var == 'gender':
-                        y = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
-                    data = Data(x=x, edge_index=edge_index, y=y)
-                    data.hcp_id = torch.tensor([person])
-                    data.index = torch.tensor([ind])
+                    data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_index=edge_index)
 
                     data_list.append(data)
 
-        negative_num = len(list(filter(lambda x: x.y == 0, data_list)))
-        positive_num = len(list(filter(lambda x: x.y == 1, data_list)))
-        print("Negative class:", negative_num)
-        print("Positive class:", positive_num)
+        data, slices = self.collate(data_list)
+        torch.save((data, slices), self.processed_paths[0])
 
-        smallest_value = 1 if positive_num < negative_num else 0
-        highest_value = 0 if positive_num < negative_num else 1
 
-        if positive_num > negative_num:
-            negative_num, positive_num = positive_num, negative_num
+class UKBDataset(BrainDataset):
+    def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
+                 normalisation: Normalisation, analysis_type: AnalysisType, time_length=490,
+                 transform=None, pre_transform=None):
 
-        # Randomly undersampling
-        rng = default_rng(seed=0)
-        numbers_sample = rng.choice(negative_num, size=positive_num, replace=False)
+        if target_var not in ['gender']:
+            print("UKBDataset not prepared for that target_var!")
+            exit(-2)
+        if connectivity_type not in [ConnType.FMRI]:
+            print("UKBDataset not prepared for that connectivity_type!")
+            exit(-2)
+        if analysis_type not in [AnalysisType.ST_UNIMODAL]:
+            print("UKBDataset not prepared for that analysis_type!")
+            exit(-2)
 
-        y_0 = list(filter(lambda x: x.y == highest_value, data_list))
-        data_list = list(filter(lambda x: x.y == smallest_value, data_list))
-        y_0 = [elem for id, elem in enumerate(y_0) if id in numbers_sample]
-        data_list.extend(y_0)
+        super(UKBDataset, self).__init__(root, target_var=target_var, num_nodes=num_nodes, threshold=threshold,
+                                         connectivity_type=connectivity_type, normalisation=normalisation,
+                                         analysis_type=analysis_type, time_length=time_length, transform=transform,
+                                         pre_transform=pre_transform)
+        self.data, self.slices = torch.load(self.processed_paths[0])
+
+    @property
+    def processed_file_names(self):
+        return ['data_ukb_brain.dataset']
+
+    def process(self):
+        # Read data into huge `Data` list.
+        data_list: list[Data] = []
+
+        filtered_people = np.load(UKB_IDS_PATH)  # start simple for comparison
+
+        info_df = pd.read_csv(UKB_PHENOTYPE_PATH, delimiter=',').set_index('eid')['31-0.0']
+        info_df = info_df.apply(lambda x: 1 if x == 'Male' else 0)
+
+        ##########
+        for person in filtered_people:
+            ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
+            if ts.shape[1] == 523:
+                ts = ts[:, :490]
+            # For normalisation part
+            ts = ts.T
+
+            corr_arr = np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
+            G = self.__create_thresholded_graph(corr_arr)
+            edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
+
+            timeseries = self.__normalise_timeseries(ts)
+            x = torch.tensor(timeseries, dtype=torch.float)
+
+            if self.target_var == 'gender':
+                y = torch.tensor([info_df.loc[person]], dtype=torch.float)
+            data = Data(x=x, edge_index=edge_index, y=y)
+            data.ukb_id = torch.tensor([person])
+            data_list.append(data)
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
