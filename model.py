@@ -107,12 +107,13 @@ class DiffPoolLayer(torch.nn.Module):
 
 
 class SpatioTemporalModel(nn.Module):
-    def __init__(self, num_time_length, dropout_perc, pooling, channels_conv, activation, conv_strategy,
-                 encoding_model=None, num_gnn_layers=1, gat_heads=0,
+    def __init__(self, num_time_length: int, dropout_perc: float, pooling: PoolingStrategy, channels_conv: int,
+                 activation: str, conv_strategy: ConvStrategy,encoding_model=None,
+                 num_gnn_layers=1, gat_heads=0, multimodal_size=0,
                  add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '5.0'
+        self.VERSION = '6'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT")
@@ -127,11 +128,15 @@ class SpatioTemporalModel(nn.Module):
             print("You cannot have both GCN and GAT")
             exit(-1)
 
+        self.multimodal_size = multimodal_size
+        if self.multimodal_size > 0:
+            self.multimodal_lin = nn.Linear(self.multimodal_size, self.multimodal_size)
+            self.multimodal_batch = BatchNorm1d(self.multimodal_size)
         if encoding_model is None:
-            self.TEMPORAL_EMBED_SIZE = 256
+            self.NODE_EMBED_SIZE = 128
             self.encoder_name = 'None'
         else:
-            self.TEMPORAL_EMBED_SIZE = encoding_model.EMBED_SIZE
+            self.NODE_EMBED_SIZE = encoding_model.EMBED_SIZE
             self.encoder_name = encoding_model.MODEL_NAME
         self.encoder_model = encoding_model
 
@@ -158,20 +163,20 @@ class SpatioTemporalModel(nn.Module):
         self.num_gnn_layers = num_gnn_layers
         self.gat_heads = gat_heads
         if self.add_gcn:
-            self.gnn_conv1 = GCNConv(self.TEMPORAL_EMBED_SIZE,
-                                     self.TEMPORAL_EMBED_SIZE)
+            self.gnn_conv1 = GCNConv(self.NODE_EMBED_SIZE,
+                                     self.NODE_EMBED_SIZE)
             if self.num_gnn_layers == 2:
-                self.gnn_conv2 = GCNConv(self.TEMPORAL_EMBED_SIZE,
-                                         self.TEMPORAL_EMBED_SIZE)
+                self.gnn_conv2 = GCNConv(self.NODE_EMBED_SIZE,
+                                         self.NODE_EMBED_SIZE)
         elif self.add_gat:
-            self.gnn_conv1 = GATConv(self.TEMPORAL_EMBED_SIZE,
-                                     self.TEMPORAL_EMBED_SIZE,
+            self.gnn_conv1 = GATConv(self.NODE_EMBED_SIZE,
+                                     self.NODE_EMBED_SIZE,
                                      heads=self.gat_heads,
                                      concat=False,
                                      dropout=dropout_perc)
             if self.num_gnn_layers == 2:
-                self.gnn_conv2 = GATConv(self.TEMPORAL_EMBED_SIZE,
-                                         self.TEMPORAL_EMBED_SIZE,
+                self.gnn_conv2 = GATConv(self.NODE_EMBED_SIZE,
+                                         self.NODE_EMBED_SIZE,
                                          heads=self.gat_heads if self.gat_heads == 1 else int(self.gat_heads / 2),
                                          concat=False,
                                          dropout=dropout_perc)
@@ -180,7 +185,7 @@ class SpatioTemporalModel(nn.Module):
             pass # Just it does not go to convolutions
         elif self.conv_strategy == ConvStrategy.TCN_ENTIRE:
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
-            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.TEMPORAL_EMBED_SIZE)
+            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.NODE_EMBED_SIZE - self.multimodal_size)
 
             self.temporal_conv = TemporalConvNet(1,
                                                   [self.channels_conv, self.channels_conv * 2,
@@ -193,7 +198,7 @@ class SpatioTemporalModel(nn.Module):
             stride = 2# if self.conv_strategy == ConvStrategy.CNN_ENTIRE else 1
             padding = 3# if self.conv_strategy == ConvStrategy.CNN_ENTIRE else 0
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
-            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.TEMPORAL_EMBED_SIZE)
+            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.NODE_EMBED_SIZE - self.multimodal_size)
 
             self.conv1d_1 = nn.Conv1d(1, self.channels_conv, 7, padding=padding, stride=stride)
             self.conv1d_2 = nn.Conv1d(self.channels_conv, self.channels_conv * 2, 7, padding=padding, stride=stride)
@@ -220,14 +225,14 @@ class SpatioTemporalModel(nn.Module):
 
 
         if self.pooling == PoolingStrategy.DIFFPOOL:
-            self.pre_final_linear = nn.Linear(3 * self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
+            self.pre_final_linear = nn.Linear(3 * self.NODE_EMBED_SIZE, self.NODE_EMBED_SIZE)
 
             self.diff_pool = DiffPoolLayer(num_nodes,
-                                           self.TEMPORAL_EMBED_SIZE)
+                                           self.NODE_EMBED_SIZE)
         elif self.pooling == PoolingStrategy.CONCAT:
-            self.pre_final_linear = nn.Linear(self.num_nodes * self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
+            self.pre_final_linear = nn.Linear(self.num_nodes * self.NODE_EMBED_SIZE, self.NODE_EMBED_SIZE)
 
-        self.final_linear = nn.Linear(self.TEMPORAL_EMBED_SIZE, 1)
+        self.final_linear = nn.Linear(self.NODE_EMBED_SIZE, 1)
 
     def init_weights(self):
         self.conv1d_1.weight.data.normal_(0, 0.01)
@@ -237,6 +242,14 @@ class SpatioTemporalModel(nn.Module):
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
+
+        if self.multimodal_size > 0:
+            xn, x = x[:, :self.multimodal_size], x[:, self.multimodal_size:]
+            xn = xn.view(-1, self.multimodal_size)
+            xn = self.multimodal_lin(xn)
+            xn = self.multimodal_batch(xn)
+            xn = self.activation(xn)
+            xn = F.dropout(xn, p=self.dropout, training=self.training)
 
         # Temporal Convolutions
         if self.encoder_model is None:
@@ -248,6 +261,9 @@ class SpatioTemporalModel(nn.Module):
             x = self.lin_temporal(x)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
+
+            if self.multimodal_size > 0:
+                x = torch.cat((xn, x), dim=1)
         elif self.encoder_name == EncodingStrategy.VAE3layers.value:
             mu, logvar = self.encoder_model.encode(x)
             x = self.encoder_model.reparameterize(mu, logvar)
@@ -274,7 +290,7 @@ class SpatioTemporalModel(nn.Module):
             x = self.activation(self.pre_final_linear(x))
         elif self.pooling == PoolingStrategy.CONCAT:
             x, _ = to_dense_batch(x, data.batch)
-            x = x.view(-1, self.TEMPORAL_EMBED_SIZE * self.num_nodes)
+            x = x.view(-1, self.NODE_EMBED_SIZE * self.num_nodes)
             x = self.activation(self.pre_final_linear(x))
 
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -298,7 +314,8 @@ class SpatioTemporalModel(nn.Module):
                       'GA_' + str(self.add_gat)[:1],
                       'GH_' + str(self.gat_heads),
                       'GL_' + str(self.num_gnn_layers),
-                      'E_' + str(self.encoder_name)
+                      'E_' + str(self.encoder_name),
+                      'M_' + str(self.multimodal_size)
                       ]
 
         return ''.join(model_vars)

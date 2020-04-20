@@ -2,10 +2,11 @@ import torch
 from torch_geometric.data import DataLoader, DenseDataLoader
 import numpy as np
 
-from datasets import BrainDataset
+from datasets import BrainDataset, HCPDataset
 from model import SpatioTemporalModel
-from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, EncodingStrategy, \
-    create_best_encoder_name
+from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, \
+    EncodingStrategy, \
+    create_best_encoder_name, AnalysisType, DatasetType
 
 device = 'cuda:0'
 
@@ -14,16 +15,16 @@ TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
 THRESHOLD = 5
 SPLIT_TO_TEST = 1
-ADD_GCN = True
+ADD_GCN = False
 ADD_GAT = False
-BATCH_SIZE = 500
+BATCH_SIZE = 200
 REMOVE_NODES = False
-NUM_NODES = 50
+NUM_NODES = 68
 CONN_TYPE = ConnType('fmri')
-CONV_STRATEGY = ConvStrategy('entire')
+CONV_STRATEGY = ConvStrategy('tcn_entire')
 POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
-NORMALISATION = Normalisation('roi_norm')
+NORMALISATION = Normalisation('subject_norm')
 TIME_LENGTH = 1200
 ENCODING_STRATEGY = EncodingStrategy('none')
 
@@ -31,22 +32,25 @@ torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True
 #torch.backends.cudnn.benchmark = False
 
-name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
-                                             time_length=TIME_LENGTH,
-                                             target_var=TARGET_VAR,
-                                             threshold=THRESHOLD,
-                                             normalisation=NORMALISATION,
-                                             connectivity_type=CONN_TYPE,
-                                             disconnect_nodes=REMOVE_NODES)
-print("Going for", name_dataset)
-dataset = BrainDataset(root=name_dataset,
-                       time_length=TIME_LENGTH,
-                       num_nodes=NUM_NODES,
-                       target_var=TARGET_VAR,
-                       threshold=THRESHOLD,
-                       normalisation=NORMALISATION,
-                       connectivity_type=CONN_TYPE,
-                       disconnect_nodes=REMOVE_NODES)
+name_dataset = create_name_for_brain_dataset(num_nodes=68,
+                                                 time_length=1200,
+                                                 target_var='gender',
+                                                 threshold=5,
+                                                 normalisation=Normalisation.SUBJECT,
+                                                 connectivity_type=ConnType.STRUCT,
+                                                 analysis_type=AnalysisType.ST_MULTIMODAL,
+                                                 dataset_type=DatasetType.HCP)
+
+class_dataset = HCPDataset
+
+dataset = class_dataset(root=name_dataset,
+                            target_var='gender',
+                            num_nodes=68,
+                            threshold=5,
+                            connectivity_type=ConnType.STRUCT,
+                            normalisation=Normalisation.SUBJECT,
+                            analysis_type=AnalysisType.ST_MULTIMODAL,
+                            time_length=1200)
 if ENCODING_STRATEGY != EncodingStrategy.NONE:
     from encoders import AE # Necessary to load
     encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
@@ -56,17 +60,20 @@ else:
     encoding_model = None
 
 model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
-                            dropout_perc=0.3,
-                            pooling=POOLING,
-                            channels_conv=CHANNELS_CONV,
-                            activation=ACTIVATION,
-                            conv_strategy=CONV_STRATEGY,
-                            add_gat=ADD_GAT,
-                            add_gcn=ADD_GCN,
-                            final_sigmoid=True,
-                            num_nodes=NUM_NODES,
-                            encoding_model=encoding_model
-                            ).to(device)
+                                dropout_perc=0.3,
+                                pooling=POOLING,
+                                channels_conv=CHANNELS_CONV,
+                                activation=ACTIVATION,
+                                conv_strategy=CONV_STRATEGY,
+                                add_gat=ADD_GAT,
+                                gat_heads=0,
+                                add_gcn=ADD_GCN,
+                                final_sigmoid=True,
+                                num_nodes=NUM_NODES,
+                                num_gnn_layers=0,
+                                multimodal_size=10,
+                                encoding_model=None
+                                ).to(device)
 pytorch_total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print(pytorch_total_trainable_params)
 

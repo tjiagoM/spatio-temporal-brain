@@ -9,8 +9,6 @@ import numpy as np
 import torch
 from sklearn.preprocessing import LabelEncoder
 
-from model import SpatioTemporalModel
-
 
 @unique
 class SweepType(str, Enum):
@@ -135,7 +133,7 @@ def create_name_for_encoder_model(ts_length, outer_split_num, encoder_name,
                                        ]) + suffix
 
 
-def create_name_for_model(target_var: str, model: Union[SpatioTemporalModel, XGBClassifier], outer_split_num: int,
+def create_name_for_model(target_var: str, model, outer_split_num: int,
                           inner_split_num: int, n_epochs: int, threshold: int, batch_size: int, num_nodes: int,
                           conn_type: ConnType, normalisation: Normalisation, analysis_type: AnalysisType,
                           metric_evaluated: str, dataset_type: DatasetType,

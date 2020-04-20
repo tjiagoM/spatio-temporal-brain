@@ -1,5 +1,4 @@
 import os
-import os
 import random
 from collections import deque
 from sys import exit
@@ -7,7 +6,6 @@ from typing import Dict, Any
 
 import numpy as np
 import torch
-# torch.multiprocessing.set_start_method('spawn')#, force=True)
 import wandb
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
 from sklearn.model_selection import StratifiedKFold
@@ -173,13 +171,8 @@ def get_array_data(flatten_correlations, data_fold, num_nodes=50):
     return np.array(tmp_array), np.array(tmp_y)
 
 
-def create_fold_generator(dataset, num_nodes, num_splits):
-    # UK Biobank
-    if num_nodes == 376:
-        skf = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=1111)
-        skf_generator = skf.split(np.zeros((len(dataset), 1)),
-                                  np.array([data.y.item() for data in dataset]))
-    else:
+def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, num_splits: int):
+    if dataset_type == DatasetType.HCP:
         # Stratification will occur with regards to both the sex and session day
         skf = StratifiedGroupKFold(n_splits=num_splits, random_state=1111)
         merged_labels = merge_y_and_others(torch.cat([data.y for data in dataset], dim=0),
@@ -187,6 +180,10 @@ def create_fold_generator(dataset, num_nodes, num_splits):
         skf_generator = skf.split(np.zeros((len(dataset), 1)),
                                   merged_labels,
                                   groups=[data.hcp_id.item() for data in dataset])
+    else:
+        skf = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=1111)
+        skf_generator = skf.split(np.zeros((len(dataset), 1)),
+                                  np.array([data.y.item() for data in dataset]))
 
     return skf_generator
 
@@ -419,7 +416,7 @@ if __name__ == '__main__':
     # DATASET
     dataset = generate_dataset(run_cfg)
 
-    skf_outer_generator = create_fold_generator(dataset, run_cfg['num_nodes'], N_OUT_SPLITS)
+    skf_outer_generator = create_fold_generator(dataset, run_cfg['dataset_type'], N_OUT_SPLITS)
 
     # Getting train / test folds
     outer_split_num = 0
@@ -439,7 +436,7 @@ if __name__ == '__main__':
     print("Positive classes:", sum([data.y.item() for data in X_train_out]),
           "/", sum([data.y.item() for data in X_test_out]))
 
-    skf_inner_generator = create_fold_generator(X_train_out, run_cfg['num_nodes'], N_INNER_SPLITS)
+    skf_inner_generator = create_fold_generator(X_train_out, run_cfg['dataset_type'], N_INNER_SPLITS)
 
     #################
     # Main inner-loop
