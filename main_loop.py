@@ -241,9 +241,10 @@ def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
                                 final_sigmoid=run_cfg['model_with_sigmoid'],
                                 num_nodes=run_cfg['num_nodes'],
                                 num_gnn_layers=run_cfg['param_num_gnn_layers'],
-                                encoding_model=encoding_model
+                                encoding_model=encoding_model,
+                                multimodal_size=run_cfg['multimodal_size']
                                 ).to(run_cfg['device_run'])
-    wandb.watch(model, log='all')
+    #wandb.watch(model)
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Number of trainable params:", trainable_params)
     # elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
@@ -308,14 +309,17 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
             # wandb.unwatch()#[model])
             # torch.save(model, model_names['loss'])
             torch.save(model.state_dict(), model_saving_path)
-    wandb.unwatch()
+    #wandb.unwatch()
     return best_model_metrics
 
 
-def get_empty_metrics_dict() -> Dict[str, list]:
-    return {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': [],
-            'ent_loss': [], 'link_loss': []
-            }
+def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy) -> Dict[str, list]:
+    tmp_dict =  {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': []}
+    if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+        tmp_dict['ent_loss'] = []
+        tmp_dict['link_loss'] = []
+
+    return tmp_dict
 
 
 def send_inner_loop_metrics_to_wandb(overall_metrics: Dict[str, list], run_cfg: Dict[str, Any]):
@@ -376,7 +380,8 @@ if __name__ == '__main__':
         'param_weight_decay': config.weight_decay,
         'param_lr': config.lr,
         'param_threshold': config.threshold,
-        'param_num_gnn_layers': config.num_gnn_layers
+        'param_num_gnn_layers': config.num_gnn_layers,
+        'multimodal_size': 10
     }
     run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
 
@@ -441,7 +446,7 @@ if __name__ == '__main__':
     #################
     # Main inner-loop
     #################
-    overall_metrics = get_empty_metrics_dict()
+    overall_metrics = get_empty_metrics_dict(run_cfg['param_pooling'])
     inner_loop_run = 0
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1

@@ -1,0 +1,77 @@
+method: bayes
+metric:
+  goal: minimize
+  name: mean_val_loss
+name: st_hcp_multimodal_gender_1_struct_gcn
+program: main_loop.py
+parameters:
+  dataset_type:
+    value: hcp
+  sweep_type:
+    value: gcn
+  fold_num:
+    value: 1
+  conn_type:
+    value: struct
+  batch_size:
+    value: 300
+  analysis_type:
+    value: st_multimodal
+  num_epochs:
+    value: 150
+  num_nodes:
+    value: 68
+  activation:
+    distribution: categorical
+    values:
+    - relu
+  channels_conv:
+    value: 8
+  conv_strategy:
+    distribution: categorical
+    values:
+    - tcn_entire
+  dropout:
+    distribution: uniform
+    max: 0.9
+    min: 0
+  early_stop_steps:
+    value: 50
+  encoding_strategy:
+    distribution: categorical
+    values:
+    - none
+  gnn_type:
+    value: gcn
+  num_gnn_layers:
+    distribution: int_uniform
+    min: 1
+    max: 2
+  threshold:
+    distribution: categorical
+    values:
+      - 5
+      - 10
+      - 20
+      - 30
+      - 40
+  lr:
+    distribution: log_uniform
+    max: 0
+    min: -13.815510557964274
+  normalisation:
+    distribution: categorical
+    values:
+    - subject_norm
+  pooling:
+    distribution: categorical
+    values:
+    - mean
+  target_var:
+    value: gender
+  time_length:
+    value: 1200
+  weight_decay:
+    distribution: log_uniform
+    max: 0
+    min: -12.206072645530174
