@@ -1,28 +1,23 @@
-import argparse
-import copy
-import datetime
 import os
-import pickle
+import os
 import random
-import time
 from collections import deque
 from sys import exit
 from typing import Dict, Any
 
 import numpy as np
 import torch
-#torch.multiprocessing.set_start_method('spawn')#, force=True)
+# torch.multiprocessing.set_start_method('spawn')#, force=True)
 import wandb
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
-from sklearn.model_selection import ParameterGrid, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 from torch_geometric.data import DataLoader
-from xgboost import XGBClassifier
 
-from datasets import BrainDataset, create_hcp_correlation_vals, create_ukb_corrs_flatten, HCPDataset, UKBDataset
+from datasets import BrainDataset, HCPDataset, UKBDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
-    get_best_model_paths, SweepType, DatasetType, get_freer_gpu
+    SweepType, DatasetType, get_freer_gpu
 
 
 def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
@@ -62,7 +57,8 @@ def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
     # len(train_loader.dataset) gives the number of graphs
 
     # Returning a weighted average according to number of graphs
-    return loss_all / len(train_loader.dataset), loss_all_link / len(train_loader.dataset), loss_all_ent / len(train_loader.dataset)
+    return loss_all / len(train_loader.dataset), loss_all_link / len(train_loader.dataset), loss_all_ent / len(
+        train_loader.dataset)
 
 
 def return_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_value=None, ent_loss_value=None):
@@ -84,7 +80,7 @@ def return_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_va
             }
 
 
-def evaluate_classifier(model, loader, pooling_mechanism, device, save_path_preds=None):
+def evaluate_classifier(model, loader, pooling_mechanism, device):
     model.eval()
     criterion = torch.nn.BCELoss()
 
@@ -121,9 +117,9 @@ def evaluate_classifier(model, loader, pooling_mechanism, device, save_path_pred
     predictions = np.hstack(predictions)
     labels = np.hstack(labels)
 
-    if save_path_preds is not None:
-        np.save('results/l_' + save_path_preds, labels)
-        np.save('results/p_' + save_path_preds, predictions)
+    # if save_path_preds is not None:
+    #    np.save('results/l_' + save_path_preds, labels)
+    #    np.save('results/p_' + save_path_preds, predictions)
 
     pred_binary = np.where(predictions > 0.5, 1, 0)
 
@@ -145,13 +141,15 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
                             train_metrics['acc'], val_metrics['acc'],
                             train_metrics['f1'], val_metrics['f1']))
     wandb.log({
-        'train_loss': loss, 'val_loss': val_metrics['loss'],
-        'train_auc': train_metrics['auc'], 'val_auc': val_metrics['auc'],
-        'train_acc': train_metrics['acc'], 'val_acc': val_metrics['acc'],
-        'train_sens': train_metrics['sensitivity'], 'val_sens': val_metrics['sensitivity'],
-        'train_spec': train_metrics['specificity'], 'val_spec': val_metrics['specificity'],
-        'train_f1': train_metrics['f1'], 'val_f1': val_metrics['f1']
-        })
+        f'train_loss{inner_split_no}': loss, f'val_loss{inner_split_no}': val_metrics['loss'],
+        f'train_auc{inner_split_no}': train_metrics['auc'], f'val_auc{inner_split_no}': val_metrics['auc'],
+        f'train_acc{inner_split_no}': train_metrics['acc'], f'val_acc{inner_split_no}': val_metrics['acc'],
+        f'train_sens{inner_split_no}': train_metrics['sensitivity'],
+        f'val_sens{inner_split_no}': val_metrics['sensitivity'],
+        f'train_spec{inner_split_no}': train_metrics['specificity'],
+        f'val_spec{inner_split_no}': val_metrics['specificity'],
+        f'train_f1{inner_split_no}': train_metrics['f1'], f'val_f1{inner_split_no}': val_metrics['f1']
+    })
     if pooling_mechanism == PoolingStrategy.DIFFPOOL:
         wandb.log({
             'train_link_loss': link_loss, 'val_link_loss': val_metrics['link_loss'],
@@ -222,12 +220,13 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> BrainDataset:
     #                                                       binarise=True, threshold=param_threshold)
     return dataset
 
+
 def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
     if run_cfg['param_encoding_strategy'] != EncodingStrategy.NONE:
         if run_cfg['param_encoding_strategy'] == EncodingStrategy.AE3layers:
-            pass #from encoders import AE  # Necessary to torch.load
+            pass  # from encoders import AE  # Necessary to torch.load
         elif run_cfg['param_encoding_strategy'] == EncodingStrategy.VAE3layers:
-            pass #from encoders import VAE  # Necessary to torch.load
+            pass  # from encoders import VAE  # Necessary to torch.load
         encoding_model = torch.load(create_best_encoder_name(ts_length=run_cfg['time_length'],
                                                              outer_split_num=outer_split_num,
                                                              encoder_name=run_cfg['param_encoding_strategy'].value))
@@ -254,7 +253,9 @@ def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
     #    model = XGBClassifier(n_jobs=-1, seed=1111, random_state=1111, **params)
     return model
 
-def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: SpatioTemporalModel, X_train_in: BrainDataset, X_val_in: BrainDataset) -> Dict:
+
+def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: SpatioTemporalModel,
+                 X_train_in: BrainDataset, X_val_in: BrainDataset) -> Dict:
     train_in_loader = DataLoader(X_train_in, batch_size=run_cfg['batch_size'], shuffle=True, **kwargs_dataloader)
     val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
 
@@ -281,7 +282,7 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
     best_model_metrics = {'loss': 9999}
 
     last_losses_val = deque([9999 for _ in range(run_cfg['early_stop_steps'])], maxlen=run_cfg['early_stop_steps'])
-    for epoch in range(run_cfg['num_epochs']):
+    for epoch in range(run_cfg['num_epochs'] + 1):
         val_metrics = classifier_step(out_fold_num,
                                       in_fold_num,
                                       epoch,
@@ -308,17 +309,42 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
                 best_model_metrics['link_loss'] = val_metrics['link_loss']
 
             # wandb.unwatch()#[model])
-            #torch.save(model, model_names['loss'])
+            # torch.save(model, model_names['loss'])
             torch.save(model.state_dict(), model_saving_path)
     wandb.unwatch()
     return best_model_metrics
+
+
+def get_empty_metrics_dict() -> Dict[str, list]:
+    return {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': [],
+            'ent_loss': [], 'link_loss': []
+            }
+
+
+def send_inner_loop_metrics_to_wandb(overall_metrics: Dict[str, list], run_cfg: Dict[str, Any]):
+    for key, values in overall_metrics.items():
+        wandb.run.summary[f"mean_val_{key}"] = np.mean(values)
+        wandb.run.summary[f"std_val_{key}"] = np.std(values)
+        wandb.run.summary[f"values_val_{key}"] = values
+
+
+def update_overall_metrics(overall_metrics: Dict[str, list], inner_fold_metrics: Dict[str, float],
+                           run_cfg: Dict[str, Any]):
+    for key, value in inner_fold_metrics.items():
+        overall_metrics[key].append(value)
+
+
+def send_global_results(test_metrics: Dict[str, float]):
+    for key, value in test_metrics.items():
+        wandb.run.summary[f"values_test_{key}"] = value
+
 
 if __name__ == '__main__':
     # Because of strange bug with symbolic links in server
     os.environ['WANDB_DISABLE_CODE'] = 'true'
     wandb.init()
     config = wandb.config
-    #torch.device(config.device)
+    # torch.device(config.device)
     print('Config file from wandb:', config)
 
     # import warnings
@@ -413,23 +439,20 @@ if __name__ == '__main__':
     print("Positive classes:", sum([data.y.item() for data in X_train_out]),
           "/", sum([data.y.item() for data in X_test_out]))
 
-
-    #train_out_loader = DataLoader(X_train_out, batch_size=batch_size, shuffle=True, **kwargs_dataloader)
-    test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
-
     skf_inner_generator = create_fold_generator(X_train_out, run_cfg['num_nodes'], N_INNER_SPLITS)
 
     #################
     # Main inner-loop
     #################
-    # TODO: create create_empty_metrics()
-    overall_metrics = {}
+    overall_metrics = get_empty_metrics_dict()
     inner_loop_run = 0
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1
 
         if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
             model = generate_st_model(run_cfg)
+        else:
+            model = None
 
         X_train_in = X_train_out[torch.tensor(inner_train_index)]
         X_val_in = X_train_out[torch.tensor(inner_val_index)]
@@ -445,22 +468,18 @@ if __name__ == '__main__':
                                               X_train_in=X_train_in,
                                               X_val_in=X_val_in)
 
+            update_overall_metrics(overall_metrics, inner_fold_metrics, run_cfg)
 
+    send_inner_loop_metrics_to_wandb(overall_metrics, run_cfg)
 
-        wandb.run.summary["best_val_loss"] = best_metrics_run['loss']
-        wandb.run.summary["corresponding_val_sens"] = best_metrics_run['sensitivity']
-        wandb.run.summary["corresponding_val_spec"] = best_metrics_run['specificity']
-        wandb.run.summary["corresponding_val_acc"] = best_metrics_run['acc']
-        wandb.run.summary["corresponding_val_f1"] = best_metrics_run['f1']
-        wandb.run.summary["corresponding_val_auc"] = best_metrics_run['auc']
-        if run_cfg['param_pooling'] == PoolingStrategy.DIFFPOOL:
-            best_metrics_run['corresponding_ent_loss'] = best_metrics_run['ent_loss']
-            best_metrics_run['corresponding_link_loss'] = best_metrics_run['link_loss']
+    # Calculating already on test set for quicker reporting
+    test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
+    print('Overall inner loop results:', overall_metrics)
 
+    test_metrics = evaluate_classifier(model, test_out_loader, run_cfg['param_pooling'], run_cfg['device_run'])
+    print(test_metrics)
 
-        break  # Just one inner "loop"
-
-# TODO: report test set.
-
-
-
+    print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+          ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                    test_metrics['sensitivity'], test_metrics['specificity']))
+    send_global_results(test_metrics)
