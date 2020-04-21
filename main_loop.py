@@ -50,7 +50,7 @@ def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
             loss_all_link += loss_b_link.item() * data.num_graphs
             loss_all_ent += loss_b_ent.item() * data.num_graphs
         optimizer.step()
-    print("GRAD", np.mean(grads['final_l']), np.std(grads['final_l']))
+    print("GRAD", np.mean(grads['final_l']), np.max(grads['final_l']), np.std(grads['final_l']))
     # len(train_loader) gives the number of batches
     # len(train_loader.dataset) gives the number of graphs
 
@@ -322,15 +322,14 @@ def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy) -> Dict[str, list
     return tmp_dict
 
 
-def send_inner_loop_metrics_to_wandb(overall_metrics: Dict[str, list], run_cfg: Dict[str, Any]):
+def send_inner_loop_metrics_to_wandb(overall_metrics: Dict[str, list]):
     for key, values in overall_metrics.items():
         wandb.run.summary[f"mean_val_{key}"] = np.mean(values)
         wandb.run.summary[f"std_val_{key}"] = np.std(values)
         wandb.run.summary[f"values_val_{key}"] = values
 
 
-def update_overall_metrics(overall_metrics: Dict[str, list], inner_fold_metrics: Dict[str, float],
-                           run_cfg: Dict[str, Any]):
+def update_overall_metrics(overall_metrics: Dict[str, list], inner_fold_metrics: Dict[str, float]):
     for key, value in inner_fold_metrics.items():
         overall_metrics[key].append(value)
 
@@ -343,16 +342,12 @@ def send_global_results(test_metrics: Dict[str, float]):
 if __name__ == '__main__':
     # Because of strange bug with symbolic links in server
     os.environ['WANDB_DISABLE_CODE'] = 'true'
+
     wandb.init()
     config = wandb.config
-    # torch.device(config.device)
     print('Config file from wandb:', config)
 
-    # import warnings
-    # warnings.filterwarnings("ignore")
     torch.manual_seed(1)
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
     np.random.seed(1111)
     random.seed(1111)
     torch.cuda.manual_seed_all(1111)
@@ -470,9 +465,9 @@ if __name__ == '__main__':
                                               X_train_in=X_train_in,
                                               X_val_in=X_val_in)
 
-            update_overall_metrics(overall_metrics, inner_fold_metrics, run_cfg)
+            update_overall_metrics(overall_metrics, inner_fold_metrics)
 
-    send_inner_loop_metrics_to_wandb(overall_metrics, run_cfg)
+    send_inner_loop_metrics_to_wandb(overall_metrics)
 
     # Calculating already on test set for quicker reporting
     test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)

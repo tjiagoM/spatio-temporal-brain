@@ -57,8 +57,8 @@ parameters:
       - 40
   lr:
     distribution: log_uniform
-    max: 0
-    min: -13.815510557964274
+    max: -4.605170185988091
+    min: -16.11809565095832
   normalisation:
     distribution: categorical
     values:
@@ -74,4 +74,4 @@ parameters:
   weight_decay:
     distribution: log_uniform
     max: 0
-    min: -12.206072645530174
+    min: -16.11809565095832

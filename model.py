@@ -113,7 +113,7 @@ class SpatioTemporalModel(nn.Module):
                  add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '6'
+        self.VERSION = '61'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
             print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT")
@@ -134,6 +134,7 @@ class SpatioTemporalModel(nn.Module):
             self.multimodal_batch = BatchNorm1d(self.multimodal_size)
         if encoding_model is None:
             self.NODE_EMBED_SIZE = 128
+            #self.NODE_EMBED_SIZE = 26
             self.encoder_name = 'None'
         else:
             self.NODE_EMBED_SIZE = encoding_model.EMBED_SIZE

@@ -1,10 +1,12 @@
 #
 # From https://github.com/locuslab/TCN/blob/master/TCN/tcn.py
+# Adapted to have strides and batchnorm
 #
 
 import torch.nn as nn
-from torch.nn.utils import weight_norm
 from math import ceil
+from torch.nn import BatchNorm1d
+
 
 class Chomp1d(nn.Module):
     def __init__(self, chomp_size):
@@ -16,23 +18,26 @@ class Chomp1d(nn.Module):
 
 
 class StridedTemporalBlock(nn.Module):
-    def __init__(self, n_inputs, n_hidden, n_outputs, kernel_size, stride, dilation, padding, final_output, dropout=0.2):
+    def __init__(self, n_inputs, n_hidden, n_outputs, kernel_size, stride, dilation, padding, final_output,
+                 dropout=0.2):
         super(StridedTemporalBlock, self).__init__()
         self.stride = stride
-        self.conv1 = weight_norm(nn.Conv1d(n_inputs, n_hidden, kernel_size,
-                                           stride=stride, padding=padding, dilation=dilation))
-        self.chomp1 = Chomp1d(int(padding/stride))
+        self.conv1 = nn.Conv1d(n_inputs, n_hidden, kernel_size,
+                               stride=stride, padding=padding, dilation=dilation)
+        self.batch1 = BatchNorm1d(n_hidden)
+        self.chomp1 = Chomp1d(int(padding / stride))
         self.relu1 = nn.ReLU()
         self.dropout1 = nn.Dropout(dropout)
 
-        self.conv2 = weight_norm(nn.Conv1d(n_hidden, n_outputs, kernel_size,
-                                           stride=stride, padding=padding, dilation=dilation))
-        self.chomp2 = Chomp1d(int(padding/stride))
+        self.conv2 = nn.Conv1d(n_hidden, n_outputs, kernel_size,
+                               stride=stride, padding=padding, dilation=dilation)
+        self.batch2 = BatchNorm1d(n_outputs)
+        self.chomp2 = Chomp1d(int(padding / stride))
         self.relu2 = nn.ReLU()
         self.dropout2 = nn.Dropout(dropout)
 
-        self.net = nn.Sequential(self.conv1, self.chomp1, self.relu1, self.dropout1,
-                                 self.conv2, self.chomp2, self.relu2, self.dropout2)
+        self.net = nn.Sequential(self.conv1, self.chomp1, self.relu1, self.batch1, self.dropout1,
+                                 self.conv2, self.chomp2, self.relu2, self.batch2, self.dropout2)
         self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None
         self.residual_downsample = nn.AdaptiveAvgPool1d(final_output)
         self.relu = nn.ReLU()
@@ -61,11 +66,12 @@ class TemporalConvNet(nn.Module):
         for i in range(0, num_levels - 1, 2):
             previous_final = ceil(previous_final / (stride * 2))
             dilation_size = 2 ** i
-            in_channels = num_inputs if i == 0 else num_channels[i-1]
+            in_channels = num_inputs if i == 0 else num_channels[i - 1]
             hidden_channels = num_channels[i]
-            out_channels = num_channels[i+1]
-            layers += [StridedTemporalBlock(in_channels, hidden_channels, out_channels, kernel_size, stride=stride, dilation=dilation_size,
-                                            padding=(kernel_size-1) * dilation_size, dropout=dropout,
+            out_channels = num_channels[i + 1]
+            layers += [StridedTemporalBlock(in_channels, hidden_channels, out_channels, kernel_size, stride=stride,
+                                            dilation=dilation_size,
+                                            padding=(kernel_size - 1) * dilation_size, dropout=dropout,
                                             final_output=previous_final)]
 
         self.network = nn.Sequential(*layers)
