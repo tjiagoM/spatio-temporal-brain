@@ -1,26 +1,26 @@
 method: bayes
 metric:
   goal: minimize
-  name: best_val_loss
-name: st_376_gender_4_fmri_diff_pool
+  name: mean_val_loss
+name: st_hcp_multi_gender_1_struct_none_no_gnn
 program: main_loop.py
 parameters:
-  device:
-    value: cuda:1
+  dataset_type:
+    value: hcp
   sweep_type:
-    value: diff_pool
+    value: no_gnn
   fold_num:
-    value: 4
+    value: 1
   conn_type:
-    value: fmri
+    value: struct
   batch_size:
-    value: 100
+    value: 300
   analysis_type:
-    value: spatiotemporal
+    value: st_multimodal
   num_epochs:
     value: 100
   num_nodes:
-    value: 376
+    value: 68
   activation:
     distribution: categorical
     values:
@@ -30,7 +30,6 @@ parameters:
   conv_strategy:
     distribution: categorical
     values:
-    - entire
     - tcn_entire
   dropout:
     distribution: uniform
@@ -42,10 +41,18 @@ parameters:
     distribution: categorical
     values:
     - none
+  gnn_type:
+    value: none
+  num_gnn_layers:
+    value: 0
+  threshold:
+    distribution: categorical
+    values:
+      - 5
   lr:
     distribution: log_uniform
-    max: 0
-    min: -13.815510557964274
+    max: -4.605170185988091
+    min: -16.11809565095832
   normalisation:
     distribution: categorical
     values:
@@ -53,23 +60,12 @@ parameters:
   pooling:
     distribution: categorical
     values:
-    - diff_pool
-  gnn_type:
-    value: diffpool
-  threshold:
-    distribution: categorical
-    values:
-    - 5
-    - 20
-  num_gnn_layers:
-    value: 0
-  remove_disconnected_nodes:
-    value: false
+    - mean
   target_var:
     value: gender
   time_length:
-    value: 490
+    value: 1200
   weight_decay:
     distribution: log_uniform
     max: 0
-    min: -12.206072645530174
+    min: -16.11809565095832

@@ -244,7 +244,7 @@ def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
                                 encoding_model=encoding_model,
                                 multimodal_size=run_cfg['multimodal_size']
                                 ).to(run_cfg['device_run'])
-    #wandb.watch(model)
+    wandb.watch(model, log='all')
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Number of trainable params:", trainable_params)
     # elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
@@ -343,7 +343,7 @@ if __name__ == '__main__':
     # Because of strange bug with symbolic links in server
     os.environ['WANDB_DISABLE_CODE'] = 'true'
 
-    wandb.init()
+    wandb.init(entity='st-team')
     config = wandb.config
     print('Config file from wandb:', config)
 
