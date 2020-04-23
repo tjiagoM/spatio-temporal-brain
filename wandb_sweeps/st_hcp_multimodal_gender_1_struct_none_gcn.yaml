@@ -14,7 +14,7 @@ parameters:
   conn_type:
     value: struct
   batch_size:
-    value: 300
+    value: 250
   analysis_type:
     value: st_multimodal
   num_epochs:

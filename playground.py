@@ -8,7 +8,7 @@ from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvSt
     EncodingStrategy, \
     create_best_encoder_name, AnalysisType, DatasetType
 
-device = 'cuda:0'
+device = 'cuda:1'
 
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
@@ -102,6 +102,61 @@ for data in train_loader:
     # len(train_loader.dataset) gives the number of graphs
 
 exit()
+
+#############################################################
+#
+#pip install nolds
+#
+#git clone https://github.com/raphaelvallat/entropy.git entropy/
+#cd entropy/
+#pip install -r requirements.txt
+#python setup.py develop
+# (I had to install numba through conda in order for entropy to work)
+
+from scipy.stats import skew, kurtosis
+from entropy import app_entropy, perm_entropy, sample_entropy, spectral_entropy, svd_entropy, \
+    detrended_fluctuation, higuchi_fd, katz_fd, petrosian_fd
+import nolds
+
+timeseries = dataset[0].x[:, 10:].numpy()
+
+# Size: (68,)
+means = timeseries.mean(axis=1)
+variances = timeseries.std(axis=1)
+mins = timeseries.min(axis=1)
+maxs = timeseries.max(axis=1)
+skewnesses = skew(timeseries, axis=1)
+kurtos = kurtosis(timeseries, axis=1, bias=False)
+# Approximate entropy
+entro_app = np.apply_along_axis(app_entropy, 1, timeseries)
+# Permutation Entropy
+entro_perm = np.apply_along_axis(perm_entropy, 1, timeseries, normalize=True)
+# Sample Entropy
+entro_sample = np.apply_along_axis(sample_entropy, 1, timeseries)
+# Spectral Entropy with Fourier Transform
+entro_spectr = np.apply_along_axis(spectral_entropy, 1, timeseries, sf=1, normalize=True)
+# Singular Value Decomposition entropy
+entro_svd = np.apply_along_axis(svd_entropy, 1, timeseries, normalize=True)
+# Detrended fluctuation analysis (DFA)
+fractal_dfa = np.apply_along_axis(detrended_fluctuation, 1, timeseries)
+# Higuchi Fractal Dimension
+fractal_higuchi = np.apply_along_axis(higuchi_fd, 1, timeseries)
+# Katz Fractal Dimension.
+fractal_katz = np.apply_along_axis(katz_fd, 1, timeseries)
+# Petrosian fractal dimension
+fractal_petro = np.apply_along_axis(petrosian_fd, 1, timeseries)
+# Hurst Exponent
+hursts = np.apply_along_axis(nolds.hurst_rs, 1, timeseries)
+
+
+
+
+
+
+
+#########################
+
+
 
 #unique_people = []
 #unique_y = []
