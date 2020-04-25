@@ -8,7 +8,13 @@ from numpy.random import default_rng
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
-from utils import Normalisation, ConnType, AnalysisType
+from scipy.stats import skew, kurtosis
+from entropy import app_entropy, perm_entropy, sample_entropy, spectral_entropy, svd_entropy, \
+    detrended_fluctuation, higuchi_fd, katz_fd, petrosian_fd
+import nolds
+
+
+from utils import Normalisation, ConnType, AnalysisType, EncodingStrategy
 from utils_datasets import OLD_NETMATS_PEOPLE, DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, UKB_IDS_PATH, UKB_PHENOTYPE_PATH, \
     UKB_TIMESERIES_PATH, UKB_ADJ_ARR_PATH, NODE_FEATURES_NAMES, STRUCT_COLUMNS
 
@@ -74,6 +80,40 @@ def random_downsample(data_list: list) -> list:
 
     return data_list
 
+def calculate_stats_features(timeseries: np.ndarray) -> np.ndarray:
+    assert timeseries.shape[1] > timeseries.shape[0]
+    means = timeseries.mean(axis=1)
+    variances = timeseries.std(axis=1)
+    mins = timeseries.min(axis=1)
+    maxs = timeseries.max(axis=1)
+    skewnesses = skew(timeseries, axis=1)
+    kurtos = kurtosis(timeseries, axis=1, bias=False)
+    # Approximate entropy
+    entro_app = np.apply_along_axis(app_entropy, 1, timeseries)
+    # Permutation Entropy
+    entro_perm = np.apply_along_axis(perm_entropy, 1, timeseries, normalize=True)
+    # Sample Entropy
+    entro_sample = np.apply_along_axis(sample_entropy, 1, timeseries)
+    # Spectral Entropy with Fourier Transform
+    entro_spectr = np.apply_along_axis(spectral_entropy, 1, timeseries, sf=1, normalize=True)
+    # Singular Value Decomposition entropy
+    entro_svd = np.apply_along_axis(svd_entropy, 1, timeseries, normalize=True)
+    # Detrended fluctuation analysis (DFA)
+    fractal_dfa = np.apply_along_axis(detrended_fluctuation, 1, timeseries)
+    # Higuchi Fractal Dimension
+    fractal_higuchi = np.apply_along_axis(higuchi_fd, 1, timeseries)
+    # Katz Fractal Dimension.
+    fractal_katz = np.apply_along_axis(katz_fd, 1, timeseries)
+    # Petrosian fractal dimension
+    fractal_petro = np.apply_along_axis(petrosian_fd, 1, timeseries)
+    # Hurst Exponent
+    hursts = np.apply_along_axis(nolds.hurst_rs, 1, timeseries)
+
+    merged_stats = (means, variances, mins, maxs, skewnesses, kurtos, entro_app, entro_perm, entro_sample, entro_spectr,
+                    entro_svd, fractal_dfa, fractal_higuchi, fractal_katz, fractal_petro, hursts)
+    merged_stats = np.vstack(merged_stats).T
+    return merged_stats
+
 def normalise_timeseries(timeseries: np.ndarray, normalisation: Normalisation) -> np.ndarray:
     """
     :param normalisation:
@@ -92,8 +132,8 @@ def normalise_timeseries(timeseries: np.ndarray, normalisation: Normalisation) -
 
     return timeseries
 
-def create_thresholded_graph(adj_array: np.ndarray, threshold: int, num_nodes: int) -> nx.DiGraph:
 
+def create_thresholded_graph(adj_array: np.ndarray, threshold: int, num_nodes: int) -> nx.DiGraph:
     adj_array = threshold_adj_array(adj_array, threshold, num_nodes)
 
     return nx.from_numpy_array(adj_array, create_using=nx.DiGraph)
@@ -101,7 +141,8 @@ def create_thresholded_graph(adj_array: np.ndarray, threshold: int, num_nodes: i
 
 class BrainDataset(InMemoryDataset, ABC):
     def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
-                 normalisation: Normalisation, analysis_type: AnalysisType, time_length,
+                 normalisation: Normalisation, analysis_type: AnalysisType, time_length: int,
+                 encoding_strategy: EncodingStrategy,
                  transform=None, pre_transform=None):
         if threshold < 0 or threshold > 100:
             print("NOT A VALID threshold!")
@@ -117,6 +158,7 @@ class BrainDataset(InMemoryDataset, ABC):
         self.threshold: int = threshold
         self.normalisation: Normalisation = normalisation
         self.analysis_type: AnalysisType = analysis_type
+        self.encoding_strategy: EncodingStrategy = encoding_strategy
 
         super(BrainDataset, self).__init__(root, transform, pre_transform)
 
@@ -131,7 +173,8 @@ class BrainDataset(InMemoryDataset, ABC):
 
 class HCPDataset(BrainDataset):
     def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
-                 normalisation: Normalisation, analysis_type: AnalysisType, time_length=1200,
+                 normalisation: Normalisation, analysis_type: AnalysisType, time_length: int = 1200,
+                 encoding_strategy: EncodingStrategy = EncodingStrategy.NONE,
                  transform=None, pre_transform=None):
 
         if target_var not in ['gender']:
@@ -151,6 +194,7 @@ class HCPDataset(BrainDataset):
         super(HCPDataset, self).__init__(root, target_var=target_var, num_nodes=num_nodes, threshold=threshold,
                                          connectivity_type=connectivity_type, normalisation=normalisation,
                                          analysis_type=analysis_type, time_length=time_length,
+                                         encoding_strategy=encoding_strategy,
                                          transform=transform, pre_transform=pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
@@ -162,6 +206,13 @@ class HCPDataset(BrainDataset):
         assert ts.shape[0] > ts.shape[1]  # TS > N
 
         timeseries = normalise_timeseries(timeseries=ts, normalisation=self.normalisation)
+
+        if self.encoding_strategy == EncodingStrategy.STATS:
+            assert timeseries.shape == (self.num_nodes, self.time_length)
+            timeseries = calculate_stats_features(timeseries)
+            assert timeseries.shape == (self.num_nodes, 16)
+            timeseries[np.isnan(timeseries)] = 0
+            assert not np.isnan(timeseries).any()
 
         if self.analysis_type == AnalysisType.ST_UNIMODAL:
             x = torch.tensor(timeseries, dtype=torch.float)
@@ -260,6 +311,9 @@ class UKBDataset(BrainDataset):
     @property
     def processed_file_names(self):
         return ['data_ukb_brain.dataset']
+
+    #################################################
+    # TODO: Make the .id to all the covariates (.sex, .age, .bmi.... for the covariates stratification)
 
     def process(self):
         # Read data into huge `Data` list.

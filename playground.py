@@ -13,7 +13,7 @@ device = 'cuda:1'
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
-THRESHOLD = 5
+THRESHOLD = 40
 SPLIT_TO_TEST = 1
 ADD_GCN = False
 ADD_GAT = False
@@ -27,38 +27,43 @@ CHANNELS_CONV = 8
 NORMALISATION = Normalisation('subject_norm')
 TIME_LENGTH = 1200
 ENCODING_STRATEGY = EncodingStrategy('none')
+DATASET_TYPE = DatasetType.HCP
+ANALYSIS_TYPE = AnalysisType.ST_MULTIMODAL
+MULTIMODAL_SIZE = 10
 
 torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True
 #torch.backends.cudnn.benchmark = False
 
-name_dataset = create_name_for_brain_dataset(num_nodes=68,
-                                                 time_length=1200,
-                                                 target_var='gender',
-                                                 threshold=5,
+name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
+                                                 time_length=TIME_LENGTH,
+                                                 target_var=TARGET_VAR,
+                                                 threshold=THRESHOLD,
                                                  normalisation=Normalisation.SUBJECT,
                                                  connectivity_type=ConnType.STRUCT,
-                                                 analysis_type=AnalysisType.ST_MULTIMODAL,
-                                                 dataset_type=DatasetType.HCP)
+                                                 analysis_type=ANALYSIS_TYPE,
+                                             encoding_strategy=ENCODING_STRATEGY,
+                                                 dataset_type=DATASET_TYPE)
 
 class_dataset = HCPDataset
 
 dataset = class_dataset(root=name_dataset,
-                            target_var='gender',
-                            num_nodes=68,
-                            threshold=5,
+                            target_var=TARGET_VAR,
+                            num_nodes=NUM_NODES,
+                            threshold=THRESHOLD,
                             connectivity_type=ConnType.STRUCT,
                             normalisation=Normalisation.SUBJECT,
-                            analysis_type=AnalysisType.ST_MULTIMODAL,
-                            time_length=1200)
-if ENCODING_STRATEGY != EncodingStrategy.NONE:
-    from encoders import AE # Necessary to load
-    encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
-                                                         outer_split_num=SPLIT_TO_TEST,
-                                                         encoder_name=ENCODING_STRATEGY.value))
-else:
-    encoding_model = None
-
+                            analysis_type=ANALYSIS_TYPE,
+                        encoding_strategy=ENCODING_STRATEGY,
+                            time_length=TIME_LENGTH)
+#if ENCODING_STRATEGY != EncodingStrategy.NONE:
+#    from encoders import AE # Necessary to load
+#    encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
+#                                                         outer_split_num=SPLIT_TO_TEST,
+#                                                         encoder_name=ENCODING_STRATEGY.value))
+#else:
+#    encoding_model = None
+encoding_model = None
 model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                                 dropout_perc=0.3,
                                 pooling=POOLING,
@@ -71,7 +76,8 @@ model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                                 final_sigmoid=True,
                                 num_nodes=NUM_NODES,
                                 num_gnn_layers=0,
-                                multimodal_size=10,
+                                multimodal_size=MULTIMODAL_SIZE,
+                            encoding_strategy=ENCODING_STRATEGY,
                                 encoding_model=None
                                 ).to(device)
 pytorch_total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -148,7 +154,10 @@ fractal_petro = np.apply_along_axis(petrosian_fd, 1, timeseries)
 # Hurst Exponent
 hursts = np.apply_along_axis(nolds.hurst_rs, 1, timeseries)
 
-
+merged_stats = (means, variances, mins, maxs, skewnesses, kurtos, entro_app, entro_perm, entro_sample, entro_spectr,
+                entro_svd, fractal_dfa, fractal_higuchi, fractal_katz, fractal_petro, hursts)
+merged_stats = np.vstack(merged_stats).T
+assert merged_stats.shape == (68, 16)
 
 
 

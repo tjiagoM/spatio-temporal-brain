@@ -98,37 +98,47 @@ class DiffPoolLayer(torch.nn.Module):
 
 class SpatioTemporalModel(nn.Module):
     def __init__(self, num_time_length: int, dropout_perc: float, pooling: PoolingStrategy, channels_conv: int,
-                 activation: str, conv_strategy: ConvStrategy, encoding_model=None,
-                 num_gnn_layers=1, gat_heads=0, multimodal_size=0,
-                 add_gat=False, add_gcn=False, final_sigmoid=True, num_nodes=None):
+                 activation: str, conv_strategy: ConvStrategy, num_gnn_layers: int = 1, gat_heads: int = 0,
+                 multimodal_size: int = 0,
+                 encoding_strategy: EncodingStrategy = EncodingStrategy.NONE, encoding_model=None,
+                 add_gat: bool = False, add_gcn: bool = False, final_sigmoid: bool = True, num_nodes: int = None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '61'
+        self.VERSION = '62'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
-            print("THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT")
+            print('THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT')
             exit(-1)
-        if conv_strategy not in [ConvStrategy.TCN_ENTIRE, ConvStrategy.CNN_ENTIRE]:
-            print("THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/TCN_ENTIRE")
+        if conv_strategy not in [ConvStrategy.TCN_ENTIRE, ConvStrategy.CNN_ENTIRE, ConvStrategy.NONE]:
+            print('THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/TCN_ENTIRE/NONE')
             exit(-1)
         if activation not in ['relu', 'tanh', 'elu']:
-            print("THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh/elu")
+            print('THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh/elu')
             exit(-1)
         if add_gat and add_gcn:
-            print("You cannot have both GCN and GAT")
+            print('You cannot have both GCN and GAT')
+            exit(-1)
+        if conv_strategy != ConvStrategy.NONE and encoding_strategy not in [EncodingStrategy.NONE,
+                                                                            EncodingStrategy.STATS]:
+            print('Mismatch on conv_strategy/encoding_strategy')
             exit(-1)
 
-        self.multimodal_size = multimodal_size
+        self.multimodal_size: int = multimodal_size
+        self.TEMPORAL_EMBED_SIZE: int = 16
+        self.NODE_EMBED_SIZE = self.TEMPORAL_EMBED_SIZE + self.multimodal_size
+
         if self.multimodal_size > 0:
             self.multimodal_lin = nn.Linear(self.multimodal_size, self.multimodal_size)
             self.multimodal_batch = BatchNorm1d(self.multimodal_size)
-        if encoding_model is None:
-            self.NODE_EMBED_SIZE = 26
-            self.encoder_name = 'None'
-        else:
-            self.NODE_EMBED_SIZE = encoding_model.EMBED_SIZE
-            self.encoder_name = encoding_model.MODEL_NAME
+
+        self.encoding_strategy = encoding_strategy
         self.encoder_model = encoding_model
+        if encoding_model is not None:
+            self.NODE_EMBED_SIZE = self.encoding_model.EMBED_SIZE
+
+        if self.encoding_strategy == EncodingStrategy.STATS:
+            self.stats_lin = nn.Linear(self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
+            self.stats_batch = BatchNorm1d(self.TEMPORAL_EMBED_SIZE)
 
         self.dropout = dropout_perc
         self.pooling = pooling
@@ -171,9 +181,7 @@ class SpatioTemporalModel(nn.Module):
                                          concat=False,
                                          dropout=dropout_perc)
 
-        if self.encoder_model is not None:
-            pass  # Just it does not go to convolutions
-        elif self.conv_strategy == ConvStrategy.TCN_ENTIRE:
+        if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
             self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.NODE_EMBED_SIZE - self.multimodal_size)
 
@@ -227,14 +235,13 @@ class SpatioTemporalModel(nn.Module):
 
         if self.multimodal_size > 0:
             xn, x = x[:, :self.multimodal_size], x[:, self.multimodal_size:]
-            xn = xn.view(-1, self.multimodal_size)
-            xn = self.multimodal_lin(xn)
             xn = self.multimodal_batch(xn)
+            xn = self.multimodal_lin(xn)
             xn = self.activation(xn)
             xn = F.dropout(xn, p=self.dropout, training=self.training)
 
-        # Temporal Convolutions
-        if self.encoder_model is None:
+        # Processing temporal part
+        if self.conv_strategy != ConvStrategy.NONE:
             x = x.view(-1, 1, self.num_time_length)
             x = self.temporal_conv(x)
 
@@ -243,14 +250,19 @@ class SpatioTemporalModel(nn.Module):
             x = self.lin_temporal(x)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
-
-            if self.multimodal_size > 0:
-                x = torch.cat((xn, x), dim=1)
-        elif self.encoder_name == EncodingStrategy.VAE3layers.value:
+        elif self.encoding_strategy == EncodingStrategy.STATS:
+            x = self.stats_lin(x)
+            x = self.activation(x)
+            x = self.stats_batch(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        elif self.encoding_strategy == EncodingStrategy.VAE3layers:
             mu, logvar = self.encoder_model.encode(x)
             x = self.encoder_model.reparameterize(mu, logvar)
-        else:
+        elif self.encoding_strategy == EncodingStrategy.AE3layers:
             x = self.encoder_model.encode(x)
+
+        if self.multimodal_size > 0:
+            x = torch.cat((xn, x), dim=1)
 
         if self.add_gcn or self.add_gat:
             x = self.gnn_conv1(x, edge_index)
@@ -280,7 +292,7 @@ class SpatioTemporalModel(nn.Module):
 
         if self.final_sigmoid:
             return torch.sigmoid(x) if self.pooling != PoolingStrategy.DIFFPOOL else (
-            torch.sigmoid(x), link_loss, ent_loss)
+                torch.sigmoid(x), link_loss, ent_loss)
         else:
             return x if self.pooling != PoolingStrategy.DIFFPOOL else (x, link_loss, ent_loss)
 
@@ -297,7 +309,7 @@ class SpatioTemporalModel(nn.Module):
                       'GA_' + str(self.add_gat)[:1],
                       'GH_' + str(self.gat_heads),
                       'GL_' + str(self.num_gnn_layers),
-                      'E_' + str(self.encoder_name),
+                      'E_' + self.encoding_strategy.value[:3],
                       'M_' + str(self.multimodal_size)
                       ]
 

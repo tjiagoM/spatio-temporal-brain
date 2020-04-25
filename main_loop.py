@@ -196,6 +196,7 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> BrainDataset:
                                                  normalisation=run_cfg['param_normalisation'],
                                                  connectivity_type=run_cfg['param_conn_type'],
                                                  analysis_type=run_cfg['analysis_type'],
+                                                 encoding_strategy=run_cfg['param_encoding_strategy'],
                                                  dataset_type=run_cfg['dataset_type'])
     print("Going for", name_dataset)
     class_dataset = HCPDataset if run_cfg['dataset_type'] == DatasetType.HCP else UKBDataset
@@ -206,6 +207,7 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> BrainDataset:
                             connectivity_type=run_cfg['param_conn_type'],
                             normalisation=run_cfg['param_normalisation'],
                             analysis_type=run_cfg['analysis_type'],
+                            encoding_strategy=run_cfg['param_encoding_strategy'],
                             time_length=run_cfg['time_length'])
     # if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
     #    if num_nodes == 376:
@@ -219,7 +221,10 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> BrainDataset:
 
 
 def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
-    if run_cfg['param_encoding_strategy'] != EncodingStrategy.NONE:
+
+    if run_cfg['param_encoding_strategy'] in [EncodingStrategy.NONE, EncodingStrategy.STATS]:
+        encoding_model = None
+    else:
         if run_cfg['param_encoding_strategy'] == EncodingStrategy.AE3layers:
             pass  # from encoders import AE  # Necessary to torch.load
         elif run_cfg['param_encoding_strategy'] == EncodingStrategy.VAE3layers:
@@ -227,8 +232,7 @@ def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
         encoding_model = torch.load(create_best_encoder_name(ts_length=run_cfg['time_length'],
                                                              outer_split_num=outer_split_num,
                                                              encoder_name=run_cfg['param_encoding_strategy'].value))
-    else:
-        encoding_model = None
+
     model = SpatioTemporalModel(num_time_length=run_cfg['time_length'],
                                 dropout_perc=run_cfg['param_dropout'],
                                 pooling=run_cfg['param_pooling'],
@@ -241,6 +245,7 @@ def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
                                 final_sigmoid=run_cfg['model_with_sigmoid'],
                                 num_nodes=run_cfg['num_nodes'],
                                 num_gnn_layers=run_cfg['param_num_gnn_layers'],
+                                encoding_strategy=run_cfg['param_encoding_strategy'],
                                 encoding_model=encoding_model,
                                 multimodal_size=run_cfg['multimodal_size']
                                 ).to(run_cfg['device_run'])

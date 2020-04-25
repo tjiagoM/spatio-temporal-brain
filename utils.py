@@ -43,6 +43,7 @@ class ConnType(str, Enum):
 class ConvStrategy(str, Enum):
     CNN_ENTIRE = 'entire'
     TCN_ENTIRE = 'tcn_entire'
+    NONE = 'none'
 
 
 @unique
@@ -67,9 +68,11 @@ class AnalysisType(str, Enum):
 
 @unique
 class EncodingStrategy(str, Enum):
+    # 3 first letters need to be different (for logging)
     NONE = 'none'
     AE3layers = '3layerAE'
     VAE3layers = '3layerVAE'
+    STATS = 'stats'
 
 
 def get_freer_gpu():
@@ -86,33 +89,15 @@ def merge_y_and_others(ys, indices):
 
 def create_name_for_brain_dataset(num_nodes: int, time_length: int, target_var: str, threshold: int,
                                   connectivity_type: ConnType, normalisation: Normalisation,
-                                  analysis_type: AnalysisType, dataset_type: DatasetType):
+                                  analysis_type: AnalysisType, dataset_type: DatasetType,
+                                  encoding_strategy: EncodingStrategy):
     prefix_location = './pytorch_data/unbalanced_'
 
     name_combination = '_'.join(
-        [target_var, dataset_type.value, analysis_type.value, connectivity_type.value, str(num_nodes), str(time_length),
-         str(threshold), normalisation.value])
+        [target_var, dataset_type.value, analysis_type.value, encoding_strategy.value, connectivity_type.value,
+         str(num_nodes), str(time_length), str(threshold), normalisation.value])
 
     return prefix_location + name_combination
-
-
-def get_best_model_paths(analysis_type, num_nodes, time_length, target_var,
-                         fold_num, conn_type, num_epochs,
-                         sweep_type,
-                         first_time=False,
-                         prefix_location='logs/'):
-    m_name = '_'.join([analysis_type, str(num_nodes), str(time_length), target_var,
-                       str(fold_num), conn_type, sweep_type, str(num_epochs)])
-
-    loss_val = prefix_location + m_name + '_loss.npy'
-    model_name = prefix_location + m_name + '_name.txt'
-
-    if (not os.path.exists(loss_val)) or first_time:
-        np.save(file=loss_val, arr=np.array([9999.99], dtype=float))
-        with open(model_name, 'w') as f:
-            f.write('None')
-
-    return loss_val, model_name
 
 
 def create_best_encoder_name(ts_length, outer_split_num, encoder_name,
@@ -136,8 +121,7 @@ def create_name_for_encoder_model(ts_length, outer_split_num, encoder_name,
 def create_name_for_model(target_var: str, model, outer_split_num: int,
                           inner_split_num: int, n_epochs: int, threshold: int, batch_size: int, num_nodes: int,
                           conn_type: ConnType, normalisation: Normalisation, analysis_type: AnalysisType,
-                          metric_evaluated: str, dataset_type: DatasetType,
-                          lr=None, weight_decay=None,
+                          metric_evaluated: str, dataset_type: DatasetType, lr=None, weight_decay=None,
                           prefix_location='logs/',
                           suffix='.pth') -> str:
     if analysis_type in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL]:
