@@ -15,7 +15,7 @@ from datasets import BrainDataset, HCPDataset, UKBDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
-    SweepType, DatasetType, get_freer_gpu
+    SweepType, DatasetType, get_freer_gpu, free_gpu_info
 
 
 def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
@@ -485,3 +485,6 @@ if __name__ == '__main__':
           ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
                     test_metrics['sensitivity'], test_metrics['specificity']))
     send_global_results(test_metrics)
+
+    if run_cfg['device_run'] == 'cuda:0':
+        free_gpu_info()

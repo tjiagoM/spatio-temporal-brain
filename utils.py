@@ -1,10 +1,9 @@
-import os
 import random
 from collections import Counter, defaultdict
 from enum import Enum, unique
-from typing import Union
-from xgboost import XGBClassifier
+from typing import NoReturn
 
+import fcntl
 import numpy as np
 import torch
 from sklearn.preprocessing import LabelEncoder
@@ -75,10 +74,40 @@ class EncodingStrategy(str, Enum):
     STATS = 'stats'
 
 
-def get_freer_gpu():
-    os.system('nvidia-smi -q -d Memory |grep -A4 GPU|grep Free >tmp_gpu')
-    memory_available = [int(x.split()[2]) for x in open('tmp_gpu', 'r').readlines()]
-    return np.argmax(memory_available)
+def get_freer_gpu() -> int:
+    """
+    Considers that there is only GPU 0 and 1.
+    :return:
+    """
+    # This option is not preventing when GPUs not being used yet
+    # os.system('nvidia-smi -q -d Memory |grep -A4 GPU|grep Free >tmp_gpu')
+    # memory_available = [int(x.split()[2]) for x in open('tmp_gpu', 'r').readlines()]
+    # return np.argmax(memory_available)
+    print('Getting free GPU info...')
+    gpu_to_use: int = 0
+    with open('tmp_gpu.txt', 'r+') as fd:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        print('Editing GPU file info!')
+        # Someone is using GPU 0 already
+        if fd.read() == '0':
+            gpu_to_use = 1
+        else:
+            # Inform gpu 0 is now reserved
+            fd.seek(0)
+            fd.write('0')
+            fd.truncate()
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
+    return gpu_to_use
+
+
+def free_gpu_info() -> NoReturn:
+    with open('tmp_gpu.txt', 'r+') as fd:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        fd.seek(0)
+        fd.write('')
+        fd.truncate()
+        fcntl.flock(fd, fcntl.LOCK_UN)
 
 
 def merge_y_and_others(ys, indices):
