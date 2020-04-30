@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
+from nilearn.connectome import ConnectivityMeasure
 from numpy.random import default_rng
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
@@ -318,6 +319,35 @@ class UKBDataset(BrainDataset):
     def process(self):
         # Read data into huge `Data` list.
         data_list: list[Data] = []
+
+        filtered_people = np.load('meta_data/ukb_ids.npy')
+        main_covars = pd.read_csv('meta_data/Main_Covars.csv').set_index('ID')
+
+        conn_measure = ConnectivityMeasure(
+            kind='correlation',
+            vectorize=False)
+        for person in filtered_people:
+            ts = np.loadtxt(f'../uk_biobank_dataset/desikan_ts/ts_raw/UKB{person}_ts_raw.txt', delimiter=',')
+            if ts.shape[0] < 84:
+                continue
+            elif ts.shape[1] == 523:
+                ts = ts[:, :490]
+            assert ts.shape == (84, 490)
+
+            # Getting last 68 cortical regions
+            ts = ts[-68:, :]
+            corr_mat = conn_measure.fit_transform([ts.T])
+            assert corr_mat.shape == (1, 68, 68)
+            corr_mat = corr_mat[0]
+
+            a.loc[filtered_people[0], 'Sex']
+            a.loc[filtered_people[0], 'BMI.at.scan']
+            a.loc[filtered_people[0], 'Age.at.scan']
+
+
+
+
+            ######
 
         filtered_people = np.load(UKB_IDS_PATH)  # start simple for comparison
 
