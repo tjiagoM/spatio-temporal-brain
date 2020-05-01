@@ -334,8 +334,8 @@ class UKBDataset(BrainDataset):
             y = torch.tensor([covars.loc[person, 'Sex']], dtype=torch.float)
         data = Data(x=x, edge_index=edge_index, y=y)
         data.ukb_id = torch.tensor([person])
-        data.bmi = covars.loc[person, 'BMI.at.scan']
-        data.age = covars.loc[person, 'Age.at.scan']
+        data.bmi = torch.tensor([covars.loc[person, 'BMI.at.scan']])
+        data.age = torch.tensor([covars.loc[person, 'Age.at.scan']])
 
         return data
 

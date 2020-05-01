@@ -4,7 +4,9 @@ from collections import deque
 from sys import exit
 from typing import Dict, Any
 
+from sklearn.preprocessing import LabelEncoder
 import numpy as np
+import pandas as pd
 import torch
 import wandb
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
@@ -181,9 +183,22 @@ def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, num_
                                   merged_labels,
                                   groups=[data.hcp_id.item() for data in dataset])
     else:
+        # UKB stratification over sex, age, and BMI (needs discretisation first)
+        ys = []
+        bmis = []
+        ages = []
+        for data in dataset:
+            ys.append(data.y.item())
+            bmis.append(data.bmi.item())
+            ages.append(data.age.item())
+        bmis = pd.qcut(bmis, 7, labels=False)
+        bmis[np.isnan(bmis)] = 7
+        ages = pd.qcut(ages, 7, labels=False)
+        strat_labels = LabelEncoder().fit_transform([f'{ys[i]}{ages[i]}{bmis[i]}' for i in range(len(dataset))])
+
         skf = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=1111)
         skf_generator = skf.split(np.zeros((len(dataset), 1)),
-                                  np.array([data.y.item() for data in dataset]))
+                                  strat_labels)
 
     return skf_generator
 
@@ -359,29 +374,28 @@ if __name__ == '__main__':
 
     # Making a single variable for each argument
     run_cfg: Dict[str, Any] = {
-        'device_run': f'cuda:{get_freer_gpu()}',
-        'num_epochs': config.num_epochs,
-        'target_var': config.target_var,
-        'model_with_sigmoid': True,
-        'param_activation': config.activation,
-        'split_to_test': config.fold_num,
+        'analysis_type': AnalysisType(config.analysis_type),
         'batch_size': config.batch_size,
+        'dataset_type': DatasetType(config.dataset_type),
+        'device_run': f'cuda:{get_freer_gpu()}',
+        'early_stop_steps': config.early_stop_steps,
+        'model_with_sigmoid': True,
+        'num_epochs': config.num_epochs,
         'num_nodes': config.num_nodes,
+        'param_activation': config.activation,
+        'param_channels_conv': config.channels_conv,
         'param_conn_type': ConnType(config.conn_type),
         'param_conv_strategy': ConvStrategy(config.conv_strategy),
-        'param_channels_conv': config.channels_conv,
-        'param_normalisation': Normalisation(config.normalisation),
-        'analysis_type': AnalysisType(config.analysis_type),
-        'dataset_type': DatasetType(config.dataset_type),
-        'time_length': config.time_length,
-        'param_encoding_strategy': EncodingStrategy(config.encoding_strategy),
-        'early_stop_steps': config.early_stop_steps,
         'param_dropout': config.dropout,
-        'param_weight_decay': config.weight_decay,
+        'param_encoding_strategy': EncodingStrategy(config.encoding_strategy),
         'param_lr': config.lr,
-        'param_threshold': config.threshold,
+        'param_normalisation': Normalisation(config.normalisation),
         'param_num_gnn_layers': config.num_gnn_layers,
-        'multimodal_size': 10
+        'param_threshold': config.threshold,
+        'param_weight_decay': config.weight_decay,
+        'split_to_test': config.fold_num,
+        'target_var': config.target_var,
+        'time_length': config.time_length,
     }
     run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
 
@@ -407,7 +421,7 @@ if __name__ == '__main__':
     N_INNER_SPLITS = 5
 
     # Handling inputs and what is possible
-    if run_cfg['analysis_type'] not in [AnalysisType.ST_MULTIMODAL]:
+    if run_cfg['analysis_type'] not in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL]:
         print('Not yet ready for this analysis type at the moment')
         exit(-1)
 
@@ -417,6 +431,11 @@ if __name__ == '__main__':
         exit(-1)
     else:
         print('Predicting', run_cfg)
+
+    if run_cfg['analysis_type'] == AnalysisType.ST_MULTIMODAL:
+        run_cfg['multimodal_size'] = 10
+    elif run_cfg['analysis_type'] == AnalysisType.ST_UNIMODAL:
+        run_cfg['multimodal_size'] = 0
 
     # DATASET
     dataset = generate_dataset(run_cfg)

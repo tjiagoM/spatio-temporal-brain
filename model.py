@@ -104,7 +104,7 @@ class SpatioTemporalModel(nn.Module):
                  add_gat: bool = False, add_gcn: bool = False, final_sigmoid: bool = True, num_nodes: int = None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '62'
+        self.VERSION = '63'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
             print('THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT')
@@ -234,9 +234,9 @@ class SpatioTemporalModel(nn.Module):
 
         if self.multimodal_size > 0:
             xn, x = x[:, :self.multimodal_size], x[:, self.multimodal_size:]
-            xn = self.multimodal_batch(xn)
             xn = self.multimodal_lin(xn)
             xn = self.activation(xn)
+            xn = self.multimodal_batch(xn)
             xn = F.dropout(xn, p=self.dropout, training=self.training)
 
         # Processing temporal part

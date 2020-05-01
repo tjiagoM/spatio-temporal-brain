@@ -2,7 +2,7 @@ import torch
 from torch_geometric.data import DataLoader, DenseDataLoader
 import numpy as np
 
-from datasets import BrainDataset, HCPDataset
+from datasets import BrainDataset, HCPDataset, UKBDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, \
     EncodingStrategy, \
@@ -13,7 +13,7 @@ device = 'cuda:1'
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
-THRESHOLD = 40
+THRESHOLD = 5
 SPLIT_TO_TEST = 1
 ADD_GCN = False
 ADD_GAT = False
@@ -25,11 +25,11 @@ CONV_STRATEGY = ConvStrategy('tcn_entire')
 POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('subject_norm')
-TIME_LENGTH = 1200
+TIME_LENGTH = 490
 ENCODING_STRATEGY = EncodingStrategy('none')
-DATASET_TYPE = DatasetType.HCP
-ANALYSIS_TYPE = AnalysisType.ST_MULTIMODAL
-MULTIMODAL_SIZE = 10
+DATASET_TYPE = DatasetType.UKB
+ANALYSIS_TYPE = AnalysisType.ST_UNIMODAL
+MULTIMODAL_SIZE = 0
 
 torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True
@@ -41,18 +41,18 @@ name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
                                                  target_var=TARGET_VAR,
                                                  threshold=THRESHOLD,
                                                  normalisation=Normalisation.SUBJECT,
-                                                 connectivity_type=ConnType.STRUCT,
+                                                 connectivity_type=ConnType.FMRI,
                                                  analysis_type=ANALYSIS_TYPE,
                                              encoding_strategy=ENCODING_STRATEGY,
                                                  dataset_type=DATASET_TYPE)
 
-class_dataset = HCPDataset
+class_dataset = UKBDataset
 
 dataset = class_dataset(root=name_dataset,
                             target_var=TARGET_VAR,
                             num_nodes=NUM_NODES,
                             threshold=THRESHOLD,
-                            connectivity_type=ConnType.STRUCT,
+                            connectivity_type=ConnType.FMRI,
                             normalisation=Normalisation.SUBJECT,
                             analysis_type=ANALYSIS_TYPE,
                         encoding_strategy=ENCODING_STRATEGY,
@@ -83,6 +83,29 @@ model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                                 ).to(device)
 pytorch_total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print(pytorch_total_trainable_params)
+
+## For UKB
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+ys = []
+bmis = []
+ages = []
+
+for data in dataset:
+    ys.append(data.y.item())
+    bmis.append(data.bmi.item())
+    ages.append(data.age.item())
+
+bmis_e = pd.qcut(bmis, 7, labels=False)
+bmis_e[np.isnan(bmis_e)] = 7
+ages_e = pd.qcut(ages, 7, labels=False)
+
+tmp = [f'{ys[i]}{ages_e[i]}{bmis_e[i]}' for i in range(len(dataset))]
+
+strat_labels = LabelEncoder().fit_transform(tmp)
+
+######
+
 
 train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
