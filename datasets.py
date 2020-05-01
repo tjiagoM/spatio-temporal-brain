@@ -1,19 +1,17 @@
 from abc import ABC
 
 import networkx as nx
+import nolds
 import numpy as np
 import pandas as pd
 import torch
-from nilearn.connectome import ConnectivityMeasure
-from numpy.random import default_rng
-from sklearn.preprocessing import RobustScaler
-from torch_geometric.data import InMemoryDataset, Data
-
-from scipy.stats import skew, kurtosis
 from entropy import app_entropy, perm_entropy, sample_entropy, spectral_entropy, svd_entropy, \
     detrended_fluctuation, higuchi_fd, katz_fd, petrosian_fd
-import nolds
-
+from nilearn.connectome import ConnectivityMeasure
+from numpy.random import default_rng
+from scipy.stats import skew, kurtosis
+from sklearn.preprocessing import RobustScaler
+from torch_geometric.data import InMemoryDataset, Data
 
 from utils import Normalisation, ConnType, AnalysisType, EncodingStrategy
 from utils_datasets import OLD_NETMATS_PEOPLE, DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, UKB_IDS_PATH, UKB_PHENOTYPE_PATH, \
@@ -81,6 +79,7 @@ def random_downsample(data_list: list) -> list:
 
     return data_list
 
+
 def calculate_stats_features(timeseries: np.ndarray) -> np.ndarray:
     assert timeseries.shape[1] > timeseries.shape[0]
     means = timeseries.mean(axis=1)
@@ -114,6 +113,7 @@ def calculate_stats_features(timeseries: np.ndarray) -> np.ndarray:
                     entro_svd, fractal_dfa, fractal_higuchi, fractal_katz, fractal_petro, hursts)
     merged_stats = np.vstack(merged_stats).T
     return merged_stats
+
 
 def normalise_timeseries(timeseries: np.ndarray, normalisation: Normalisation) -> np.ndarray:
     """
@@ -315,7 +315,30 @@ class UKBDataset(BrainDataset):
     def processed_file_names(self):
         return ['data_ukb_brain.dataset']
 
-    #################################################
+    def __create_data_object(self, person: int, ts: np.ndarray, covars: pd.DataFrame, edge_index: torch.Tensor):
+        assert ts.shape[0] > ts.shape[1]  # TS > N
+
+        timeseries = normalise_timeseries(timeseries=ts, normalisation=self.normalisation)
+
+        if self.encoding_strategy == EncodingStrategy.STATS:
+            assert timeseries.shape == (self.num_nodes, self.time_length)
+            timeseries = calculate_stats_features(timeseries)
+            assert timeseries.shape == (self.num_nodes, 16)
+            timeseries[np.isnan(timeseries)] = 0
+            assert not np.isnan(timeseries).any()
+
+        if self.analysis_type == AnalysisType.ST_UNIMODAL:
+            x = torch.tensor(timeseries, dtype=torch.float)
+
+        if self.target_var == 'gender':
+            y = torch.tensor([covars.loc[person, 'Sex']], dtype=torch.float)
+        data = Data(x=x, edge_index=edge_index, y=y)
+        data.ukb_id = torch.tensor([person])
+        data.bmi = covars.loc[person, 'BMI.at.scan']
+        data.age = covars.loc[person, 'Age.at.scan']
+
+        return data
+
     def process(self):
         # Read data into huge `Data` list.
         data_list: list[Data] = []
@@ -328,6 +351,10 @@ class UKBDataset(BrainDataset):
             vectorize=False)
 
         for person in filtered_people:
+            if person in [1663368, 3443644]:
+                # No information in Covars file
+                continue
+
             if self.connectivity_type == ConnType.FMRI:
                 ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
                 if ts.shape[0] < 84:
@@ -345,18 +372,10 @@ class UKBDataset(BrainDataset):
                 assert corr_arr.shape == (1, 68, 68)
                 corr_arr = corr_arr[0]
 
-                G = self.__create_thresholded_graph(corr_arr)
+                G = create_thresholded_graph(corr_arr, threshold=self.threshold, num_nodes=self.num_nodes)
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
-                timeseries = self.__normalise_timeseries(ts)
-                x = torch.tensor(timeseries, dtype=torch.float)
-
-                if self.target_var == 'gender':
-                    y = torch.tensor([main_covars.loc[person, 'Sex']], dtype=torch.float)
-                data = Data(x=x, edge_index=edge_index, y=y)
-                data.ukb_id = torch.tensor([person])
-                data.bmi = main_covars.loc[person, 'BMI.at.scan']
-                data.age = main_covars.loc[person, 'Age.at.scan']
+                data = self.__create_data_object(person=person, ts=ts, edge_index=edge_index, covars=main_covars)
                 data_list.append(data)
 
         data, slices = self.collate(data_list)
@@ -367,7 +386,7 @@ def create_ukb_corrs_flatten(num_nodes=376):
     final_dict = {}
 
     for person in np.load(UKB_IDS_PATH):
-        corr_arr = None#np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
+        corr_arr = None  # np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
 
         # Getting upper triangle only (without diagonal)
         flatten_array = corr_arr[np.triu_indices(num_nodes, k=1)]
