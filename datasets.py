@@ -17,7 +17,7 @@ import nolds
 
 from utils import Normalisation, ConnType, AnalysisType, EncodingStrategy
 from utils_datasets import OLD_NETMATS_PEOPLE, DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, UKB_IDS_PATH, UKB_PHENOTYPE_PATH, \
-    UKB_TIMESERIES_PATH, UKB_ADJ_ARR_PATH, NODE_FEATURES_NAMES, STRUCT_COLUMNS
+    UKB_TIMESERIES_PATH, NODE_FEATURES_NAMES, STRUCT_COLUMNS
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
@@ -365,7 +365,7 @@ def create_ukb_corrs_flatten(num_nodes=376):
     final_dict = {}
 
     for person in np.load(UKB_IDS_PATH):
-        corr_arr = np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
+        corr_arr = None#np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
 
         # Getting upper triangle only (without diagonal)
         flatten_array = corr_arr[np.triu_indices(num_nodes, k=1)]
