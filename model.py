@@ -125,7 +125,7 @@ class SpatioTemporalModel(nn.Module):
 
         self.multimodal_size: int = multimodal_size
         self.TEMPORAL_EMBED_SIZE: int = 16
-        self.NODE_EMBED_SIZE = self.TEMPORAL_EMBED_SIZE + self.multimodal_size
+        self.NODE_EMBED_SIZE: int = self.TEMPORAL_EMBED_SIZE + self.multimodal_size
 
         if self.multimodal_size > 0:
             self.multimodal_lin = nn.Linear(self.multimodal_size, self.multimodal_size)
@@ -140,7 +140,7 @@ class SpatioTemporalModel(nn.Module):
             self.stats_lin = nn.Linear(self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
             self.stats_batch = BatchNorm1d(self.TEMPORAL_EMBED_SIZE)
 
-        self.dropout = dropout_perc
+        self.dropout: float = dropout_perc
         self.pooling = pooling
         dict_activations = {'relu': nn.ReLU(),
                             'elu': nn.ELU(),
@@ -152,7 +152,6 @@ class SpatioTemporalModel(nn.Module):
         self.num_nodes = num_nodes
 
         self.channels_conv = channels_conv
-        self.final_channels = 1 if channels_conv == 1 else channels_conv * 2
         self.final_sigmoid = final_sigmoid
         self.add_gcn = add_gcn
         self.add_gat = add_gat

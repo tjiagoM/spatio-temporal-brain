@@ -314,66 +314,48 @@ class UKBDataset(BrainDataset):
         return ['data_ukb_brain.dataset']
 
     #################################################
-    # TODO: Make the .id to all the covariates (.sex, .age, .bmi.... for the covariates stratification)
-
     def process(self):
         # Read data into huge `Data` list.
         data_list: list[Data] = []
 
-        filtered_people = np.load('meta_data/ukb_ids.npy')
-        main_covars = pd.read_csv('meta_data/Main_Covars.csv').set_index('ID')
+        filtered_people = np.load(UKB_IDS_PATH)
+        main_covars = pd.read_csv(UKB_PHENOTYPE_PATH).set_index('ID')
 
         conn_measure = ConnectivityMeasure(
             kind='correlation',
             vectorize=False)
+
         for person in filtered_people:
-            ts = np.loadtxt(f'../uk_biobank_dataset/desikan_ts/ts_raw/UKB{person}_ts_raw.txt', delimiter=',')
-            if ts.shape[0] < 84:
-                continue
-            elif ts.shape[1] == 523:
-                ts = ts[:, :490]
-            assert ts.shape == (84, 490)
+            if self.connectivity_type == ConnType.FMRI:
+                ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
+                if ts.shape[0] < 84:
+                    continue
+                elif ts.shape[1] == 523:
+                    ts = ts[:, :490]
+                assert ts.shape == (84, 490)
 
-            # Getting last 68 cortical regions
-            ts = ts[-68:, :]
-            corr_mat = conn_measure.fit_transform([ts.T])
-            assert corr_mat.shape == (1, 68, 68)
-            corr_mat = corr_mat[0]
+                # Getting only the last 68 cortical regions
+                ts = ts[-68:, :]
+                # For normalisation part and connectivity
+                ts = ts.T
 
-            a.loc[filtered_people[0], 'Sex']
-            a.loc[filtered_people[0], 'BMI.at.scan']
-            a.loc[filtered_people[0], 'Age.at.scan']
+                corr_arr = conn_measure.fit_transform([ts])
+                assert corr_arr.shape == (1, 68, 68)
+                corr_arr = corr_arr[0]
 
+                G = self.__create_thresholded_graph(corr_arr)
+                edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
+                timeseries = self.__normalise_timeseries(ts)
+                x = torch.tensor(timeseries, dtype=torch.float)
 
-
-            ######
-
-        filtered_people = np.load(UKB_IDS_PATH)  # start simple for comparison
-
-        info_df = pd.read_csv(UKB_PHENOTYPE_PATH, delimiter=',').set_index('eid')['31-0.0']
-        info_df = info_df.apply(lambda x: 1 if x == 'Male' else 0)
-
-        ##########
-        for person in filtered_people:
-            ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
-            if ts.shape[1] == 523:
-                ts = ts[:, :490]
-            # For normalisation part
-            ts = ts.T
-
-            corr_arr = np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
-            G = self.__create_thresholded_graph(corr_arr)
-            edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
-
-            timeseries = self.__normalise_timeseries(ts)
-            x = torch.tensor(timeseries, dtype=torch.float)
-
-            if self.target_var == 'gender':
-                y = torch.tensor([info_df.loc[person]], dtype=torch.float)
-            data = Data(x=x, edge_index=edge_index, y=y)
-            data.ukb_id = torch.tensor([person])
-            data_list.append(data)
+                if self.target_var == 'gender':
+                    y = torch.tensor([main_covars.loc[person, 'Sex']], dtype=torch.float)
+                data = Data(x=x, edge_index=edge_index, y=y)
+                data.ukb_id = torch.tensor([person])
+                data.bmi = main_covars.loc[person, 'BMI.at.scan']
+                data.age = main_covars.loc[person, 'Age.at.scan']
+                data_list.append(data)
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])

@@ -1,9 +1,8 @@
 import os
 
 UKB_IDS_PATH = os.path.join('meta_data', 'ukb_ids.npy')
-UKB_TIMESERIES_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'ts_raw')
-UKB_ADJ_ARR_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'cache_adj_arrs')
-UKB_PHENOTYPE_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'phenotype.csv')
+UKB_TIMESERIES_PATH = os.path.join(os.pardir, 'uk_biobank_dataset', 'desikan_ts', 'ts_raw')
+UKB_PHENOTYPE_PATH = os.path.join('meta_data', 'Main_Covars.csv')
 
 STRUCT_COLUMNS = ['l_bankssts', 'l_caudalanteriorcingulate', 'l_caudalmiddlefrontal', 'l_cuneus', 'l_entorhinal',
                   'l_fusiform', 'l_inferiorparietal', 'l_inferiortemporal', 'l_isthmuscingulate', 'l_lateraloccipital',
