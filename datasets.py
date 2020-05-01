@@ -291,6 +291,7 @@ class HCPDataset(BrainDataset):
 class UKBDataset(BrainDataset):
     def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
                  normalisation: Normalisation, analysis_type: AnalysisType, time_length=490,
+                 encoding_strategy: EncodingStrategy = EncodingStrategy.NONE,
                  transform=None, pre_transform=None):
 
         if target_var not in ['gender']:
@@ -306,6 +307,7 @@ class UKBDataset(BrainDataset):
         super(UKBDataset, self).__init__(root, target_var=target_var, num_nodes=num_nodes, threshold=threshold,
                                          connectivity_type=connectivity_type, normalisation=normalisation,
                                          analysis_type=analysis_type, time_length=time_length, transform=transform,
+                                         encoding_strategy=encoding_strategy,
                                          pre_transform=pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
