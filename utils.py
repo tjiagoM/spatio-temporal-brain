@@ -87,11 +87,12 @@ def get_freer_gpu() -> int:
     gpu_to_use: int = 0
     with open('tmp_gpu.txt', 'r+') as fd:
         fcntl.flock(fd, fcntl.LOCK_EX)
-        print('Editing GPU file info!')
         # Someone is using GPU 0 already
         if fd.read() == '0':
+            print('GPU 0 already in use')
             gpu_to_use = 1
         else:
+            print('Reserving GPU 0')
             # Inform gpu 0 is now reserved
             fd.seek(0)
             fd.write('0')
@@ -102,6 +103,7 @@ def get_freer_gpu() -> int:
 
 
 def free_gpu_info() -> NoReturn:
+    print('Freeing GPU 0!')
     with open('tmp_gpu.txt', 'r+') as fd:
         fcntl.flock(fd, fcntl.LOCK_EX)
         fd.seek(0)

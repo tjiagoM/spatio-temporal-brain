@@ -4,13 +4,13 @@ from collections import deque
 from sys import exit
 from typing import Dict, Any
 
-from sklearn.preprocessing import LabelEncoder
 import numpy as np
 import pandas as pd
 import torch
 import wandb
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
 from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader
 
 from datasets import BrainDataset, HCPDataset, UKBDataset
@@ -235,8 +235,7 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> BrainDataset:
     return dataset
 
 
-def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
-
+def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> SpatioTemporalModel:
     if run_cfg['param_encoding_strategy'] in [EncodingStrategy.NONE, EncodingStrategy.STATS]:
         encoding_model = None
     else:
@@ -264,9 +263,11 @@ def generate_st_model(run_cfg: Dict[str, Any]) -> SpatioTemporalModel:
                                 encoding_model=encoding_model,
                                 multimodal_size=run_cfg['multimodal_size']
                                 ).to(run_cfg['device_run'])
-    wandb.watch(model, log='all')
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print("Number of trainable params:", trainable_params)
+
+    if not for_test:
+        wandb.watch(model, log='all')
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print("Number of trainable params:", trainable_params)
     # elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
     #    model = XGBClassifier(n_jobs=-1, seed=1111, random_state=1111, **params)
     return model
@@ -329,12 +330,12 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
             # wandb.unwatch()#[model])
             # torch.save(model, model_names['loss'])
             torch.save(model.state_dict(), model_saving_path)
-    #wandb.unwatch()
+    # wandb.unwatch()
     return best_model_metrics
 
 
 def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy) -> Dict[str, list]:
-    tmp_dict =  {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': []}
+    tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': []}
     if pooling_mechanism == PoolingStrategy.DIFFPOOL:
         tmp_dict['ent_loss'] = []
         tmp_dict['link_loss'] = []
@@ -344,9 +345,12 @@ def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy) -> Dict[str, list
 
 def send_inner_loop_metrics_to_wandb(overall_metrics: Dict[str, list]):
     for key, values in overall_metrics.items():
-        wandb.run.summary[f"mean_val_{key}"] = np.mean(values)
-        wandb.run.summary[f"std_val_{key}"] = np.std(values)
-        wandb.run.summary[f"values_val_{key}"] = values
+        if len(values) == 1:
+            wandb.run.summary[f"mean_val_{key}"] = values[0]
+        else:
+            wandb.run.summary[f"mean_val_{key}"] = np.mean(values)
+            wandb.run.summary[f"std_val_{key}"] = np.std(values)
+            wandb.run.summary[f"values_val_{key}"] = values
 
 
 def update_overall_metrics(overall_metrics: Dict[str, list], inner_fold_metrics: Dict[str, float]):
@@ -417,8 +421,8 @@ if __name__ == '__main__':
     if run_cfg['param_pooling'] == PoolingStrategy.CONCAT:
         run_cfg['batch_size'] -= 50
 
-    N_OUT_SPLITS = 5
-    N_INNER_SPLITS = 5
+    N_OUT_SPLITS: int = 5
+    N_INNER_SPLITS: int = 5
 
     # Handling inputs and what is possible
     if run_cfg['analysis_type'] not in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL]:
@@ -438,12 +442,12 @@ if __name__ == '__main__':
         run_cfg['multimodal_size'] = 0
 
     # DATASET
-    dataset = generate_dataset(run_cfg)
+    dataset: BrainDataset = generate_dataset(run_cfg)
 
     skf_outer_generator = create_fold_generator(dataset, run_cfg['dataset_type'], N_OUT_SPLITS)
 
     # Getting train / test folds
-    outer_split_num = 0
+    outer_split_num: int = 0
     for train_index, test_index in skf_outer_generator:
         outer_split_num += 1
         # Only run for the specific fold defined in the script arguments.
@@ -465,8 +469,8 @@ if __name__ == '__main__':
     #################
     # Main inner-loop
     #################
-    overall_metrics = get_empty_metrics_dict(run_cfg['param_pooling'])
-    inner_loop_run = 0
+    overall_metrics: Dict[str, list] = get_empty_metrics_dict(run_cfg['param_pooling'])
+    inner_loop_run: int = 0
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1
 
@@ -491,11 +495,38 @@ if __name__ == '__main__':
 
             update_overall_metrics(overall_metrics, inner_fold_metrics)
 
-    send_inner_loop_metrics_to_wandb(overall_metrics)
+        # One inner loop only
+        if run_cfg['dataset_type'] == DatasetType.UKB:
+            break
 
-    # Calculating already on test set for quicker reporting
-    test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
+    send_inner_loop_metrics_to_wandb(overall_metrics)
     print('Overall inner loop results:', overall_metrics)
+
+    #############################################
+    # Final metrics on test set, calculated already for being easy to get the metrics on the best model later
+    # Getting best model of the run
+    inner_fold_for_val: int = 1
+    model: SpatioTemporalModel = generate_st_model(run_cfg, for_test=True)
+    model_saving_path: str = create_name_for_model(target_var=run_cfg['target_var'],
+                                                   model=model,
+                                                   outer_split_num=run_cfg['split_to_test'],
+                                                   inner_split_num=inner_fold_for_val,
+                                                   n_epochs=run_cfg['num_epochs'],
+                                                   threshold=run_cfg['param_threshold'],
+                                                   batch_size=run_cfg['batch_size'],
+                                                   num_nodes=run_cfg['num_nodes'],
+                                                   conn_type=run_cfg['param_conn_type'],
+                                                   normalisation=run_cfg['param_normalisation'],
+                                                   analysis_type=run_cfg['analysis_type'],
+                                                   metric_evaluated='loss',
+                                                   dataset_type=run_cfg['dataset_type'],
+                                                   lr=run_cfg['param_lr'],
+                                                   weight_decay=run_cfg['param_weight_decay'])
+    model.load_state_dict(torch.load(model_saving_path))
+    model.eval()
+
+    # Calculating on test set
+    test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
 
     test_metrics = evaluate_classifier(model, test_out_loader, run_cfg['param_pooling'], run_cfg['device_run'])
     print(test_metrics)

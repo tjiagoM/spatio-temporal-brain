@@ -2,7 +2,7 @@ method: bayes
 metric:
   goal: minimize
   name: mean_val_loss
-name: st_ukb_multi_gender_1_struct_none_diff_pool
+name: st_ukb_uni_gender_1_fmri_none_diff_pool
 program: main_loop.py
 parameters:
   dataset_type:
