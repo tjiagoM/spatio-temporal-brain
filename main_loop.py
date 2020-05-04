@@ -496,8 +496,8 @@ if __name__ == '__main__':
             update_overall_metrics(overall_metrics, inner_fold_metrics)
 
         # One inner loop only
-        if run_cfg['dataset_type'] == DatasetType.UKB:
-            break
+        #if run_cfg['dataset_type'] == DatasetType.UKB:
+        #    break
 
     send_inner_loop_metrics_to_wandb(overall_metrics)
     print('Overall inner loop results:', overall_metrics)
