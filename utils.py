@@ -7,6 +7,7 @@ import fcntl
 import numpy as np
 import torch
 from sklearn.preprocessing import LabelEncoder
+from xgboost import XGBClassifier
 
 
 @unique
@@ -125,6 +126,7 @@ def merge_y_and_others(ys, indices):
                      indices.view(-1, 1)], dim=1)
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
+
 def create_name_for_flattencorrs_dataset(run_cfg: Dict[str, Any]) -> str:
     prefix_location = './pytorch_data/unbalanced_'
 
@@ -136,6 +138,7 @@ def create_name_for_flattencorrs_dataset(run_cfg: Dict[str, Any]) -> str:
                                  ])
 
     return prefix_location + name_combination
+
 
 def create_name_for_brain_dataset(num_nodes: int, time_length: int, target_var: str, threshold: int,
                                   connectivity_type: ConnType, normalisation: Normalisation,
@@ -168,6 +171,23 @@ def create_name_for_encoder_model(ts_length, outer_split_num, encoder_name,
                                        ]) + suffix
 
 
+def create_name_for_xgbmodel(run_cfg: Dict[str, Any], outer_split_num: int, model: XGBClassifier, inner_split_num: int,
+                             prefix_location='logs/', suffix='.pkl') -> str:
+    if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
+        model_str_representation = run_cfg['analysis_type'].value
+        for key in ['colsample_bylevel', 'colsample_bynode', 'colsample_bytree', 'gamma', 'learning_rate', 'max_depth',
+                    'min_child_weight', 'n_estimators', 'subsample']:
+            model_str_representation += key[-3:] + '_' + str(model.get_xgb_params()[key])
+    return prefix_location + '_'.join([run_cfg['target_var'],
+                                       run_cfg['dataset_type'].value,
+                                       str(outer_split_num),
+                                       str(inner_split_num),
+                                       model_str_representation,
+                                       str(run_cfg['num_nodes']),
+                                       run_cfg['param_conn_type'].value
+                                       ]) + suffix
+
+
 def create_name_for_model(target_var: str, model, outer_split_num: int,
                           inner_split_num: int, n_epochs: int, threshold: int, batch_size: int, num_nodes: int,
                           conn_type: ConnType, normalisation: Normalisation, analysis_type: AnalysisType,
@@ -176,11 +196,6 @@ def create_name_for_model(target_var: str, model, outer_split_num: int,
                           suffix='.pth') -> str:
     if analysis_type in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL]:
         model_str_representation = model.to_string_name()
-    elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
-        suffix = '.pkl'
-        model_str_representation = analysis_type.value
-        for key in ['min_child_weight', 'gamma', 'subsample', 'colsample_bytree', 'max_depth', 'n_estimators']:
-            model_str_representation += key[:3] + '_' + str(model.get_xgb_params()[key])
 
     return prefix_location + '_'.join([target_var,
                                        dataset_type.value,

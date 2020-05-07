@@ -466,37 +466,3 @@ class FlattenCorrsDataset(InMemoryDataset):
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
-
-
-def create_ukb_corrs_flatten(num_nodes=376):
-    final_dict = {}
-
-    for person in np.load(UKB_IDS_PATH):
-        corr_arr = None  # np.load(f'{UKB_ADJ_ARR_PATH}/{person}.npy')
-
-        # Getting upper triangle only (without diagonal)
-        flatten_array = corr_arr[np.triu_indices(num_nodes, k=1)]
-
-        final_dict[person] = flatten_array
-
-    return final_dict
-
-
-def create_hcp_correlation_vals(num_nodes=50, ts_split_num=64, binarise=False, threshold=100):
-    final_dict = {}
-
-    for person in OLD_NETMATS_PEOPLE:
-        for ind in range(ts_split_num):
-            corr_arr = np.load(get_adj_50_path(person, ind, ts_split=ts_split_num))
-
-            if binarise:
-                corr_arr = threshold_adj_array(corr_arr, threshold, num_nodes)
-            # Getting upper triangle only (without diagonal)
-            flatten_array = corr_arr[np.triu_indices(num_nodes, k=1)]
-
-            if binarise:
-                flatten_array[flatten_array != 0] = 1
-
-            final_dict[(person, ind)] = flatten_array
-
-    return final_dict

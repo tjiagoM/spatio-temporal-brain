@@ -2,22 +2,24 @@ import os
 import random
 from collections import deque
 from sys import exit
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 import numpy as np
 import pandas as pd
+import pickle
 import torch
 import wandb
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 from torch_geometric.data import DataLoader
+from xgboost import XGBClassifier
 
-from datasets import BrainDataset, HCPDataset, UKBDataset
+from datasets import BrainDataset, HCPDataset, UKBDataset, FlattenCorrsDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
-    SweepType, DatasetType, get_freer_gpu, free_gpu_info
+    SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, create_name_for_xgbmodel
 
 
 def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
@@ -159,21 +161,8 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     return val_metrics
 
 
-def get_array_data(flatten_correlations, data_fold, num_nodes=50):
-    tmp_array = []
-    tmp_y = []
-
-    for d in data_fold:
-        if num_nodes == 376:
-            tmp_array.append(flatten_correlations[d.ukb_id.item()])
-        else:
-            tmp_array.append(flatten_correlations[(d.hcp_id.item(), d.index.item())])
-        tmp_y.append(d.y.item())
-
-    return np.array(tmp_array), np.array(tmp_y)
-
-
-def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, num_splits: int):
+def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, analysis_type: AnalysisType,
+                          num_splits: int):
     if dataset_type == DatasetType.HCP:
         # Stratification will occur with regards to both the sex and session day
         skf = StratifiedGroupKFold(n_splits=num_splits, random_state=1111)
@@ -188,7 +177,10 @@ def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, num_
         bmis = []
         ages = []
         for data in dataset:
-            ys.append(data.y.item())
+            if analysis_type == AnalysisType.FLATTEN_CORRS:
+                ys.append(data.sex.item())
+            else:
+                ys.append(data.y.item())
             bmis.append(data.bmi.item())
             ages.append(data.age.item())
         bmis = pd.qcut(bmis, 7, labels=False)
@@ -203,29 +195,37 @@ def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, num_
     return skf_generator
 
 
-def generate_dataset(run_cfg: Dict[str, Any]) -> BrainDataset:
-    if run_cfg['analysis_type'] ==  AnalysisType.FLATTEN_CORRS:
-        pass
-    name_dataset = create_name_for_brain_dataset(num_nodes=run_cfg['num_nodes'],
-                                                 time_length=run_cfg['time_length'],
-                                                 target_var=run_cfg['target_var'],
-                                                 threshold=run_cfg['param_threshold'],
-                                                 normalisation=run_cfg['param_normalisation'],
-                                                 connectivity_type=run_cfg['param_conn_type'],
-                                                 analysis_type=run_cfg['analysis_type'],
-                                                 encoding_strategy=run_cfg['param_encoding_strategy'],
-                                                 dataset_type=run_cfg['dataset_type'])
-    print("Going for", name_dataset)
-    class_dataset = HCPDataset if run_cfg['dataset_type'] == DatasetType.HCP else UKBDataset
-    dataset = class_dataset(root=name_dataset,
-                            target_var=run_cfg['target_var'],
-                            num_nodes=run_cfg['num_nodes'],
-                            threshold=run_cfg['param_threshold'],
-                            connectivity_type=run_cfg['param_conn_type'],
-                            normalisation=run_cfg['param_normalisation'],
-                            analysis_type=run_cfg['analysis_type'],
-                            encoding_strategy=run_cfg['param_encoding_strategy'],
-                            time_length=run_cfg['time_length'])
+def generate_dataset(run_cfg: Dict[str, Any]) -> Union[BrainDataset, FlattenCorrsDataset]:
+    if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
+        name_dataset = create_name_for_flattencorrs_dataset(run_cfg)
+        print("Going for", name_dataset)
+        dataset = FlattenCorrsDataset(root=name_dataset,
+                                      num_nodes=run_cfg['num_nodes'],
+                                      connectivity_type=run_cfg['param_conn_type'],
+                                      analysis_type=run_cfg['analysis_type'],
+                                      dataset_type=run_cfg['dataset_type'],
+                                      time_length=run_cfg['time_length'])
+    else:
+        name_dataset = create_name_for_brain_dataset(num_nodes=run_cfg['num_nodes'],
+                                                     time_length=run_cfg['time_length'],
+                                                     target_var=run_cfg['target_var'],
+                                                     threshold=run_cfg['param_threshold'],
+                                                     normalisation=run_cfg['param_normalisation'],
+                                                     connectivity_type=run_cfg['param_conn_type'],
+                                                     analysis_type=run_cfg['analysis_type'],
+                                                     encoding_strategy=run_cfg['param_encoding_strategy'],
+                                                     dataset_type=run_cfg['dataset_type'])
+        print("Going for", name_dataset)
+        class_dataset = HCPDataset if run_cfg['dataset_type'] == DatasetType.HCP else UKBDataset
+        dataset = class_dataset(root=name_dataset,
+                                target_var=run_cfg['target_var'],
+                                num_nodes=run_cfg['num_nodes'],
+                                threshold=run_cfg['param_threshold'],
+                                connectivity_type=run_cfg['param_conn_type'],
+                                normalisation=run_cfg['param_normalisation'],
+                                analysis_type=run_cfg['analysis_type'],
+                                encoding_strategy=run_cfg['param_encoding_strategy'],
+                                time_length=run_cfg['time_length'])
     # if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
     #    if num_nodes == 376:
     #        flatten_correlations = create_ukb_corrs_flatten()
@@ -236,6 +236,20 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> BrainDataset:
     #                                                       binarise=True, threshold=param_threshold)
     return dataset
 
+def generate_xgb_model(run_cfg: Dict[str, Any], for_test: bool = False) -> XGBClassifier:
+    model =  XGBClassifier(subsample=run_cfg['subsample'],
+                         learning_rate=run_cfg['learning_rate'],
+                         max_depth=run_cfg['max_depth'],
+                         min_child_weight=run_cfg['min_child_weight'],
+                         colsample_bytree=run_cfg['colsample_bytree'],
+                         colsample_bynode=run_cfg['colsample_bynode'],
+                         colsample_bylevel=run_cfg['colsample_bylevel'],
+                         n_estimators=run_cfg['n_estimators'],
+                         gamma=run_cfg['gamma'],
+                         random_state=1111)
+    if not for_test:
+        wandb.watch(model, log='all')
+    return model
 
 def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> SpatioTemporalModel:
     if run_cfg['param_encoding_strategy'] in [EncodingStrategy.NONE, EncodingStrategy.STATS]:
@@ -275,6 +289,49 @@ def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> Spatio
     #    model = XGBClassifier(n_jobs=-1, seed=1111, random_state=1111, **params)
     return model
 
+def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: XGBClassifier,
+                 X_train_in: FlattenCorrsDataset, X_val_in: FlattenCorrsDataset) -> Dict:
+
+    model_saving_path = create_name_for_xgbmodel(model=model,
+                                                 outer_split_num=out_fold_num,
+                                                 inner_split_num=in_fold_num,
+                                                 run_cfg=run_cfg
+                                                 )
+
+    train_arr = np.array([data.x.numpy() for data in X_train_in])
+    val_arr = np.array([data.x.numpy() for data in X_val_in])
+
+    if run_cfg['target_var'] == 'gender':
+        y_train = [data.sex.item() for data in X_train_in]
+        y_val = [data.sex.item() for data in X_val_in]
+
+    model.fit(train_arr, y_train)
+
+    pickle.dump(model, open(model_saving_path, "wb"))
+
+    train_metrics = return_metrics(y_train,
+                                   model.predict_proba(train_arr)[:, 1],
+                                   model.predict(train_arr))
+    val_metrics = return_metrics(y_val,
+                                   model.predict_proba(val_arr)[:, 1],
+                                   model.predict(val_arr))
+
+    print('{:1d}-{:1d}: Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
+          ' {:.4f} '.format(out_fold_num, in_fold_num,
+                            train_metrics['auc'], val_metrics['auc'],
+                            train_metrics['acc'], val_metrics['acc'],
+                            train_metrics['f1'], val_metrics['f1']))
+    wandb.log({
+        f'train_auc{in_fold_num}': train_metrics['auc'], f'val_auc{in_fold_num}': val_metrics['auc'],
+        f'train_acc{in_fold_num}': train_metrics['acc'], f'val_acc{in_fold_num}': val_metrics['acc'],
+        f'train_sens{in_fold_num}': train_metrics['sensitivity'],
+        f'val_sens{in_fold_num}': val_metrics['sensitivity'],
+        f'train_spec{in_fold_num}': train_metrics['specificity'],
+        f'val_spec{in_fold_num}': val_metrics['specificity'],
+        f'train_f1{in_fold_num}': train_metrics['f1'], f'val_f1{in_fold_num}': val_metrics['f1']
+    })
+
+    return val_metrics
 
 def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: SpatioTemporalModel,
                  X_train_in: BrainDataset, X_val_in: BrainDataset) -> Dict:
@@ -338,9 +395,11 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
     return best_model_metrics
 
 
-def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy) -> Dict[str, list]:
+def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy = None) -> Dict[str, list]:
     tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': []}
-    if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+    if pooling_mechanism is None:
+        pass
+    elif pooling_mechanism == PoolingStrategy.DIFFPOOL:
         tmp_dict['ent_loss'] = []
         tmp_dict['link_loss'] = []
 
@@ -383,49 +442,62 @@ if __name__ == '__main__':
     # Making a single variable for each argument
     run_cfg: Dict[str, Any] = {
         'analysis_type': AnalysisType(config.analysis_type),
-        'batch_size': config.batch_size,
         'dataset_type': DatasetType(config.dataset_type),
-        'device_run': f'cuda:{get_freer_gpu()}',
-        'early_stop_steps': config.early_stop_steps,
-        'edge_weights': config.edge_weights,
-        'model_with_sigmoid': True,
-        'num_epochs': config.num_epochs,
         'num_nodes': config.num_nodes,
-        'param_activation': config.activation,
-        'param_channels_conv': config.channels_conv,
         'param_conn_type': ConnType(config.conn_type),
-        'param_conv_strategy': ConvStrategy(config.conv_strategy),
-        'param_dropout': config.dropout,
-        'param_encoding_strategy': EncodingStrategy(config.encoding_strategy),
-        'param_lr': config.lr,
-        'param_normalisation': Normalisation(config.normalisation),
-        'param_num_gnn_layers': config.num_gnn_layers,
-        'param_threshold': config.threshold,
-        'param_weight_decay': config.weight_decay,
         'split_to_test': config.fold_num,
         'target_var': config.target_var,
-        'temporal_embed_size': config.temporal_embed_size,
         'time_length': config.time_length,
     }
-    run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
+    if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
+        run_cfg['batch_size'] = config.batch_size
+        run_cfg['device_run'] = f'cuda:{get_freer_gpu()}',
+        run_cfg['early_stop_steps'] = config.early_stop_steps
+        run_cfg['edge_weights'] = config.edge_weights
+        run_cfg['model_with_sigmoid'] = True
+        run_cfg['num_epochs'] = config.num_epochs
+        run_cfg['param_activation'] = config.activation
+        run_cfg['param_channels_conv'] = config.channels_conv
+        run_cfg['param_conv_strategy'] = ConvStrategy(config.conv_strategy)
+        run_cfg['param_dropout'] = config.dropout
+        run_cfg['param_encoding_strategy'] = EncodingStrategy(config.encoding_strategy)
+        run_cfg['param_lr'] = config.lr
+        run_cfg['param_normalisation'] = Normalisation(config.normalisation),
+        run_cfg['param_num_gnn_layers'] = config.num_gnn_layers
+        run_cfg['param_threshold'] = config.threshold
+        run_cfg['param_weight_decay'] = config.weight_decay
+        run_cfg['temporal_embed_size'] = config.temporal_embed_size
 
-    # Not sure whether this makes a difference with the cuda random issues, but it was in the examples :(
-    kwargs_dataloader = {'num_workers': 1, 'pin_memory': True} if run_cfg['device_run'].startswith('cuda') else {}
+        run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
 
-    # Definitions depending on sweep_type
-    run_cfg['param_pooling'] = PoolingStrategy(config.pooling)
-    sweep_type = SweepType(config.sweep_type)
-    run_cfg['param_gat_heads'] = 0
-    run_cfg['param_add_gcn'] = False
-    run_cfg['param_add_gat'] = False
-    if sweep_type == SweepType.GCN:
-        run_cfg['param_add_gcn'] = True
-    elif sweep_type == SweepType.GAT:
-        run_cfg['param_add_gat'] = True
-        run_cfg['param_gat_heads'] = config.gat_heads
+        # Not sure whether this makes a difference with the cuda random issues, but it was in the examples :(
+        kwargs_dataloader = {'num_workers': 1, 'pin_memory': True} if run_cfg['device_run'].startswith('cuda') else {}
 
-    if run_cfg['param_pooling'] == PoolingStrategy.CONCAT:
-        run_cfg['batch_size'] -= 50
+        # Definitions depending on sweep_type
+        run_cfg['param_pooling'] = PoolingStrategy(config.pooling)
+        sweep_type = SweepType(config.sweep_type)
+        run_cfg['param_gat_heads'] = 0
+        run_cfg['param_add_gcn'] = False
+        run_cfg['param_add_gat'] = False
+        if sweep_type == SweepType.GCN:
+            run_cfg['param_add_gcn'] = True
+        elif sweep_type == SweepType.GAT:
+            run_cfg['param_add_gat'] = True
+            run_cfg['param_gat_heads'] = config.gat_heads
+
+        if run_cfg['param_pooling'] == PoolingStrategy.CONCAT:
+            run_cfg['batch_size'] -= 50
+    elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
+        run_cfg['device_run'] = 'cpu'
+        run_cfg['colsample_bylevel'] = config.colsample_bylevel
+        run_cfg['colsample_bynode'] = config.colsample_bynode
+        run_cfg['colsample_bytree'] = config.colsample_bytree
+        run_cfg['gamma'] = config.gamma
+        run_cfg['learning_rate'] = config.learning_rate
+        run_cfg['max_depth'] = config.max_depth
+        run_cfg['min_child_weight'] = config.min_child_weight
+        run_cfg['n_estimators'] = config.n_estimators
+        run_cfg['subsample'] = config.subsample
 
     N_OUT_SPLITS: int = 5
     N_INNER_SPLITS: int = 5
@@ -447,9 +519,10 @@ if __name__ == '__main__':
 
     print('Resulting run_cfg:', run_cfg)
     # DATASET
-    dataset: BrainDataset = generate_dataset(run_cfg)
+    dataset = generate_dataset(run_cfg)
 
-    skf_outer_generator = create_fold_generator(dataset, run_cfg['dataset_type'], N_OUT_SPLITS)
+    skf_outer_generator = create_fold_generator(dataset, run_cfg['dataset_type'], run_cfg['analysis_type'],
+                                                N_OUT_SPLITS)
 
     # Getting train / test folds
     outer_split_num: int = 0
@@ -466,29 +539,43 @@ if __name__ == '__main__':
 
     # Train / test sets defined, running the rest
     print("Size is:", len(X_train_out), "/", len(X_test_out))
-    print("Positive classes:", sum([data.y.item() for data in X_train_out]),
-          "/", sum([data.y.item() for data in X_test_out]))
+    if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
+        print("Positive sex classes:", sum([data.sex.item() for data in X_train_out]),
+              "/", sum([data.sex.item() for data in X_test_out]))
+    else:
+        print("Positive classes:", sum([data.y.item() for data in X_train_out]),
+              "/", sum([data.y.item() for data in X_test_out]))
 
-    skf_inner_generator = create_fold_generator(X_train_out, run_cfg['dataset_type'], N_INNER_SPLITS)
+    skf_inner_generator = create_fold_generator(X_train_out, run_cfg['dataset_type'], run_cfg['analysis_type'],
+                                                N_INNER_SPLITS)
 
     #################
     # Main inner-loop
     #################
-    overall_metrics: Dict[str, list] = get_empty_metrics_dict(run_cfg['param_pooling'])
+    if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
+        overall_metrics: Dict[str, list] = get_empty_metrics_dict()
+    else:
+        overall_metrics: Dict[str, list] = get_empty_metrics_dict(run_cfg['param_pooling'])
     inner_loop_run: int = 0
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1
 
         if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
-            model = generate_st_model(run_cfg)
+            model: SpatioTemporalModel = generate_st_model(run_cfg)
+        elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
+            model: XGBClassifier = generate_xgb_model(run_cfg)
         else:
             model = None
 
         X_train_in = X_train_out[torch.tensor(inner_train_index)]
         X_val_in = X_train_out[torch.tensor(inner_val_index)]
         print("Inner Size is:", len(X_train_in), "/", len(X_val_in))
-        print("Inner Positive classes:", sum([data.y.item() for data in X_train_in]),
-              "/", sum([data.y.item() for data in X_val_in]))
+        if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
+            print("Inner Positive sex classes:", sum([data.sex.item() for data in X_train_in]),
+                  "/", sum([data.sex.item() for data in X_val_in]))
+        else:
+            print("Inner Positive classes:", sum([data.y.item() for data in X_train_in]),
+                  "/", sum([data.y.item() for data in X_val_in]))
 
         if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
             inner_fold_metrics = fit_st_model(out_fold_num=run_cfg['split_to_test'],
@@ -498,10 +585,17 @@ if __name__ == '__main__':
                                               X_train_in=X_train_in,
                                               X_val_in=X_val_in)
 
-            update_overall_metrics(overall_metrics, inner_fold_metrics)
+        elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
+            inner_fold_metrics = fit_xgb_model(out_fold_num=run_cfg['split_to_test'],
+                                              in_fold_num=inner_loop_run,
+                                              run_cfg=run_cfg,
+                                              model=model,
+                                              X_train_in=X_train_in,
+                                              X_val_in=X_val_in)
+        update_overall_metrics(overall_metrics, inner_fold_metrics)
 
         # One inner loop only
-        #if run_cfg['dataset_type'] == DatasetType.UKB:
+        # if run_cfg['dataset_type'] == DatasetType.UKB:
         #    break
 
     send_inner_loop_metrics_to_wandb(overall_metrics)
@@ -511,34 +605,60 @@ if __name__ == '__main__':
     # Final metrics on test set, calculated already for being easy to get the metrics on the best model later
     # Getting best model of the run
     inner_fold_for_val: int = 1
-    model: SpatioTemporalModel = generate_st_model(run_cfg, for_test=True)
-    model_saving_path: str = create_name_for_model(target_var=run_cfg['target_var'],
-                                                   model=model,
-                                                   outer_split_num=run_cfg['split_to_test'],
-                                                   inner_split_num=inner_fold_for_val,
-                                                   n_epochs=run_cfg['num_epochs'],
-                                                   threshold=run_cfg['param_threshold'],
-                                                   batch_size=run_cfg['batch_size'],
-                                                   num_nodes=run_cfg['num_nodes'],
-                                                   conn_type=run_cfg['param_conn_type'],
-                                                   normalisation=run_cfg['param_normalisation'],
-                                                   analysis_type=run_cfg['analysis_type'],
-                                                   metric_evaluated='loss',
-                                                   dataset_type=run_cfg['dataset_type'],
-                                                   lr=run_cfg['param_lr'],
-                                                   weight_decay=run_cfg['param_weight_decay'])
-    model.load_state_dict(torch.load(model_saving_path))
-    model.eval()
+    if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
+        model: SpatioTemporalModel = generate_st_model(run_cfg, for_test=True)
 
-    # Calculating on test set
-    test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
+        model_saving_path: str = create_name_for_model(target_var=run_cfg['target_var'],
+                                                       model=model,
+                                                       outer_split_num=run_cfg['split_to_test'],
+                                                       inner_split_num=inner_fold_for_val,
+                                                       n_epochs=run_cfg['num_epochs'],
+                                                       threshold=run_cfg['param_threshold'],
+                                                       batch_size=run_cfg['batch_size'],
+                                                       num_nodes=run_cfg['num_nodes'],
+                                                       conn_type=run_cfg['param_conn_type'],
+                                                       normalisation=run_cfg['param_normalisation'],
+                                                       analysis_type=run_cfg['analysis_type'],
+                                                       metric_evaluated='loss',
+                                                       dataset_type=run_cfg['dataset_type'],
+                                                       lr=run_cfg['param_lr'],
+                                                       weight_decay=run_cfg['param_weight_decay'])
+        model.load_state_dict(torch.load(model_saving_path))
+        model.eval()
 
-    test_metrics = evaluate_classifier(model, test_out_loader, run_cfg['param_pooling'], run_cfg['device_run'])
-    print(test_metrics)
+        # Calculating on test set
+        test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
 
-    print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
-          ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
-                    test_metrics['sensitivity'], test_metrics['specificity']))
+        test_metrics = evaluate_classifier(model, test_out_loader, run_cfg['param_pooling'], run_cfg['device_run'])
+        print(test_metrics)
+
+        print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+              ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                        test_metrics['sensitivity'], test_metrics['specificity']))
+    elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
+        model: XGBClassifier = generate_xgb_model(run_cfg)
+        model_saving_path = create_name_for_xgbmodel(model=model,
+                                                     outer_split_num=run_cfg['split_to_test'],
+                                                     inner_split_num=inner_fold_for_val,
+                                                     run_cfg=run_cfg
+                                                     )
+        model = pickle.load(open(model_saving_path, "rb"))
+        test_arr = np.array([data.x.numpy() for data in X_test_out])
+
+        if run_cfg['target_var'] == 'gender':
+            y_test = [data.sex.item() for data in X_test_out]
+
+        test_metrics = return_metrics(y_test,
+                                       model.predict_proba(test_arr)[:, 1],
+                                       model.predict(test_arr))
+        print(test_metrics)
+
+        print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+              ''.format(outer_split_num, test_metrics['auc'], test_metrics['acc'],
+                        test_metrics['sensitivity'], test_metrics['specificity']))
+
+
+
     send_global_results(test_metrics)
 
     if run_cfg['device_run'] == 'cuda:0':
