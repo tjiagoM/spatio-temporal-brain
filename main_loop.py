@@ -204,6 +204,8 @@ def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, num_
 
 
 def generate_dataset(run_cfg: Dict[str, Any]) -> BrainDataset:
+    if run_cfg['analysis_type'] ==  AnalysisType.FLATTEN_CORRS:
+        pass
     name_dataset = create_name_for_brain_dataset(num_nodes=run_cfg['num_nodes'],
                                                  time_length=run_cfg['time_length'],
                                                  target_var=run_cfg['target_var'],
@@ -261,7 +263,8 @@ def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> Spatio
                                 num_gnn_layers=run_cfg['param_num_gnn_layers'],
                                 encoding_strategy=run_cfg['param_encoding_strategy'],
                                 encoding_model=encoding_model,
-                                multimodal_size=run_cfg['multimodal_size']
+                                multimodal_size=run_cfg['multimodal_size'],
+                                temporal_embed_size=run_cfg['temporal_embed_size']
                                 ).to(run_cfg['device_run'])
 
     if not for_test:
@@ -296,7 +299,8 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
                                               metric_evaluated='loss',
                                               dataset_type=run_cfg['dataset_type'],
                                               lr=run_cfg['param_lr'],
-                                              weight_decay=run_cfg['param_weight_decay'])
+                                              weight_decay=run_cfg['param_weight_decay']
+                                              )
 
     best_model_metrics = {'loss': 9999}
 
@@ -383,6 +387,7 @@ if __name__ == '__main__':
         'dataset_type': DatasetType(config.dataset_type),
         'device_run': f'cuda:{get_freer_gpu()}',
         'early_stop_steps': config.early_stop_steps,
+        'edge_weights': config.edge_weights,
         'model_with_sigmoid': True,
         'num_epochs': config.num_epochs,
         'num_nodes': config.num_nodes,
@@ -399,6 +404,7 @@ if __name__ == '__main__':
         'param_weight_decay': config.weight_decay,
         'split_to_test': config.fold_num,
         'target_var': config.target_var,
+        'temporal_embed_size': config.temporal_embed_size,
         'time_length': config.time_length,
     }
     run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
@@ -433,14 +439,13 @@ if __name__ == '__main__':
     if run_cfg['target_var'] not in ['gender']:
         print('Unrecognised target_var')
         exit(-1)
-    else:
-        print('Predicting', run_cfg)
 
     if run_cfg['analysis_type'] == AnalysisType.ST_MULTIMODAL:
         run_cfg['multimodal_size'] = 10
     elif run_cfg['analysis_type'] == AnalysisType.ST_UNIMODAL:
         run_cfg['multimodal_size'] = 0
 
+    print('Resulting run_cfg:', run_cfg)
     # DATASET
     dataset: BrainDataset = generate_dataset(run_cfg)
 

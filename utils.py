@@ -1,7 +1,7 @@
 import random
 from collections import Counter, defaultdict
 from enum import Enum, unique
-from typing import NoReturn
+from typing import NoReturn, Dict, Any
 
 import fcntl
 import numpy as np
@@ -125,11 +125,22 @@ def merge_y_and_others(ys, indices):
                      indices.view(-1, 1)], dim=1)
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
 
+def create_name_for_flattencorrs_dataset(run_cfg: Dict[str, Any]) -> str:
+    prefix_location = './pytorch_data/unbalanced_'
+
+    name_combination = '_'.join([run_cfg['dataset_type'].value,
+                                 run_cfg['analysis_type'].value,
+                                 run_cfg['connectivity_type'].value,
+                                 str(run_cfg['num_nodes']),
+                                 str(run_cfg['time_length'])
+                                 ])
+
+    return prefix_location + name_combination
 
 def create_name_for_brain_dataset(num_nodes: int, time_length: int, target_var: str, threshold: int,
                                   connectivity_type: ConnType, normalisation: Normalisation,
                                   analysis_type: AnalysisType, dataset_type: DatasetType,
-                                  encoding_strategy: EncodingStrategy):
+                                  encoding_strategy: EncodingStrategy) -> str:
     prefix_location = './pytorch_data/unbalanced_'
 
     name_combination = '_'.join(
@@ -180,7 +191,7 @@ def create_name_for_model(target_var: str, model, outer_split_num: int,
                                        str(lr),
                                        str(weight_decay),
                                        str(n_epochs),
-                                       'TH_' + str(threshold),
+                                       str(threshold),
                                        normalisation.value[:3],
                                        str(batch_size),
                                        str(num_nodes),

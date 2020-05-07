@@ -99,12 +99,12 @@ class DiffPoolLayer(torch.nn.Module):
 class SpatioTemporalModel(nn.Module):
     def __init__(self, num_time_length: int, dropout_perc: float, pooling: PoolingStrategy, channels_conv: int,
                  activation: str, conv_strategy: ConvStrategy, num_gnn_layers: int = 1, gat_heads: int = 0,
-                 multimodal_size: int = 0,
+                 multimodal_size: int = 0, temporal_embed_size: int = 16,
                  encoding_strategy: EncodingStrategy = EncodingStrategy.NONE, encoding_model=None,
                  add_gat: bool = False, add_gcn: bool = False, final_sigmoid: bool = True, num_nodes: int = None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '63'
+        self.VERSION = '64'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
             print('THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT')
@@ -124,7 +124,7 @@ class SpatioTemporalModel(nn.Module):
             exit(-1)
 
         self.multimodal_size: int = multimodal_size
-        self.TEMPORAL_EMBED_SIZE: int = 16
+        self.TEMPORAL_EMBED_SIZE: int = temporal_embed_size
         self.NODE_EMBED_SIZE: int = self.TEMPORAL_EMBED_SIZE + self.multimodal_size
 
         if self.multimodal_size > 0:
@@ -309,7 +309,8 @@ class SpatioTemporalModel(nn.Module):
                       'GH_' + str(self.gat_heads),
                       'GL_' + str(self.num_gnn_layers),
                       'E_' + self.encoding_strategy.value[:3],
-                      'M_' + str(self.multimodal_size)
+                      'M_' + str(self.multimodal_size),
+                      'S_' + str(self.TEMPORAL_EMBED_SIZE)
                       ]
 
         return ''.join(model_vars)

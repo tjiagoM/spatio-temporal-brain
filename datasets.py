@@ -1,3 +1,4 @@
+import os.path as osp
 from abc import ABC
 
 import networkx as nx
@@ -13,7 +14,7 @@ from scipy.stats import skew, kurtosis
 from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
-from utils import Normalisation, ConnType, AnalysisType, EncodingStrategy
+from utils import Normalisation, ConnType, AnalysisType, EncodingStrategy, DatasetType
 from utils_datasets import OLD_NETMATS_PEOPLE, DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, UKB_IDS_PATH, UKB_PHENOTYPE_PATH, \
     UKB_TIMESERIES_PATH, NODE_FEATURES_NAMES, STRUCT_COLUMNS
 
@@ -377,6 +378,91 @@ class UKBDataset(BrainDataset):
 
                 data = self.__create_data_object(person=person, ts=ts, edge_index=edge_index, covars=main_covars)
                 data_list.append(data)
+
+        data, slices = self.collate(data_list)
+        torch.save((data, slices), self.processed_paths[0])
+
+
+class FlattenCorrsDataset(InMemoryDataset):
+    def __init__(self, root, num_nodes: int, connectivity_type: ConnType,analysis_type: AnalysisType, time_length: int,
+                 dataset_type: DatasetType, transform=None, pre_transform=None):
+
+        if connectivity_type not in [ConnType.FMRI]:
+            print("FlattenCorrsDataset not prepared for that connectivity_type!")
+            exit(-2)
+        if analysis_type not in [AnalysisType.FLATTEN_CORRS]:
+            print("FlattenCorrsDataset not prepared for that analysis_type!")
+            exit(-2)
+        if dataset_type not in [DatasetType.UKB]:
+            print("FlattenCorrsDataset not prepared for that dataset_type!")
+            exit(-2)
+
+        self.num_nodes: int = num_nodes
+        self.time_length: int = time_length
+        self.analysis_type: AnalysisType = analysis_type
+        self.dataset_type: DatasetType = dataset_type
+
+        super(FlattenCorrsDataset, self).__init__(root, transform=transform, pre_transform=pre_transform)
+        self.data, self.slices = torch.load(self.processed_paths[0])
+
+    @property
+    def processed_file_names(self):
+        return ['flatten_corrs.dataset']
+
+    @property
+    def raw_file_names(self):
+        return []
+
+    def download(self):
+        # Download to `self.raw_dir`.
+        pass
+
+    def process(self):
+        # Read data into huge `Data` list.
+        data_list: list[Data] = []
+
+        filtered_people = np.load(UKB_IDS_PATH)
+        main_covars = pd.read_csv(UKB_PHENOTYPE_PATH).set_index('ID')
+
+        conn_measure = ConnectivityMeasure(
+            kind='correlation',
+            vectorize=False)
+
+        for person in filtered_people:
+            if person in [1663368, 3443644]:
+                # No information in Covars file
+                continue
+
+            ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
+            if ts.shape[0] < 84:
+                continue
+            elif ts.shape[1] == 523:
+                ts = ts[:, :490]
+            assert ts.shape == (84, 490)
+
+            # Getting only the last 68 cortical regions
+            ts = ts[-68:, :]
+            # For normalisation part and connectivity
+            ts = ts.T
+
+            corr_arr = conn_measure.fit_transform([ts])
+            assert corr_arr.shape == (1, 68, 68)
+            corr_arr = corr_arr[0]
+
+            # Getting upper triangle only (without diagonal)
+            flatten_array = corr_arr[np.triu_indices(self.num_nodes, k=1)]
+            assert flatten_array.shape  == (int(self.num_nodes * (self.num_nodes - 1) / 2),)
+
+            if self.analysis_type == AnalysisType.FLATTEN_CORRS:
+                x = torch.tensor(flatten_array, dtype=torch.float)
+
+            data = Data(x=x)
+            data.ukb_id = torch.tensor([person])
+            data.bmi = torch.tensor([main_covars.loc[person, 'BMI.at.scan']])
+            data.age = torch.tensor([main_covars.loc[person, 'Age.at.scan']])
+            data.sex = torch.tensor([main_covars.loc[person, 'Sex']], dtype=torch.float)
+
+            data_list.append(data)
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])

@@ -1,14 +1,18 @@
-method: bayes
-metric:
-  goal: minimize
-  name: mean_val_loss
-name: st_ukb_uni_gender_1_fmri_none_diff_pool
+method: random
+#metric:
+#  goal: minimize
+#  name: mean_val_loss
+name: st_ukb_uni_gender_1_fmri_none_diff_pool_F_52
 program: main_loop.py
 parameters:
   dataset_type:
     value: ukb
   sweep_type:
     value: diff_pool
+  temporal_embed_size:
+    value: 52
+  edge_weights:
+    value: false
   fold_num:
     value: 1
   conn_type:
