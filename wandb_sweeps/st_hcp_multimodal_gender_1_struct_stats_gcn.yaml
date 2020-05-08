@@ -13,6 +13,8 @@ parameters:
     value: 1
   conn_type:
     value: struct
+  temporal_embed_size:
+    value: 16
   batch_size:
     value: 250
   analysis_type:

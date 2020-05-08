@@ -383,6 +383,10 @@ class UKBDataset(BrainDataset):
         torch.save((data, slices), self.processed_paths[0])
 
 
+class PersonNotFound(Exception):
+    pass
+
+
 class FlattenCorrsDataset(InMemoryDataset):
     def __init__(self, root, num_nodes: int, connectivity_type: ConnType,analysis_type: AnalysisType, time_length: int,
                  dataset_type: DatasetType, transform=None, pre_transform=None):
@@ -393,7 +397,7 @@ class FlattenCorrsDataset(InMemoryDataset):
         if analysis_type not in [AnalysisType.FLATTEN_CORRS]:
             print("FlattenCorrsDataset not prepared for that analysis_type!")
             exit(-2)
-        if dataset_type not in [DatasetType.UKB]:
+        if dataset_type not in [DatasetType.UKB, DatasetType.HCP]:
             print("FlattenCorrsDataset not prepared for that dataset_type!")
             exit(-2)
 
@@ -417,52 +421,95 @@ class FlattenCorrsDataset(InMemoryDataset):
         # Download to `self.raw_dir`.
         pass
 
-    def process(self):
-        # Read data into huge `Data` list.
-        data_list: list[Data] = []
-
-        filtered_people = np.load(UKB_IDS_PATH)
-        main_covars = pd.read_csv(UKB_PHENOTYPE_PATH).set_index('ID')
-
+    def __generate_flatten_from_ts(self, ts: np.ndarray) -> np.ndarray:
         conn_measure = ConnectivityMeasure(
             kind='correlation',
             vectorize=False)
 
+        corr_arr = conn_measure.fit_transform([ts])
+        assert corr_arr.shape == (1, 68, 68)
+        corr_arr = corr_arr[0]
+
+        # Getting upper triangle only (without diagonal)
+        flatten_array = corr_arr[np.triu_indices(self.num_nodes, k=1)]
+        assert flatten_array.shape == (int(self.num_nodes * (self.num_nodes - 1) / 2),)
+
+        return flatten_array
+
+
+    def __get_hcp_data_object(self, person: int, direction: str, ind: int) -> Data:
+        info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
+
+        idx_to_filter = np.concatenate((np.arange(0, 34), np.arange(49, 83)))
+        ts = np.genfromtxt(get_desikan_ts_path(person, direction))
+
+        ts = ts.T
+        ts = ts[:, idx_to_filter]
+        assert ts.shape[0] == 1200
+        assert ts.shape[1] == 68
+
+        flatten_array = self.__generate_flatten_from_ts(ts)
+        x = torch.tensor(flatten_array, dtype=torch.float)
+
+        data = Data(x=x)
+        data.hcp_id = torch.tensor([person])
+        data.index = torch.tensor([ind])
+        data.sex = torch.tensor([info_df.loc[person, 'Gender']], dtype=torch.float)
+
+        return data
+    
+    def __get_ukb_data_object(self, person: int) -> Data:
+        if person in [1663368, 3443644]:
+            # No information in Covars file
+            raise PersonNotFound
+
+        main_covars = pd.read_csv(UKB_PHENOTYPE_PATH).set_index('ID')
+        ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
+        
+        if ts.shape[0] < 84:
+            raise PersonNotFound
+        elif ts.shape[1] == 523:
+            ts = ts[:, :490]
+        assert ts.shape == (84, 490)
+
+        # Getting only the last 68 cortical regions
+        ts = ts[-68:, :]
+        # For normalisation part and connectivity
+        ts = ts.T
+
+        flatten_array = self.__generate_flatten_from_ts(ts)
+
+        x = torch.tensor(flatten_array, dtype=torch.float)
+
+        data = Data(x=x)
+        data.ukb_id = torch.tensor([person])
+        data.bmi = torch.tensor([main_covars.loc[person, 'BMI.at.scan']])
+        data.age = torch.tensor([main_covars.loc[person, 'Age.at.scan']])
+        data.sex = torch.tensor([main_covars.loc[person, 'Sex']], dtype=torch.float)
+
+        return data
+
+    def process(self):
+        # Read data into huge `Data` list.
+        data_list: list[Data] = []
+
+        if self.dataset_type == DatasetType.UKB:
+            filtered_people = np.load(UKB_IDS_PATH)
+        else:
+            filtered_people = sorted(list(set(DESIKAN_COMPLETE_TS).intersection(set(DESIKAN_TRACKS))))
+
         for person in filtered_people:
-            if person in [1663368, 3443644]:
-                # No information in Covars file
-                continue
 
-            ts = np.loadtxt(f'{UKB_TIMESERIES_PATH}/UKB{person}_ts_raw.txt', delimiter=',')
-            if ts.shape[0] < 84:
-                continue
-            elif ts.shape[1] == 523:
-                ts = ts[:, :490]
-            assert ts.shape == (84, 490)
-
-            # Getting only the last 68 cortical regions
-            ts = ts[-68:, :]
-            # For normalisation part and connectivity
-            ts = ts.T
-
-            corr_arr = conn_measure.fit_transform([ts])
-            assert corr_arr.shape == (1, 68, 68)
-            corr_arr = corr_arr[0]
-
-            # Getting upper triangle only (without diagonal)
-            flatten_array = corr_arr[np.triu_indices(self.num_nodes, k=1)]
-            assert flatten_array.shape  == (int(self.num_nodes * (self.num_nodes - 1) / 2),)
-
-            if self.analysis_type == AnalysisType.FLATTEN_CORRS:
-                x = torch.tensor(flatten_array, dtype=torch.float)
-
-            data = Data(x=x)
-            data.ukb_id = torch.tensor([person])
-            data.bmi = torch.tensor([main_covars.loc[person, 'BMI.at.scan']])
-            data.age = torch.tensor([main_covars.loc[person, 'Age.at.scan']])
-            data.sex = torch.tensor([main_covars.loc[person, 'Sex']], dtype=torch.float)
-
-            data_list.append(data)
+            if self.dataset_type == DatasetType.UKB:
+                try:
+                    data = self.__get_ukb_data_object(person)
+                    data_list.append(data)
+                except PersonNotFound:
+                    continue
+            else: # HCP
+                for ind, direction in enumerate(['1_LR', '1_RL', '2_LR', '2_RL']):
+                    data = self.__get_hcp_data_object(person, ind=ind, direction=direction)
+                    data_list.append(data)
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
