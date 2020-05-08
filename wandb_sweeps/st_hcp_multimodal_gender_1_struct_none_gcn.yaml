@@ -1,7 +1,7 @@
-method: bayes
-metric:
-  goal: minimize
-  name: mean_val_loss
+method: random
+#metric:
+#  goal: minimize
+#  name: mean_val_loss
 name: st_hcp_multi_gender_1_struct_none_gcn
 program: main_loop.py
 parameters:

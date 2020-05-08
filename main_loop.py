@@ -64,7 +64,7 @@ def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
 
 
 def return_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_value=None, ent_loss_value=None,
-                   flatten_approach: bool=False):
+                   flatten_approach: bool = False):
     roc_auc = roc_auc_score(labels, pred_prob)
     acc = accuracy_score(labels, pred_binary)
     f1 = f1_score(labels, pred_binary, zero_division=0)
@@ -144,12 +144,12 @@ def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, 
     val_metrics = evaluate_classifier(model, val_loader, pooling_mechanism, device)
 
     print('{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
-          ' {:.4f} '.format(outer_split_no, inner_split_no, epoch, loss, val_metrics['loss'],
+          ' {:.4f} '.format(outer_split_no, inner_split_no, epoch, train_metrics['loss'], val_metrics['loss'],
                             train_metrics['auc'], val_metrics['auc'],
                             train_metrics['acc'], val_metrics['acc'],
                             train_metrics['f1'], val_metrics['f1']))
     wandb.log({
-        f'train_loss{inner_split_no}': loss, f'val_loss{inner_split_no}': val_metrics['loss'],
+        f'train_loss{inner_split_no}': train_metrics['loss'], f'val_loss{inner_split_no}': val_metrics['loss'],
         f'train_auc{inner_split_no}': train_metrics['auc'], f'val_auc{inner_split_no}': val_metrics['auc'],
         f'train_acc{inner_split_no}': train_metrics['acc'], f'val_acc{inner_split_no}': val_metrics['acc'],
         f'train_sens{inner_split_no}': train_metrics['sensitivity'],
@@ -244,7 +244,6 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> Union[BrainDataset, FlattenCorr
 
 
 def generate_xgb_model(run_cfg: Dict[str, Any]) -> XGBClassifier:
-
     model = XGBClassifier(subsample=run_cfg['subsample'],
                           learning_rate=run_cfg['learning_rate'],
                           max_depth=run_cfg['max_depth'],
@@ -406,7 +405,7 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
     return best_model_metrics
 
 
-def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy = None) -> Dict[str, list]:
+def get_empty_metrics_dict() -> Dict[str, list]:
     tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': [],
                 'ent_loss': [], 'link_loss': []}
 
@@ -415,10 +414,9 @@ def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy = None) -> Dict[st
 
 def send_inner_loop_metrics_to_wandb(overall_metrics: Dict[str, list]):
     for key, values in overall_metrics.items():
-        if values[0] is None:
-            wandb.run.summary[f"mean_val_{key}"] = 'none'
+        if len(values) == 0 or values[0] is None:
             continue
-        if len(values) == 1:
+        elif len(values) == 1:
             wandb.run.summary[f"mean_val_{key}"] = values[0]
         else:
             wandb.run.summary[f"mean_val_{key}"] = np.mean(values)
@@ -563,10 +561,7 @@ if __name__ == '__main__':
     #################
     # Main inner-loop
     #################
-    if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
-        overall_metrics: Dict[str, list] = get_empty_metrics_dict(pooling_mechanism=None)
-    else:
-        overall_metrics: Dict[str, list] = get_empty_metrics_dict(run_cfg['param_pooling'])
+    overall_metrics: Dict[str, list] = get_empty_metrics_dict()
     inner_loop_run: int = 0
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1
@@ -606,8 +601,9 @@ if __name__ == '__main__':
         update_overall_metrics(overall_metrics, inner_fold_metrics)
 
         # One inner loop only
-        # if run_cfg['dataset_type'] == DatasetType.UKB:
-        #    break
+        if run_cfg['dataset_type'] == DatasetType.UKB and run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL,
+                                                                                       AnalysisType.ST_MULTIMODAL]:
+            break
 
     send_inner_loop_metrics_to_wandb(overall_metrics)
     print('Overall inner loop results:', overall_metrics)
