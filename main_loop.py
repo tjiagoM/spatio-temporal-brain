@@ -1,4 +1,5 @@
 import os
+import pickle
 import random
 from collections import deque
 from sys import exit
@@ -6,7 +7,6 @@ from typing import Dict, Any, Union
 
 import numpy as np
 import pandas as pd
-import pickle
 import torch
 import wandb
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
@@ -63,13 +63,19 @@ def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
         train_loader.dataset)
 
 
-def return_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_value=None, ent_loss_value=None):
+def return_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_value=None, ent_loss_value=None,
+                   flatten_approach: bool=False):
     roc_auc = roc_auc_score(labels, pred_prob)
     acc = accuracy_score(labels, pred_binary)
     f1 = f1_score(labels, pred_binary, zero_division=0)
     report = classification_report(labels, pred_binary, output_dict=True, zero_division=0)
-    sens = report['1.0']['recall']
-    spec = report['0.0']['recall']
+
+    if not flatten_approach:
+        sens = report['1.0']['recall']
+        spec = report['0.0']['recall']
+    else:
+        sens = report['1']['recall']
+        spec = report['0']['recall']
 
     return {'loss': loss_value,
             'link_loss': link_loss_value,
@@ -236,20 +242,22 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> Union[BrainDataset, FlattenCorr
     #                                                       binarise=True, threshold=param_threshold)
     return dataset
 
-def generate_xgb_model(run_cfg: Dict[str, Any], for_test: bool = False) -> XGBClassifier:
-    model =  XGBClassifier(subsample=run_cfg['subsample'],
-                         learning_rate=run_cfg['learning_rate'],
-                         max_depth=run_cfg['max_depth'],
-                         min_child_weight=run_cfg['min_child_weight'],
-                         colsample_bytree=run_cfg['colsample_bytree'],
-                         colsample_bynode=run_cfg['colsample_bynode'],
-                         colsample_bylevel=run_cfg['colsample_bylevel'],
-                         n_estimators=run_cfg['n_estimators'],
-                         gamma=run_cfg['gamma'],
-                         random_state=1111)
-    if not for_test:
-        wandb.watch(model, log='all')
+
+def generate_xgb_model(run_cfg: Dict[str, Any]) -> XGBClassifier:
+
+    model = XGBClassifier(subsample=run_cfg['subsample'],
+                          learning_rate=run_cfg['learning_rate'],
+                          max_depth=run_cfg['max_depth'],
+                          min_child_weight=run_cfg['min_child_weight'],
+                          colsample_bytree=run_cfg['colsample_bytree'],
+                          colsample_bynode=run_cfg['colsample_bynode'],
+                          colsample_bylevel=run_cfg['colsample_bylevel'],
+                          n_estimators=run_cfg['n_estimators'],
+                          gamma=run_cfg['gamma'],
+                          n_jobs=-1,
+                          random_state=1111)
     return model
+
 
 def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> SpatioTemporalModel:
     if run_cfg['param_encoding_strategy'] in [EncodingStrategy.NONE, EncodingStrategy.STATS]:
@@ -289,9 +297,9 @@ def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> Spatio
     #    model = XGBClassifier(n_jobs=-1, seed=1111, random_state=1111, **params)
     return model
 
-def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: XGBClassifier,
-                 X_train_in: FlattenCorrsDataset, X_val_in: FlattenCorrsDataset) -> Dict:
 
+def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: XGBClassifier,
+                  X_train_in: FlattenCorrsDataset, X_val_in: FlattenCorrsDataset) -> Dict:
     model_saving_path = create_name_for_xgbmodel(model=model,
                                                  outer_split_num=out_fold_num,
                                                  inner_split_num=in_fold_num,
@@ -302,19 +310,21 @@ def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], 
     val_arr = np.array([data.x.numpy() for data in X_val_in])
 
     if run_cfg['target_var'] == 'gender':
-        y_train = [data.sex.item() for data in X_train_in]
-        y_val = [data.sex.item() for data in X_val_in]
+        y_train = [int(data.sex.item()) for data in X_train_in]
+        y_val = [int(data.sex.item()) for data in X_val_in]
 
-    model.fit(train_arr, y_train)
+    model.fit(train_arr, y_train, callbacks=[wandb.xgboost.wandb_callback()])
 
     pickle.dump(model, open(model_saving_path, "wb"))
 
     train_metrics = return_metrics(y_train,
-                                   model.predict_proba(train_arr)[:, 1],
-                                   model.predict(train_arr))
+                                   pred_prob=model.predict_proba(train_arr)[:, 1],
+                                   pred_binary=model.predict(train_arr),
+                                   flatten_approach=True)
     val_metrics = return_metrics(y_val,
-                                   model.predict_proba(val_arr)[:, 1],
-                                   model.predict(val_arr))
+                                 pred_prob=model.predict_proba(val_arr)[:, 1],
+                                 pred_binary=model.predict(val_arr),
+                                 flatten_approach=True)
 
     print('{:1d}-{:1d}: Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
           ' {:.4f} '.format(out_fold_num, in_fold_num,
@@ -332,6 +342,7 @@ def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], 
     })
 
     return val_metrics
+
 
 def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: SpatioTemporalModel,
                  X_train_in: BrainDataset, X_val_in: BrainDataset) -> Dict:
@@ -396,18 +407,17 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
 
 
 def get_empty_metrics_dict(pooling_mechanism: PoolingStrategy = None) -> Dict[str, list]:
-    tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': []}
-    if pooling_mechanism is None:
-        pass
-    elif pooling_mechanism == PoolingStrategy.DIFFPOOL:
-        tmp_dict['ent_loss'] = []
-        tmp_dict['link_loss'] = []
+    tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': [],
+                'ent_loss': [], 'link_loss': []}
 
     return tmp_dict
 
 
 def send_inner_loop_metrics_to_wandb(overall_metrics: Dict[str, list]):
     for key, values in overall_metrics.items():
+        if values[0] is None:
+            wandb.run.summary[f"mean_val_{key}"] = 'none'
+            continue
         if len(values) == 1:
             wandb.run.summary[f"mean_val_{key}"] = values[0]
         else:
@@ -451,7 +461,7 @@ if __name__ == '__main__':
     }
     if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
         run_cfg['batch_size'] = config.batch_size
-        run_cfg['device_run'] = f'cuda:{get_freer_gpu()}',
+        run_cfg['device_run'] = f'cuda:{get_freer_gpu()}'
         run_cfg['early_stop_steps'] = config.early_stop_steps
         run_cfg['edge_weights'] = config.edge_weights
         run_cfg['model_with_sigmoid'] = True
@@ -462,7 +472,7 @@ if __name__ == '__main__':
         run_cfg['param_dropout'] = config.dropout
         run_cfg['param_encoding_strategy'] = EncodingStrategy(config.encoding_strategy)
         run_cfg['param_lr'] = config.lr
-        run_cfg['param_normalisation'] = Normalisation(config.normalisation),
+        run_cfg['param_normalisation'] = Normalisation(config.normalisation)
         run_cfg['param_num_gnn_layers'] = config.num_gnn_layers
         run_cfg['param_threshold'] = config.threshold
         run_cfg['param_weight_decay'] = config.weight_decay
@@ -503,7 +513,8 @@ if __name__ == '__main__':
     N_INNER_SPLITS: int = 5
 
     # Handling inputs and what is possible
-    if run_cfg['analysis_type'] not in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL]:
+    if run_cfg['analysis_type'] not in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL,
+                                        AnalysisType.FLATTEN_CORRS]:
         print('Not yet ready for this analysis type at the moment')
         exit(-1)
 
@@ -553,7 +564,7 @@ if __name__ == '__main__':
     # Main inner-loop
     #################
     if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
-        overall_metrics: Dict[str, list] = get_empty_metrics_dict()
+        overall_metrics: Dict[str, list] = get_empty_metrics_dict(pooling_mechanism=None)
     else:
         overall_metrics: Dict[str, list] = get_empty_metrics_dict(run_cfg['param_pooling'])
     inner_loop_run: int = 0
@@ -587,11 +598,11 @@ if __name__ == '__main__':
 
         elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
             inner_fold_metrics = fit_xgb_model(out_fold_num=run_cfg['split_to_test'],
-                                              in_fold_num=inner_loop_run,
-                                              run_cfg=run_cfg,
-                                              model=model,
-                                              X_train_in=X_train_in,
-                                              X_val_in=X_val_in)
+                                               in_fold_num=inner_loop_run,
+                                               run_cfg=run_cfg,
+                                               model=model,
+                                               X_train_in=X_train_in,
+                                               X_val_in=X_val_in)
         update_overall_metrics(overall_metrics, inner_fold_metrics)
 
         # One inner loop only
@@ -646,18 +657,17 @@ if __name__ == '__main__':
         test_arr = np.array([data.x.numpy() for data in X_test_out])
 
         if run_cfg['target_var'] == 'gender':
-            y_test = [data.sex.item() for data in X_test_out]
+            y_test = [int(data.sex.item()) for data in X_test_out]
 
         test_metrics = return_metrics(y_test,
-                                       model.predict_proba(test_arr)[:, 1],
-                                       model.predict(test_arr))
+                                      pred_prob=model.predict_proba(test_arr)[:, 1],
+                                      pred_binary=model.predict(test_arr),
+                                      flatten_approach=True)
         print(test_metrics)
 
         print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
               ''.format(outer_split_num, test_metrics['auc'], test_metrics['acc'],
                         test_metrics['sensitivity'], test_metrics['specificity']))
-
-
 
     send_global_results(test_metrics)
 
