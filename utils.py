@@ -132,7 +132,7 @@ def create_name_for_flattencorrs_dataset(run_cfg: Dict[str, Any]) -> str:
 
     name_combination = '_'.join([run_cfg['dataset_type'].value,
                                  run_cfg['analysis_type'].value,
-                                 run_cfg['connectivity_type'].value,
+                                 run_cfg['param_conn_type'].value,
                                  str(run_cfg['num_nodes']),
                                  str(run_cfg['time_length'])
                                  ])
