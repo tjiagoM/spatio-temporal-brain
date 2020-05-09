@@ -182,10 +182,10 @@ class HCPDataset(BrainDataset):
         if target_var not in ['gender']:
             print("HCPDataset not prepared for that target_var!")
             exit(-2)
-        if connectivity_type not in [ConnType.STRUCT]:
+        if connectivity_type not in [ConnType.STRUCT, ConnType.FMRI]:
             print("HCPDataset not prepared for that connectivity_type!")
             exit(-2)
-        if analysis_type not in [AnalysisType.ST_MULTIMODAL]:
+        if analysis_type not in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL]:
             print("HCPDataset not prepared for that analysis_type!")
             exit(-2)
 
@@ -237,35 +237,14 @@ class HCPDataset(BrainDataset):
         data_list: list[Data] = []
         assert self.time_length == 1200
 
-        # No sorted needed?
-        if self.num_nodes == 50:
-            print('TODO: This needs to be rethought')
-            filtered_people = OLD_NETMATS_PEOPLE
-            exit(-1)
-        else:  # multimodal part
-            filtered_people = sorted(list(set(DESIKAN_COMPLETE_TS).intersection(set(DESIKAN_TRACKS))))
+        # The same people as for the multimodal part
+        filtered_people = sorted(list(set(DESIKAN_COMPLETE_TS).intersection(set(DESIKAN_TRACKS))))
 
+        # arr_struct will only have values in the upper triangle
+        idx_to_filter = np.concatenate((np.arange(0, 34), np.arange(49, 83)))
         for person in filtered_people:
-            if self.connectivity_type == ConnType.FMRI:
-                print("ConnType.FMRI not ready now")
-                exit(-2)
 
-                all_ts = np.genfromtxt(get_50_ts_path(person))
-
-                for ind, slice_start in enumerate(range(0, 4800, self.time_length)):
-                    ts = all_ts[slice_start:slice_start + self.time_length, :]
-
-                    corr_arr = np.load(get_adj_50_path(person, ind, ts_split=self.ts_split_num))
-                    G = create_thresholded_graph(corr_arr, threshold=self.threshold, num_nodes=self.num_nodes)
-                    edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
-
-                    data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_index=edge_index)
-
-                    data_list.append(data)
-
-            elif self.connectivity_type == ConnType.STRUCT:
-                # arr_struct will only have values in the upper triangle
-                idx_to_filter = np.concatenate((np.arange(0, 34), np.arange(49, 83)))
+            if self.connectivity_type == ConnType.STRUCT:
                 arr_struct = np.genfromtxt(get_desikan_tracks_path(person))
                 # Removing non-cortical areas
                 arr_struct = arr_struct[idx_to_filter, :][:, idx_to_filter]
@@ -273,17 +252,27 @@ class HCPDataset(BrainDataset):
                 G = create_thresholded_graph(arr_struct, threshold=self.threshold, num_nodes=self.num_nodes)
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
-                for ind, direction in enumerate(['1_LR', '1_RL', '2_LR', '2_RL']):
-                    ts = np.genfromtxt(get_desikan_ts_path(person, direction))
-                    # Because of normalisation part
-                    ts = ts.T
-                    ts = ts[:, idx_to_filter]
-                    assert ts.shape[0] == 1200
-                    assert ts.shape[1] == 68
+            for ind, direction in enumerate(['1_LR', '1_RL', '2_LR', '2_RL']):
+                ts = np.genfromtxt(get_desikan_ts_path(person, direction))
+                # Because of normalisation part
+                ts = ts.T
+                ts = ts[:, idx_to_filter]
+                assert ts.shape[0] == 1200
+                assert ts.shape[1] == 68
 
-                    data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_index=edge_index)
+                if self.connectivity_type == ConnType.FMRI:
+                    conn_measure = ConnectivityMeasure(
+                        kind='correlation',
+                        vectorize=False)
+                    corr_arr = conn_measure.fit_transform([ts])
+                    assert corr_arr.shape == (1, 68, 68)
+                    corr_arr = corr_arr[0]
+                    G = create_thresholded_graph(corr_arr, threshold=self.threshold, num_nodes=self.num_nodes)
+                    edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
 
-                    data_list.append(data)
+                data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_index=edge_index)
+
+                data_list.append(data)
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])

@@ -2,25 +2,25 @@ method: random
 #metric:
 #  goal: minimize
 #  name: mean_val_loss
-name: st_hcp_multi_gender_1_struct_none_gcn
+name: st_ukb_uni_gender_1_fmri_none_diff_pool_F_128
 program: main_loop.py
 parameters:
   dataset_type:
-    value: hcp
+    value: ukb
   sweep_type:
-    value: gcn
+    value: diff_pool
+  temporal_embed_size:
+    value: 128
+  edge_weights:
+    value: false
   fold_num:
     value: 1
   conn_type:
-    value: struct
-  temporal_embed_size:
-    value: 16
-  edge_weights:
-    value: false
+    value: fmri
   batch_size:
-    value: 250
+    value: 500
   analysis_type:
-    value: st_multimodal
+    value: st_unimodal
   num_epochs:
     value: 100
   num_nodes:
@@ -46,11 +46,9 @@ parameters:
     values:
     - none
   gnn_type:
-    value: gcn
+    value: diffpool
   num_gnn_layers:
-    distribution: int_uniform
-    min: 1
-    max: 2
+    value: 0
   threshold:
     distribution: categorical
     values:
@@ -70,11 +68,11 @@ parameters:
   pooling:
     distribution: categorical
     values:
-    - mean
+    - diff_pool
   target_var:
     value: gender
   time_length:
-    value: 1200
+    value: 490
   weight_decay:
     distribution: log_uniform
     max: 0
