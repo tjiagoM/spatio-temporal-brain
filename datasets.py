@@ -21,14 +21,6 @@ from utils_datasets import OLD_NETMATS_PEOPLE, DESIKAN_COMPLETE_TS, DESIKAN_TRAC
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
 
-def get_adj_50_path(person: int, index: int, ts_split: int):
-    return f'/space/hcp_50_timeseries/processed_{ts_split}_split_50/{person}_{index}.npy'
-
-
-def get_50_ts_path(person: int):
-    return f'../hcp_timecourses/3T_HCP1200_MSMAll_d50_ts2/{person}.txt'
-
-
 def get_desikan_tracks_path(person: int):
     return f'/space/desikan_tracks/{person}/{person}_conn_aparc+aseg_RS_sl.txt'
 
@@ -143,7 +135,7 @@ def create_thresholded_graph(adj_array: np.ndarray, threshold: int, num_nodes: i
 
 class BrainDataset(InMemoryDataset, ABC):
     def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
-                 normalisation: Normalisation, analysis_type: AnalysisType, time_length: int,
+                 normalisation: Normalisation, analysis_type: AnalysisType,  edge_weights: bool, time_length: int,
                  encoding_strategy: EncodingStrategy,
                  transform=None, pre_transform=None):
         if threshold < 0 or threshold > 100:
@@ -161,6 +153,7 @@ class BrainDataset(InMemoryDataset, ABC):
         self.normalisation: Normalisation = normalisation
         self.analysis_type: AnalysisType = analysis_type
         self.encoding_strategy: EncodingStrategy = encoding_strategy
+        self.include_edge_weights: bool = edge_weights
 
         super(BrainDataset, self).__init__(root, transform, pre_transform)
 
@@ -175,7 +168,7 @@ class BrainDataset(InMemoryDataset, ABC):
 
 class HCPDataset(BrainDataset):
     def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
-                 normalisation: Normalisation, analysis_type: AnalysisType, time_length: int = 1200,
+                 normalisation: Normalisation, analysis_type: AnalysisType,  edge_weights: bool, time_length: int = 1200,
                  encoding_strategy: EncodingStrategy = EncodingStrategy.NONE,
                  transform=None, pre_transform=None):
 
@@ -196,7 +189,7 @@ class HCPDataset(BrainDataset):
         super(HCPDataset, self).__init__(root, target_var=target_var, num_nodes=num_nodes, threshold=threshold,
                                          connectivity_type=connectivity_type, normalisation=normalisation,
                                          analysis_type=analysis_type, time_length=time_length,
-                                         encoding_strategy=encoding_strategy,
+                                         encoding_strategy=encoding_strategy, edge_weights=edge_weights,
                                          transform=transform, pre_transform=pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
@@ -204,7 +197,8 @@ class HCPDataset(BrainDataset):
     def processed_file_names(self):
         return ['data_hcp_brain.dataset']
 
-    def __create_data_object(self, person: int, ts: np.ndarray, ind: int, edge_index: torch.Tensor):
+    def __create_data_object(self, person: int, ts: np.ndarray, ind: int, edge_attr:torch.Tensor,
+                             edge_index: torch.Tensor):
         assert ts.shape[0] > ts.shape[1]  # TS > N
 
         timeseries = normalise_timeseries(timeseries=ts, normalisation=self.normalisation)
@@ -226,7 +220,7 @@ class HCPDataset(BrainDataset):
 
         if self.target_var == 'gender':
             y = torch.tensor([self.info_df.loc[person, 'Gender']], dtype=torch.float)
-        data = Data(x=x, edge_index=edge_index, y=y)
+        data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
         data.hcp_id = torch.tensor([person])
         data.index = torch.tensor([ind])
 
@@ -269,8 +263,14 @@ class HCPDataset(BrainDataset):
                     corr_arr = corr_arr[0]
                     G = create_thresholded_graph(corr_arr, threshold=self.threshold, num_nodes=self.num_nodes)
                     edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
+                    if self.include_edge_weights:
+                        edge_attr = torch.tensor(list(nx.get_edge_attributes(G, 'weight').values()),
+                                                 dtype=torch.float).unsqueeze(1)
+                    else:
+                        edge_attr = None
 
-                data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_index=edge_index)
+                data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_attr=edge_attr,
+                                                 edge_index=edge_index)
 
                 data_list.append(data)
 
@@ -280,7 +280,7 @@ class HCPDataset(BrainDataset):
 
 class UKBDataset(BrainDataset):
     def __init__(self, root, target_var: str, num_nodes: int, threshold: int, connectivity_type: ConnType,
-                 normalisation: Normalisation, analysis_type: AnalysisType, time_length=490,
+                 normalisation: Normalisation, analysis_type: AnalysisType, edge_weights: bool, time_length=490,
                  encoding_strategy: EncodingStrategy = EncodingStrategy.NONE,
                  transform=None, pre_transform=None):
 
@@ -297,7 +297,7 @@ class UKBDataset(BrainDataset):
         super(UKBDataset, self).__init__(root, target_var=target_var, num_nodes=num_nodes, threshold=threshold,
                                          connectivity_type=connectivity_type, normalisation=normalisation,
                                          analysis_type=analysis_type, time_length=time_length, transform=transform,
-                                         encoding_strategy=encoding_strategy,
+                                         encoding_strategy=encoding_strategy, edge_weights=edge_weights,
                                          pre_transform=pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
 
@@ -305,7 +305,8 @@ class UKBDataset(BrainDataset):
     def processed_file_names(self):
         return ['data_ukb_brain.dataset']
 
-    def __create_data_object(self, person: int, ts: np.ndarray, covars: pd.DataFrame, edge_index: torch.Tensor):
+    def __create_data_object(self, person: int, ts: np.ndarray, covars: pd.DataFrame, edge_attr: torch.Tensor,
+                             edge_index: torch.Tensor):
         assert ts.shape[0] > ts.shape[1]  # TS > N
 
         timeseries = normalise_timeseries(timeseries=ts, normalisation=self.normalisation)
@@ -322,7 +323,8 @@ class UKBDataset(BrainDataset):
 
         if self.target_var == 'gender':
             y = torch.tensor([covars.loc[person, 'Sex']], dtype=torch.float)
-        data = Data(x=x, edge_index=edge_index, y=y)
+
+        data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
         data.ukb_id = torch.tensor([person])
         data.bmi = torch.tensor([covars.loc[person, 'BMI.at.scan']])
         data.age = torch.tensor([covars.loc[person, 'Age.at.scan']])
@@ -364,8 +366,14 @@ class UKBDataset(BrainDataset):
 
                 G = create_thresholded_graph(corr_arr, threshold=self.threshold, num_nodes=self.num_nodes)
                 edge_index = torch.tensor(np.array(G.edges()), dtype=torch.long).t().contiguous()
+                if self.include_edge_weights:
+                    edge_attr = torch.tensor(list(nx.get_edge_attributes(G, 'weight').values()),
+                                             dtype=torch.float).unsqueeze(1)
+                else:
+                    edge_attr = None
 
-                data = self.__create_data_object(person=person, ts=ts, edge_index=edge_index, covars=main_covars)
+                data = self.__create_data_object(person=person, ts=ts, edge_index=edge_index, edge_attr=edge_attr,
+                                                 covars=main_covars)
                 data_list.append(data)
 
         data, slices = self.collate(data_list)

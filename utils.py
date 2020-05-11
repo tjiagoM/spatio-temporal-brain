@@ -143,8 +143,11 @@ def create_name_for_flattencorrs_dataset(run_cfg: Dict[str, Any]) -> str:
 def create_name_for_brain_dataset(num_nodes: int, time_length: int, target_var: str, threshold: int,
                                   connectivity_type: ConnType, normalisation: Normalisation,
                                   analysis_type: AnalysisType, dataset_type: DatasetType,
-                                  encoding_strategy: EncodingStrategy) -> str:
-    prefix_location = './pytorch_data/unbalanced_'
+                                  encoding_strategy: EncodingStrategy, edge_weights: bool = False) -> str:
+    if edge_weights:
+        prefix_location = './pytorch_data/unbalanced_weights_'
+    else:
+        prefix_location = './pytorch_data/unbalanced_'
 
     name_combination = '_'.join(
         [target_var, dataset_type.value, analysis_type.value, encoding_strategy.value, connectivity_type.value,

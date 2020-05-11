@@ -220,7 +220,8 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> Union[BrainDataset, FlattenCorr
                                                      connectivity_type=run_cfg['param_conn_type'],
                                                      analysis_type=run_cfg['analysis_type'],
                                                      encoding_strategy=run_cfg['param_encoding_strategy'],
-                                                     dataset_type=run_cfg['dataset_type'])
+                                                     dataset_type=run_cfg['dataset_type'],
+                                                     edge_weights=run_cfg['edge_weights'])
         print("Going for", name_dataset)
         class_dataset = HCPDataset if run_cfg['dataset_type'] == DatasetType.HCP else UKBDataset
         dataset = class_dataset(root=name_dataset,
@@ -231,7 +232,8 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> Union[BrainDataset, FlattenCorr
                                 normalisation=run_cfg['param_normalisation'],
                                 analysis_type=run_cfg['analysis_type'],
                                 encoding_strategy=run_cfg['param_encoding_strategy'],
-                                time_length=run_cfg['time_length'])
+                                time_length=run_cfg['time_length'],
+                                edge_weights=run_cfg['edge_weights'])
     # if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
     #    if num_nodes == 376:
     #        flatten_correlations = create_ukb_corrs_flatten()
