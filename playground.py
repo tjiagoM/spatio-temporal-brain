@@ -8,16 +8,17 @@ from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvSt
     EncodingStrategy, \
     create_best_encoder_name, AnalysisType, DatasetType
 
-device = 'cuda:1'
+device = 'cuda:0'
 
 N_EPOCHS = 1
 TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
 THRESHOLD = 5
 SPLIT_TO_TEST = 1
-ADD_GCN = False
+ADD_GCN = True
+NUM_GNN_LAYERS = 2
 ADD_GAT = False
-BATCH_SIZE = 200
+BATCH_SIZE = 100
 REMOVE_NODES = False
 NUM_NODES = 68
 CONN_TYPE = ConnType('fmri')
@@ -25,11 +26,12 @@ CONV_STRATEGY = ConvStrategy('tcn_entire')
 POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('subject_norm')
-TIME_LENGTH = 490
+TIME_LENGTH = 1200
 ENCODING_STRATEGY = EncodingStrategy('none')
-DATASET_TYPE = DatasetType.UKB
+DATASET_TYPE = DatasetType.HCP
 ANALYSIS_TYPE = AnalysisType.ST_UNIMODAL
 MULTIMODAL_SIZE = 0
+USE_EDGE_WEIGHTS = True
 
 torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True
@@ -44,9 +46,11 @@ name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
                                                  connectivity_type=ConnType.FMRI,
                                                  analysis_type=ANALYSIS_TYPE,
                                              encoding_strategy=ENCODING_STRATEGY,
-                                                 dataset_type=DATASET_TYPE)
+                                                 dataset_type=DATASET_TYPE,
+                                             edge_weights=USE_EDGE_WEIGHTS)
 
 class_dataset = UKBDataset
+class_dataset = HCPDataset
 
 dataset = class_dataset(root=name_dataset,
                             target_var=TARGET_VAR,
@@ -56,7 +60,8 @@ dataset = class_dataset(root=name_dataset,
                             normalisation=Normalisation.SUBJECT,
                             analysis_type=ANALYSIS_TYPE,
                         encoding_strategy=ENCODING_STRATEGY,
-                            time_length=TIME_LENGTH)
+                            time_length=TIME_LENGTH,
+                        edge_weights=USE_EDGE_WEIGHTS)
 #if ENCODING_STRATEGY != EncodingStrategy.NONE:
 #    from encoders import AE # Necessary to load
 #    encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
@@ -76,7 +81,7 @@ model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                                 add_gcn=ADD_GCN,
                                 final_sigmoid=True,
                                 num_nodes=NUM_NODES,
-                                num_gnn_layers=0,
+                                num_gnn_layers=NUM_GNN_LAYERS,
                                 multimodal_size=MULTIMODAL_SIZE,
                             encoding_strategy=ENCODING_STRATEGY,
                                 encoding_model=None

@@ -194,9 +194,8 @@ def create_name_for_xgbmodel(run_cfg: Dict[str, Any], outer_split_num: int, mode
 def create_name_for_model(target_var: str, model, outer_split_num: int,
                           inner_split_num: int, n_epochs: int, threshold: int, batch_size: int, num_nodes: int,
                           conn_type: ConnType, normalisation: Normalisation, analysis_type: AnalysisType,
-                          metric_evaluated: str, dataset_type: DatasetType, lr=None, weight_decay=None,
-                          prefix_location='logs/',
-                          suffix='.pth') -> str:
+                          metric_evaluated: str, dataset_type: DatasetType, edge_weights: bool,
+                          lr=None, weight_decay=None, prefix_location='logs/', suffix='.pth') -> str:
     if analysis_type in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL]:
         model_str_representation = model.to_string_name()
 
@@ -205,6 +204,7 @@ def create_name_for_model(target_var: str, model, outer_split_num: int,
                                        str(outer_split_num),
                                        str(inner_split_num),
                                        metric_evaluated,
+                                       str(edge_weights)[:1],
                                        model_str_representation,
                                        str(lr),
                                        str(weight_decay),

@@ -367,6 +367,7 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
                                               analysis_type=run_cfg['analysis_type'],
                                               metric_evaluated='loss',
                                               dataset_type=run_cfg['dataset_type'],
+                                              edge_weights=run_cfg['edge_weights'],
                                               lr=run_cfg['param_lr'],
                                               weight_decay=run_cfg['param_weight_decay']
                                               )
@@ -631,7 +632,8 @@ if __name__ == '__main__':
                                                        metric_evaluated='loss',
                                                        dataset_type=run_cfg['dataset_type'],
                                                        lr=run_cfg['param_lr'],
-                                                       weight_decay=run_cfg['param_weight_decay'])
+                                                       weight_decay=run_cfg['param_weight_decay'],
+                                                       edge_weights=run_cfg['edge_weights'])
         model.load_state_dict(torch.load(model_saving_path))
         model.eval()
 

@@ -38,7 +38,8 @@ name_dataset = create_name_for_brain_dataset(num_nodes=68,
                                                  connectivity_type=ConnType('fmri'),
                                                  analysis_type=AnalysisType('st_unimodal'),
                                                  encoding_strategy=EncodingStrategy('none'),
-                                                 dataset_type=DatasetType('hcp'))
+                                                 dataset_type=DatasetType('hcp'),
+                                             edge_weights=True)
 
 print("Going for", name_dataset)
 class_dataset = HCPDataset
@@ -50,4 +51,5 @@ dataset = class_dataset(root=name_dataset,
                         normalisation=Normalisation('subject_norm'),
                         analysis_type=AnalysisType('st_unimodal'),
                         encoding_strategy=EncodingStrategy('none'),
-                        time_length=1200)
+                        time_length=1200,
+                        edge_weights=True)

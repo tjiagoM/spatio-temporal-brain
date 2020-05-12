@@ -104,7 +104,7 @@ class SpatioTemporalModel(nn.Module):
                  add_gat: bool = False, add_gcn: bool = False, final_sigmoid: bool = True, num_nodes: int = None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '64'
+        self.VERSION = '68'
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
             print('THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT')
@@ -182,7 +182,9 @@ class SpatioTemporalModel(nn.Module):
 
         if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
-            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.NODE_EMBED_SIZE - self.multimodal_size)
+            self.pre_lin_1 = nn.Linear(self.size_before_lin_temporal, int(self.size_before_lin_temporal / 2))
+            self.pre_lin_2 = nn.Linear(int(self.size_before_lin_temporal / 2), int(self.size_before_lin_temporal / 4))
+            self.lin_temporal = nn.Linear(int(self.size_before_lin_temporal / 4), self.NODE_EMBED_SIZE - self.multimodal_size)
 
             self.temporal_conv = TemporalConvNet(1,
                                                  [self.channels_conv, self.channels_conv * 2,
@@ -230,7 +232,7 @@ class SpatioTemporalModel(nn.Module):
         self.conv1d_4.weight.data.normal_(0, 0.01)
 
     def forward(self, data):
-        x, edge_index = data.x, data.edge_index
+        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
 
         if self.multimodal_size > 0:
             xn, x = x[:, :self.multimodal_size], x[:, self.multimodal_size:]
@@ -246,6 +248,12 @@ class SpatioTemporalModel(nn.Module):
 
             # Concatenating for the final embedding per node
             x = x.view(-1, self.size_before_lin_temporal)
+            x = self.pre_lin_1(x)
+            x = self.activation(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = self.pre_lin_2(x)
+            x = self.activation(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
             x = self.lin_temporal(x)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
@@ -264,11 +272,17 @@ class SpatioTemporalModel(nn.Module):
             x = torch.cat((xn, x), dim=1)
 
         if self.add_gcn or self.add_gat:
-            x = self.gnn_conv1(x, edge_index)
+            if self.add_gcn:
+                x = self.gnn_conv1(x, edge_index, edge_weight=edge_attr.view(-1))
+            else:
+                x = self.gnn_conv1(x, edge_index)
             x = self.activation(x)
             x = F.dropout(x, training=self.training)
             if self.num_gnn_layers == 2:
-                x = self.gnn_conv2(x, edge_index)
+                if self.add_gcn:
+                    x = self.gnn_conv2(x, edge_index, edge_weight=edge_attr.view(-1))
+                else:
+                    x = self.gnn_conv2(x, edge_index)
                 x = self.activation(x)
                 x = F.dropout(x, training=self.training)
 
