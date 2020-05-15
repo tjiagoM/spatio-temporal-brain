@@ -278,9 +278,9 @@ def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> Spatio
                                 channels_conv=run_cfg['param_channels_conv'],
                                 activation=run_cfg['param_activation'],
                                 conv_strategy=run_cfg['param_conv_strategy'],
-                                add_gat=run_cfg['param_add_gat'],
+                                sweep_type=run_cfg['sweep_type'],
                                 gat_heads=run_cfg['param_gat_heads'],
-                                add_gcn=run_cfg['param_add_gcn'],
+                                edge_weights=run_cfg['edge_weights'],
                                 final_sigmoid=run_cfg['model_with_sigmoid'],
                                 num_nodes=run_cfg['num_nodes'],
                                 num_gnn_layers=run_cfg['param_num_gnn_layers'],
@@ -457,6 +457,7 @@ if __name__ == '__main__':
         'num_nodes': config.num_nodes,
         'param_conn_type': ConnType(config.conn_type),
         'split_to_test': config.fold_num,
+        'sweep_type': SweepType(config.sweep_type),
         'target_var': config.target_var,
         'time_length': config.time_length,
     }
@@ -475,6 +476,7 @@ if __name__ == '__main__':
         run_cfg['param_lr'] = config.lr
         run_cfg['param_normalisation'] = Normalisation(config.normalisation)
         run_cfg['param_num_gnn_layers'] = config.num_gnn_layers
+        run_cfg['param_pooling'] = PoolingStrategy(config.pooling)
         run_cfg['param_threshold'] = config.threshold
         run_cfg['param_weight_decay'] = config.weight_decay
         run_cfg['temporal_embed_size'] = config.temporal_embed_size
@@ -485,19 +487,10 @@ if __name__ == '__main__':
         kwargs_dataloader = {'num_workers': 1, 'pin_memory': True} if run_cfg['device_run'].startswith('cuda') else {}
 
         # Definitions depending on sweep_type
-        run_cfg['param_pooling'] = PoolingStrategy(config.pooling)
-        sweep_type = SweepType(config.sweep_type)
         run_cfg['param_gat_heads'] = 0
-        run_cfg['param_add_gcn'] = False
-        run_cfg['param_add_gat'] = False
-        if sweep_type == SweepType.GCN:
-            run_cfg['param_add_gcn'] = True
-        elif sweep_type == SweepType.GAT:
-            run_cfg['param_add_gat'] = True
+        if run_cfg['sweep_type'] == SweepType.GAT:
             run_cfg['param_gat_heads'] = config.gat_heads
 
-        if run_cfg['param_pooling'] == PoolingStrategy.CONCAT:
-            run_cfg['batch_size'] -= 50
     elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
         run_cfg['device_run'] = 'cpu'
         run_cfg['colsample_bylevel'] = config.colsample_bylevel

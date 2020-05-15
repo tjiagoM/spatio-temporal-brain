@@ -7,11 +7,13 @@ import torch_geometric.utils as pyg_utils
 from math import ceil
 from torch.nn import BatchNorm1d
 from torch_geometric.nn import DenseSAGEConv, dense_diff_pool
+from torch_geometric.nn import MetaLayer
 from torch_geometric.nn import global_mean_pool, GCNConv, GATConv
 from torch_geometric.utils import to_dense_batch
+from torch_scatter import scatter_mean
 
 from tcn import TemporalConvNet
-from utils import ConvStrategy, PoolingStrategy, EncodingStrategy
+from utils import ConvStrategy, PoolingStrategy, EncodingStrategy, SweepType
 
 
 class GNN(torch.nn.Module):
@@ -96,15 +98,66 @@ class DiffPoolLayer(torch.nn.Module):
         return x, l1 + l2, e1 + e2
 
 
+class EdgeModel(torch.nn.Module):
+    def __init__(self, num_node_features, num_edge_features):
+        super().__init__()
+        self.input_size = 2 * num_node_features + num_edge_features
+        self.edge_mlp = nn.Sequential(
+            nn.Linear(self.input_size, int(self.input_size / 2)),
+            nn.ReLU(),
+            nn.Linear(int(self.input_size / 2), num_edge_features),
+        )
+
+    def forward(self, src, dest, edge_attr, u=None, batch=None):
+        # source, target: [E, F_x], where E is the number of edges.
+        # edge_attr: [E, F_e]
+        # u: [B, F_u], where B is the number of graphs.
+        # batch: [E] with max entry B - 1.
+        out = torch.cat([src, dest, edge_attr], 1)
+        out = self.edge_mlp(out)
+        return out
+
+
+class NodeModel(torch.nn.Module):
+    def __init__(self, num_node_features, num_edge_features):
+        super(NodeModel, self).__init__()
+        self.input_size = num_node_features + num_edge_features
+        self.node_mlp_1 = nn.Sequential(
+            nn.Linear(self.input_size, self.input_size * 2),
+            nn.ReLU(),
+            nn.Linear(self.input_size * 2, self.input_size * 2),
+        )
+        self.node_mlp_2 = nn.Sequential(
+            nn.Linear(num_node_features + self.input_size * 2, self.input_size),
+            nn.ReLU(),
+            nn.Linear(self.input_size, num_node_features),
+        )
+
+    def forward(self, x, edge_index, edge_attr, u=None, batch=None):
+        # x: [N, F_x], where N is the number of nodes.
+        # edge_index: [2, E] with max entry N - 1.
+        # edge_attr: [E, F_e]
+        # u: [B, F_u]
+        # batch: [N] with max entry B - 1.
+        row, col = edge_index
+        out = torch.cat([x[row], edge_attr], dim=1)
+        out = self.node_mlp_1(out)
+        # Scatter around "col" (destination nodes)
+        out = scatter_mean(out, col, dim=0, dim_size=x.size(0))
+        # Concatenate X with transformed representation given the source nodes with edge's messages
+        out = torch.cat([x, out], dim=1)
+        return self.node_mlp_2(out)
+
+
 class SpatioTemporalModel(nn.Module):
     def __init__(self, num_time_length: int, dropout_perc: float, pooling: PoolingStrategy, channels_conv: int,
-                 activation: str, conv_strategy: ConvStrategy, num_gnn_layers: int = 1, gat_heads: int = 0,
-                 multimodal_size: int = 0, temporal_embed_size: int = 16,
+                 activation: str, conv_strategy: ConvStrategy, sweep_type: SweepType, num_gnn_layers: int = 1,
+                 gat_heads: int = 0, multimodal_size: int = 0, temporal_embed_size: int = 16, model_version: str = '70',
                  encoding_strategy: EncodingStrategy = EncodingStrategy.NONE, encoding_model=None,
-                 add_gat: bool = False, add_gcn: bool = False, final_sigmoid: bool = True, num_nodes: int = None):
+                 edge_weights: bool = False, final_sigmoid: bool = True, num_nodes: int = None):
         super(SpatioTemporalModel, self).__init__()
 
-        self.VERSION = '68'
+        self.VERSION = model_version
 
         if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
             print('THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT')
@@ -115,8 +168,8 @@ class SpatioTemporalModel(nn.Module):
         if activation not in ['relu', 'tanh', 'elu']:
             print('THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh/elu')
             exit(-1)
-        if add_gat and add_gcn:
-            print('You cannot have both GCN and GAT')
+        if sweep_type == SweepType.GAT:
+            print('GAT is not ready for edge_attr')
             exit(-1)
         if conv_strategy != ConvStrategy.NONE and encoding_strategy not in [EncodingStrategy.NONE,
                                                                             EncodingStrategy.STATS]:
@@ -153,21 +206,21 @@ class SpatioTemporalModel(nn.Module):
 
         self.channels_conv = channels_conv
         self.final_sigmoid = final_sigmoid
-        self.add_gcn = add_gcn
-        self.add_gat = add_gat
+        self.sweep_type = sweep_type
 
         self.num_time_length = num_time_length
         self.final_feature_size = ceil(self.num_time_length / 2 / 8)
 
+        self.edge_weights = edge_weights
         self.num_gnn_layers = num_gnn_layers
         self.gat_heads = gat_heads
-        if self.add_gcn:
+        if self.sweep_type == SweepType.GCN:
             self.gnn_conv1 = GCNConv(self.NODE_EMBED_SIZE,
                                      self.NODE_EMBED_SIZE)
             if self.num_gnn_layers == 2:
                 self.gnn_conv2 = GCNConv(self.NODE_EMBED_SIZE,
                                          self.NODE_EMBED_SIZE)
-        elif self.add_gat:
+        elif self.sweep_type == SweepType.GAT:
             self.gnn_conv1 = GATConv(self.NODE_EMBED_SIZE,
                                      self.NODE_EMBED_SIZE,
                                      heads=self.gat_heads,
@@ -179,12 +232,18 @@ class SpatioTemporalModel(nn.Module):
                                          heads=self.gat_heads if self.gat_heads == 1 else int(self.gat_heads / 2),
                                          concat=False,
                                          dropout=dropout_perc)
+        elif self.sweep_type == SweepType.META_EDGE_NODE:
+            self.meta_layer = MetaLayer(edge_model=EdgeModel(num_node_features=self.NODE_EMBED_SIZE,
+                                                             num_edge_features=1),
+                                        node_model=NodeModel(num_node_features=self.NODE_EMBED_SIZE,
+                                                             num_edge_features=1))
+        elif self.sweep_type == SweepType.META_NODE:
+            self.meta_layer = MetaLayer(node_model=NodeModel(num_node_features=self.NODE_EMBED_SIZE,
+                                                             num_edge_features=1))
 
         if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
-            self.pre_lin_1 = nn.Linear(self.size_before_lin_temporal, int(self.size_before_lin_temporal / 2))
-            self.pre_lin_2 = nn.Linear(int(self.size_before_lin_temporal / 2), int(self.size_before_lin_temporal / 4))
-            self.lin_temporal = nn.Linear(int(self.size_before_lin_temporal / 4), self.NODE_EMBED_SIZE - self.multimodal_size)
+            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.NODE_EMBED_SIZE - self.multimodal_size)
 
             self.temporal_conv = TemporalConvNet(1,
                                                  [self.channels_conv, self.channels_conv * 2,
@@ -193,7 +252,7 @@ class SpatioTemporalModel(nn.Module):
                                                  stride=2,
                                                  dropout=self.dropout,
                                                  num_time_length=self.num_time_length)
-        elif self.conv_strategy == ConvStrategy.CNN_ENTIRE:  # or self.conv_strategy == ConvStrategy.CNN_NO_STRIDES:
+        elif self.conv_strategy == ConvStrategy.CNN_ENTIRE:
             stride = 2
             padding = 3
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
@@ -248,12 +307,6 @@ class SpatioTemporalModel(nn.Module):
 
             # Concatenating for the final embedding per node
             x = x.view(-1, self.size_before_lin_temporal)
-            x = self.pre_lin_1(x)
-            x = self.activation(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = self.pre_lin_2(x)
-            x = self.activation(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
             x = self.lin_temporal(x)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
@@ -271,25 +324,27 @@ class SpatioTemporalModel(nn.Module):
         if self.multimodal_size > 0:
             x = torch.cat((xn, x), dim=1)
 
-        if self.add_gcn or self.add_gat:
-            if self.add_gcn:
+        if self.sweep_type in [SweepType.GAT, SweepType.GCN]:
+            if self.edge_weights:
                 x = self.gnn_conv1(x, edge_index, edge_weight=edge_attr.view(-1))
             else:
                 x = self.gnn_conv1(x, edge_index)
             x = self.activation(x)
             x = F.dropout(x, training=self.training)
             if self.num_gnn_layers == 2:
-                if self.add_gcn:
+                if self.edge_weights:
                     x = self.gnn_conv2(x, edge_index, edge_weight=edge_attr.view(-1))
                 else:
                     x = self.gnn_conv2(x, edge_index)
                 x = self.activation(x)
                 x = F.dropout(x, training=self.training)
+        elif self.sweep_type in [SweepType.META_NODE, SweepType.META_EDGE_NODE]:
+            x, edge_attr, _ = self.meta_layer(x, edge_index, edge_attr)
 
         if self.pooling == PoolingStrategy.MEAN:
             x = global_mean_pool(x, data.batch)
         elif self.pooling == PoolingStrategy.DIFFPOOL:
-            adj_tmp = pyg_utils.to_dense_adj(edge_index, data.batch)
+            adj_tmp = pyg_utils.to_dense_adj(edge_index, data.batch, edge_attr=edge_attr)
             x_tmp, batch_mask = pyg_utils.to_dense_batch(x, data.batch)
 
             x, link_loss, ent_loss = self.diff_pool(x_tmp, adj_tmp, batch_mask)
@@ -318,8 +373,8 @@ class SpatioTemporalModel(nn.Module):
                       'CS_' + self.conv_strategy.value[:3],
                       'CH_' + str(self.channels_conv),
                       'FS_' + str(self.final_sigmoid)[:1],
-                      'GC_' + str(self.add_gcn)[:1],
-                      'GA_' + str(self.add_gat)[:1],
+                      'T_' + self.sweep_type.value[:3],
+                      'W_' + str(self.edge_weights)[:1],
                       'GH_' + str(self.gat_heads),
                       'GL_' + str(self.num_gnn_layers),
                       'E_' + self.encoding_strategy.value[:3],

@@ -11,11 +11,14 @@ from xgboost import XGBClassifier
 
 
 @unique
+# 3 first letters need to be different (for logging)
 class SweepType(str, Enum):
     DIFFPOOL = 'diff_pool'
     NO_GNN = 'no_gnn'
     GCN = 'gcn'
     GAT = 'gat'
+    META_NODE = 'node_meta'
+    META_EDGE_NODE = 'edge_node_meta'
 
 
 @unique
@@ -67,8 +70,8 @@ class AnalysisType(str, Enum):
 
 
 @unique
+# 3 first letters need to be different (for logging)
 class EncodingStrategy(str, Enum):
-    # 3 first letters need to be different (for logging)
     NONE = 'none'
     AE3layers = '3layerAE'
     VAE3layers = '3layerVAE'
@@ -204,7 +207,6 @@ def create_name_for_model(target_var: str, model, outer_split_num: int,
                                        str(outer_split_num),
                                        str(inner_split_num),
                                        metric_evaluated,
-                                       str(edge_weights)[:1],
                                        model_str_representation,
                                        str(lr),
                                        str(weight_decay),

@@ -6,7 +6,7 @@ from datasets import BrainDataset, HCPDataset, UKBDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, \
     EncodingStrategy, \
-    create_best_encoder_name, AnalysisType, DatasetType
+    create_best_encoder_name, AnalysisType, DatasetType, SweepType
 
 device = 'cuda:0'
 
@@ -15,10 +15,8 @@ TARGET_VAR = 'gender'
 ACTIVATION = 'relu'
 THRESHOLD = 5
 SPLIT_TO_TEST = 1
-ADD_GCN = True
-NUM_GNN_LAYERS = 2
-ADD_GAT = False
-BATCH_SIZE = 100
+NUM_GNN_LAYERS = 1
+BATCH_SIZE = 400
 REMOVE_NODES = False
 NUM_NODES = 68
 CONN_TYPE = ConnType('fmri')
@@ -26,12 +24,14 @@ CONV_STRATEGY = ConvStrategy('tcn_entire')
 POOLING = PoolingStrategy('mean')
 CHANNELS_CONV = 8
 NORMALISATION = Normalisation('subject_norm')
-TIME_LENGTH = 1200
+TIME_LENGTH = 490
 ENCODING_STRATEGY = EncodingStrategy('none')
-DATASET_TYPE = DatasetType.HCP
+DATASET_TYPE = DatasetType.UKB
 ANALYSIS_TYPE = AnalysisType.ST_UNIMODAL
 MULTIMODAL_SIZE = 0
 USE_EDGE_WEIGHTS = True
+SWEEP_TYPE = SweepType('edge_node_meta')
+TEMPORAL_EMBED_SIZE = 128
 
 torch.manual_seed(1)
 #torch.backends.cudnn.deterministic = True
@@ -50,7 +50,7 @@ name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
                                              edge_weights=USE_EDGE_WEIGHTS)
 
 class_dataset = UKBDataset
-class_dataset = HCPDataset
+#class_dataset = HCPDataset
 
 dataset = class_dataset(root=name_dataset,
                             target_var=TARGET_VAR,
@@ -76,14 +76,15 @@ model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
                                 channels_conv=CHANNELS_CONV,
                                 activation=ACTIVATION,
                                 conv_strategy=CONV_STRATEGY,
-                                add_gat=ADD_GAT,
+                                sweep_type=SWEEP_TYPE,
                                 gat_heads=0,
-                                add_gcn=ADD_GCN,
+                                edge_weights=USE_EDGE_WEIGHTS,
                                 final_sigmoid=True,
                                 num_nodes=NUM_NODES,
                                 num_gnn_layers=NUM_GNN_LAYERS,
                                 multimodal_size=MULTIMODAL_SIZE,
                             encoding_strategy=ENCODING_STRATEGY,
+                            temporal_embed_size=TEMPORAL_EMBED_SIZE,
                                 encoding_model=None
                                 ).to(device)
 pytorch_total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
