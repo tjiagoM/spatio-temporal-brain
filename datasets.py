@@ -284,7 +284,7 @@ class UKBDataset(BrainDataset):
                  encoding_strategy: EncodingStrategy = EncodingStrategy.NONE,
                  transform=None, pre_transform=None):
 
-        if target_var not in ['gender']:
+        if target_var not in ['gender', 'age']:
             print("UKBDataset not prepared for that target_var!")
             exit(-2)
         if connectivity_type not in [ConnType.FMRI]:
@@ -323,11 +323,17 @@ class UKBDataset(BrainDataset):
 
         if self.target_var == 'gender':
             y = torch.tensor([covars.loc[person, 'Sex']], dtype=torch.float)
+        else:
+            y = torch.tensor([covars.loc[person, 'Age.at.scan']], dtype=torch.float)
 
         data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
         data.ukb_id = torch.tensor([person])
         data.bmi = torch.tensor([covars.loc[person, 'BMI.at.scan']])
         data.age = torch.tensor([covars.loc[person, 'Age.at.scan']])
+        if self.target_var == 'gender':
+            data.age = torch.tensor([covars.loc[person, 'Age.at.scan']])
+        else:
+            data.sex = torch.tensor([covars.loc[person, 'Sex']])
 
         return data
 
