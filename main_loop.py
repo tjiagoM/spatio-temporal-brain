@@ -9,9 +9,10 @@ import numpy as np
 import pandas as pd
 import torch
 import wandb
-from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
+from scipy.stats import stats
+from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report, r2_score
 from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from torch_geometric.data import DataLoader
 from xgboost import XGBClassifier
 
@@ -22,12 +23,15 @@ from utils import create_name_for_brain_dataset, create_name_for_model, Normalis
     SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, create_name_for_xgbmodel
 
 
-def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
+def train_model(model, train_loader, optimizer, pooling_mechanism, device, label_scaler=None):
     model.train()
     loss_all = 0
     loss_all_link = 0
     loss_all_ent = 0
-    criterion = torch.nn.BCELoss()
+    if label_scaler is None:
+        criterion = torch.nn.BCELoss()
+    else:
+        criterion = torch.nn.SmoothL1Loss()
 
     grads = {'final_l': [],
              'conv1d_1': []
@@ -63,8 +67,24 @@ def train_classifier(model, train_loader, optimizer, pooling_mechanism, device):
         train_loader.dataset)
 
 
-def return_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_value=None, ent_loss_value=None,
-                   flatten_approach: bool = False):
+def return_regressor_metrics(labels, pred_prob, label_scaler, loss_value=None, link_loss_value=None,
+                             ent_loss_value=None):
+    new_labels = label_scaler.inverse_transform(labels)
+    new_preds = label_scaler.inverse_transform(pred_prob)
+    r2 = r2_score(new_labels, new_preds)
+    r = stats.pearsonr(new_labels, new_preds)[0]
+
+    return {'loss': loss_value,
+            'link_loss': link_loss_value,
+            'ent_loss': ent_loss_value,
+            'r2': r2,
+            'r': r
+            }
+
+
+def return_classifier_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_value=None,
+                              ent_loss_value=None,
+                              flatten_approach: bool = False):
     roc_auc = roc_auc_score(labels, pred_prob)
     acc = accuracy_score(labels, pred_binary)
     f1 = f1_score(labels, pred_binary, zero_division=0)
@@ -88,9 +108,12 @@ def return_metrics(labels, pred_binary, pred_prob, loss_value=None, link_loss_va
             }
 
 
-def evaluate_classifier(model, loader, pooling_mechanism, device):
+def evaluate_model(model, loader, pooling_mechanism, device, label_scaler=None):
     model.eval()
-    criterion = torch.nn.BCELoss()
+    if label_scaler is None:
+        criterion = torch.nn.BCELoss()
+    else:
+        criterion = torch.nn.SmoothL1Loss()
 
     predictions = []
     labels = []
@@ -125,51 +148,67 @@ def evaluate_classifier(model, loader, pooling_mechanism, device):
     predictions = np.hstack(predictions)
     labels = np.hstack(labels)
 
-    # if save_path_preds is not None:
-    #    np.save('results/l_' + save_path_preds, labels)
-    #    np.save('results/p_' + save_path_preds, predictions)
+    if label_scaler is None:
+        pred_binary = np.where(predictions > 0.5, 1, 0)
+        return return_classifier_metrics(labels, pred_binary, predictions,
+                                         loss_value=test_error / len(loader.dataset),
+                                         link_loss_value=test_link_loss / len(loader.dataset),
+                                         ent_loss_value=test_ent_loss / len(loader.dataset))
+    else:
+        return return_regressor_metrics(labels, predictions,
+                                        label_scaler=label_scaler,
+                                        loss_value=test_error / len(loader.dataset),
+                                        link_loss_value=test_link_loss / len(loader.dataset),
+                                        ent_loss_value=test_ent_loss / len(loader.dataset))
 
-    pred_binary = np.where(predictions > 0.5, 1, 0)
 
-    return return_metrics(labels, pred_binary, predictions,
-                          loss_value=test_error / len(loader.dataset),
-                          link_loss_value=test_link_loss / len(loader.dataset),
-                          ent_loss_value=test_ent_loss / len(loader.dataset))
+def training_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader, optimizer,
+                  pooling_mechanism, device, label_scaler=None):
+    loss, link_loss, ent_loss = train_model(model, train_loader, optimizer, pooling_mechanism, device,
+                                            label_scaler=label_scaler)
+    train_metrics = evaluate_model(model, train_loader, pooling_mechanism, device, label_scaler=label_scaler)
+    val_metrics = evaluate_model(model, val_loader, pooling_mechanism, device, label_scaler=label_scaler)
 
+    if label_scaler is None:
+        print(
+            '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
+            ' {:.4f} '.format(outer_split_no, inner_split_no, epoch, train_metrics['loss'], val_metrics['loss'],
+                              train_metrics['auc'], val_metrics['auc'],
+                              train_metrics['acc'], val_metrics['acc'],
+                              train_metrics['f1'], val_metrics['f1']))
+        wandb.log({
+            f'train_loss{inner_split_no}': train_metrics['loss'], f'val_loss{inner_split_no}': val_metrics['loss'],
+            f'train_auc{inner_split_no}': train_metrics['auc'], f'val_auc{inner_split_no}': val_metrics['auc'],
+            f'train_acc{inner_split_no}': train_metrics['acc'], f'val_acc{inner_split_no}': val_metrics['acc'],
+            f'train_sens{inner_split_no}': train_metrics['sensitivity'],
+            f'val_sens{inner_split_no}': val_metrics['sensitivity'],
+            f'train_spec{inner_split_no}': train_metrics['specificity'],
+            f'val_spec{inner_split_no}': val_metrics['specificity'],
+            f'train_f1{inner_split_no}': train_metrics['f1'], f'val_f1{inner_split_no}': val_metrics['f1']
+        })
+    else:
+        print(
+            '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, R2: {:.4f} / {:.4f}, R: {:.4f} / {:.4f}'
+            ''.format(outer_split_no, inner_split_no, epoch, train_metrics['loss'], val_metrics['loss'],
+                      train_metrics['r2'], val_metrics['r2'],
+                      train_metrics['r'], val_metrics['r']))
+        wandb.log({
+            f'train_loss{inner_split_no}': train_metrics['loss'], f'val_loss{inner_split_no}': val_metrics['loss'],
+            f'train_r2{inner_split_no}': train_metrics['r2'], f'val_r2{inner_split_no}': val_metrics['r2'],
+            f'train_r{inner_split_no}': train_metrics['r'], f'val_r{inner_split_no}': val_metrics['r']
+        })
 
-def classifier_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader, optimizer,
-                    pooling_mechanism, device):
-    loss, link_loss, ent_loss = train_classifier(model, train_loader, optimizer, pooling_mechanism, device)
-    train_metrics = evaluate_classifier(model, train_loader, pooling_mechanism, device)
-    val_metrics = evaluate_classifier(model, val_loader, pooling_mechanism, device)
-
-    print('{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
-          ' {:.4f} '.format(outer_split_no, inner_split_no, epoch, train_metrics['loss'], val_metrics['loss'],
-                            train_metrics['auc'], val_metrics['auc'],
-                            train_metrics['acc'], val_metrics['acc'],
-                            train_metrics['f1'], val_metrics['f1']))
-    wandb.log({
-        f'train_loss{inner_split_no}': train_metrics['loss'], f'val_loss{inner_split_no}': val_metrics['loss'],
-        f'train_auc{inner_split_no}': train_metrics['auc'], f'val_auc{inner_split_no}': val_metrics['auc'],
-        f'train_acc{inner_split_no}': train_metrics['acc'], f'val_acc{inner_split_no}': val_metrics['acc'],
-        f'train_sens{inner_split_no}': train_metrics['sensitivity'],
-        f'val_sens{inner_split_no}': val_metrics['sensitivity'],
-        f'train_spec{inner_split_no}': train_metrics['specificity'],
-        f'val_spec{inner_split_no}': val_metrics['specificity'],
-        f'train_f1{inner_split_no}': train_metrics['f1'], f'val_f1{inner_split_no}': val_metrics['f1']
-    })
     if pooling_mechanism == PoolingStrategy.DIFFPOOL:
         wandb.log({
-            'train_link_loss': link_loss, 'val_link_loss': val_metrics['link_loss'],
-            'train_ent_loss': ent_loss, 'val_ent_loss': val_metrics['ent_loss']
+            f'train_link_loss{inner_split_no}': link_loss, f'val_link_loss{inner_split_no}': val_metrics['link_loss'],
+            f'train_ent_loss{inner_split_no}': ent_loss, f'val_ent_loss{inner_split_no}': val_metrics['ent_loss']
         })
 
     return val_metrics
 
 
-def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, analysis_type: AnalysisType,
-                          num_splits: int):
-    if dataset_type == DatasetType.HCP:
+def create_fold_generator(dataset: BrainDataset, run_cfg: Dict[str, Any], num_splits: int):
+    if run_cfg['dataset_type'] == DatasetType.HCP:
         # Stratification will occur with regards to both the sex and session day
         skf = StratifiedGroupKFold(n_splits=num_splits, random_state=1111)
         merged_labels = merge_y_and_others(torch.cat([data.y for data in dataset], dim=0),
@@ -179,20 +218,23 @@ def create_fold_generator(dataset: BrainDataset, dataset_type: DatasetType, anal
                                   groups=[data.hcp_id.item() for data in dataset])
     else:
         # UKB stratification over sex, age, and BMI (needs discretisation first)
-        ys = []
+        sexes = []
         bmis = []
         ages = []
         for data in dataset:
-            if analysis_type == AnalysisType.FLATTEN_CORRS:
-                ys.append(data.sex.item())
-            else:
-                ys.append(data.y.item())
+            if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
+                sexes.append(data.sex.item())
+            elif run_cfg['target_var'] == 'gender':
+                sexes.append(data.y.item())
+                ages.append(data.age.item())
+            elif run_cfg['target_var'] == 'age':
+                sexes.append(data.sex.item())
+                ages.append(data.y.item())
             bmis.append(data.bmi.item())
-            ages.append(data.age.item())
         bmis = pd.qcut(bmis, 7, labels=False)
         bmis[np.isnan(bmis)] = 7
         ages = pd.qcut(ages, 7, labels=False)
-        strat_labels = LabelEncoder().fit_transform([f'{ys[i]}{ages[i]}{bmis[i]}' for i in range(len(dataset))])
+        strat_labels = LabelEncoder().fit_transform([f'{sexes[i]}{ages[i]}{bmis[i]}' for i in range(len(dataset))])
 
         skf = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=1111)
         skf_generator = skf.split(np.zeros((len(dataset), 1)),
@@ -318,14 +360,14 @@ def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], 
 
     pickle.dump(model, open(model_saving_path, "wb"))
 
-    train_metrics = return_metrics(y_train,
-                                   pred_prob=model.predict_proba(train_arr)[:, 1],
-                                   pred_binary=model.predict(train_arr),
-                                   flatten_approach=True)
-    val_metrics = return_metrics(y_val,
-                                 pred_prob=model.predict_proba(val_arr)[:, 1],
-                                 pred_binary=model.predict(val_arr),
-                                 flatten_approach=True)
+    train_metrics = return_classifier_metrics(y_train,
+                                              pred_prob=model.predict_proba(train_arr)[:, 1],
+                                              pred_binary=model.predict(train_arr),
+                                              flatten_approach=True)
+    val_metrics = return_classifier_metrics(y_val,
+                                            pred_prob=model.predict_proba(val_arr)[:, 1],
+                                            pred_binary=model.predict(val_arr),
+                                            flatten_approach=True)
 
     print('{:1d}-{:1d}: Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
           ' {:.4f} '.format(out_fold_num, in_fold_num,
@@ -346,7 +388,7 @@ def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], 
 
 
 def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: SpatioTemporalModel,
-                 X_train_in: BrainDataset, X_val_in: BrainDataset) -> Dict:
+                 X_train_in: BrainDataset, X_val_in: BrainDataset, label_scaler: StandardScaler = None) -> Dict:
     train_in_loader = DataLoader(X_train_in, batch_size=run_cfg['batch_size'], shuffle=True, **kwargs_dataloader)
     val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
 
@@ -376,15 +418,16 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
 
     last_losses_val = deque([9999 for _ in range(run_cfg['early_stop_steps'])], maxlen=run_cfg['early_stop_steps'])
     for epoch in range(run_cfg['num_epochs'] + 1):
-        val_metrics = classifier_step(out_fold_num,
-                                      in_fold_num,
-                                      epoch,
-                                      model,
-                                      train_in_loader,
-                                      val_loader,
-                                      optimizer,
-                                      run_cfg['param_pooling'],
-                                      run_cfg['device_run'])
+        val_metrics = training_step(out_fold_num,
+                                    in_fold_num,
+                                    epoch,
+                                    model,
+                                    train_in_loader,
+                                    val_loader,
+                                    optimizer,
+                                    run_cfg['param_pooling'],
+                                    run_cfg['device_run'],
+                                    label_scaler=label_scaler)
         if sum([val_metrics['loss'] > loss for loss in last_losses_val]) == run_cfg['early_stop_steps']:
             print("EARLY STOPPING IT")
             break
@@ -392,11 +435,15 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
 
         if val_metrics['loss'] < best_model_metrics['loss']:
             best_model_metrics['loss'] = val_metrics['loss']
-            best_model_metrics['sensitivity'] = val_metrics['sensitivity']
-            best_model_metrics['specificity'] = val_metrics['specificity']
-            best_model_metrics['acc'] = val_metrics['acc']
-            best_model_metrics['f1'] = val_metrics['f1']
-            best_model_metrics['auc'] = val_metrics['auc']
+            if label_scaler is None:
+                best_model_metrics['sensitivity'] = val_metrics['sensitivity']
+                best_model_metrics['specificity'] = val_metrics['specificity']
+                best_model_metrics['acc'] = val_metrics['acc']
+                best_model_metrics['f1'] = val_metrics['f1']
+                best_model_metrics['auc'] = val_metrics['auc']
+            else:
+                best_model_metrics['r2'] = val_metrics['r2']
+                best_model_metrics['r'] = val_metrics['r']
             if run_cfg['param_pooling'] == PoolingStrategy.DIFFPOOL:
                 best_model_metrics['ent_loss'] = val_metrics['ent_loss']
                 best_model_metrics['link_loss'] = val_metrics['link_loss']
@@ -408,10 +455,12 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
     return best_model_metrics
 
 
-def get_empty_metrics_dict() -> Dict[str, list]:
-    tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': [],
-                'ent_loss': [], 'link_loss': []}
-
+def get_empty_metrics_dict(label_scaler) -> Dict[str, list]:
+    if label_scaler is None:
+        tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': [],
+                    'ent_loss': [], 'link_loss': []}
+    else:
+        tmp_dict = {'loss': [], 'r2': [], 'r': [], 'ent_loss': [], 'link_loss': []}
     return tmp_dict
 
 
@@ -513,7 +562,7 @@ if __name__ == '__main__':
         exit(-1)
 
     print('This run will not be deterministic')
-    if run_cfg['target_var'] not in ['gender']:
+    if run_cfg['target_var'] not in ['gender', 'age']:
         print('Unrecognised target_var')
         exit(-1)
 
@@ -522,12 +571,14 @@ if __name__ == '__main__':
     elif run_cfg['analysis_type'] == AnalysisType.ST_UNIMODAL:
         run_cfg['multimodal_size'] = 0
 
+    if run_cfg['target_var'] == 'age':
+        run_cfg['model_with_sigmoid'] = False
+
     print('Resulting run_cfg:', run_cfg)
     # DATASET
     dataset = generate_dataset(run_cfg)
 
-    skf_outer_generator = create_fold_generator(dataset, run_cfg['dataset_type'], run_cfg['analysis_type'],
-                                                N_OUT_SPLITS)
+    skf_outer_generator = create_fold_generator(dataset, run_cfg, N_OUT_SPLITS)
 
     # Getting train / test folds
     outer_split_num: int = 0
@@ -542,22 +593,35 @@ if __name__ == '__main__':
 
         break
 
-    # Train / test sets defined, running the rest
-    print("Size is:", len(X_train_out), "/", len(X_test_out))
-    if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
-        print("Positive sex classes:", sum([data.sex.item() for data in X_train_out]),
-              "/", sum([data.sex.item() for data in X_test_out]))
-    else:
-        print("Positive classes:", sum([data.y.item() for data in X_train_out]),
-              "/", sum([data.y.item() for data in X_test_out]))
+    scaler_labels = None
+    # Scaling for regression problem
+    if run_cfg['target_var'] == 'age':
+        print('Mean of distribution BEFORE scaling:', np.mean([data.y.item() for data in X_train_out]),
+              '/', np.mean([data.y.item() for data in X_test_out]))
+        scaler_labels = StandardScaler().fit(np.array([data.y.item() for data in X_train_out]).reshape(-1, 1))
+        for elem in X_train_out:
+            elem.y[0] = scaler_labels.transform([elem.y.numpy()])[0, 0]
+        for elem in X_test_out:
+            elem.y[0] = scaler_labels.transform([elem.y.numpy()])[0, 0]
 
-    skf_inner_generator = create_fold_generator(X_train_out, run_cfg['dataset_type'], run_cfg['analysis_type'],
-                                                N_INNER_SPLITS)
+    # Train / test sets defined, running the rest
+    print('Size is:', len(X_train_out), '/', len(X_test_out))
+    if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
+        print('Positive sex classes:', sum([data.sex.item() for data in X_train_out]),
+              '/', sum([data.sex.item() for data in X_test_out]))
+    elif run_cfg['target_var'] == 'age':
+        print('Mean of distribution', np.mean([data.y.item() for data in X_train_out]),
+              '/', np.mean([data.y.item() for data in X_test_out]))
+    else:  # target_var == gender
+        print('Positive classes:', sum([data.y.item() for data in X_train_out]),
+              '/', sum([data.y.item() for data in X_test_out]))
+
+    skf_inner_generator = create_fold_generator(X_train_out, run_cfg, N_INNER_SPLITS)
 
     #################
     # Main inner-loop
     #################
-    overall_metrics: Dict[str, list] = get_empty_metrics_dict()
+    overall_metrics: Dict[str, list] = get_empty_metrics_dict(scaler_labels)
     inner_loop_run: int = 0
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1
@@ -575,6 +639,9 @@ if __name__ == '__main__':
         if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
             print("Inner Positive sex classes:", sum([data.sex.item() for data in X_train_in]),
                   "/", sum([data.sex.item() for data in X_val_in]))
+        elif run_cfg['target_var'] == 'age':
+            print('Mean of distribution', np.mean([data.y.item() for data in X_train_in]),
+                  '/', np.mean([data.y.item() for data in X_val_in]))
         else:
             print("Inner Positive classes:", sum([data.y.item() for data in X_train_in]),
                   "/", sum([data.y.item() for data in X_val_in]))
@@ -585,7 +652,8 @@ if __name__ == '__main__':
                                               run_cfg=run_cfg,
                                               model=model,
                                               X_train_in=X_train_in,
-                                              X_val_in=X_val_in)
+                                              X_val_in=X_val_in,
+                                              label_scaler=scaler_labels)
 
         elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
             inner_fold_metrics = fit_xgb_model(out_fold_num=run_cfg['split_to_test'],
@@ -633,12 +701,20 @@ if __name__ == '__main__':
         # Calculating on test set
         test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
 
-        test_metrics = evaluate_classifier(model, test_out_loader, run_cfg['param_pooling'], run_cfg['device_run'])
+        test_metrics = evaluate_model(model, test_out_loader, run_cfg['param_pooling'], run_cfg['device_run'],
+                                      label_scaler=scaler_labels)
         print(test_metrics)
 
         print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
               ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
                         test_metrics['sensitivity'], test_metrics['specificity']))
+        if scaler_labels is None:
+            print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
+                            test_metrics['sensitivity'], test_metrics['specificity']))
+        else:
+            print('{:1d}-Final: {:.7f}, R2: {:.4f}, R: {:.4f}'
+                  ''.format(outer_split_num, test_metrics['loss'], test_metrics['r2'], test_metrics['r']))
     elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
         model: XGBClassifier = generate_xgb_model(run_cfg)
         model_saving_path = create_name_for_xgbmodel(model=model,
@@ -652,10 +728,10 @@ if __name__ == '__main__':
         if run_cfg['target_var'] == 'gender':
             y_test = [int(data.sex.item()) for data in X_test_out]
 
-        test_metrics = return_metrics(y_test,
-                                      pred_prob=model.predict_proba(test_arr)[:, 1],
-                                      pred_binary=model.predict(test_arr),
-                                      flatten_approach=True)
+        test_metrics = return_classifier_metrics(y_test,
+                                                 pred_prob=model.predict_proba(test_arr)[:, 1],
+                                                 pred_binary=model.predict(test_arr),
+                                                 flatten_approach=True)
         print(test_metrics)
 
         print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'

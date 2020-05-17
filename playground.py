@@ -1,119 +1,69 @@
-import torch
-from torch_geometric.data import DataLoader, DenseDataLoader
 import numpy as np
+import torch
+from torch_geometric.data import DataLoader
 
-from datasets import BrainDataset, HCPDataset, UKBDataset
+from main_loop import generate_dataset, create_fold_generator, generate_st_model
 from model import SpatioTemporalModel
-from utils import create_name_for_brain_dataset, Normalisation, ConnType, ConvStrategy, PoolingStrategy, \
-    EncodingStrategy, \
-    create_best_encoder_name, AnalysisType, DatasetType, SweepType
+from utils import Normalisation, ConnType, ConvStrategy, PoolingStrategy, EncodingStrategy, \
+    AnalysisType, DatasetType, SweepType
 
-device = 'cuda:0'
+run_cfg = {'analysis_type': AnalysisType.ST_UNIMODAL,
+           'dataset_type': DatasetType.UKB,
+           'num_nodes': 68,
+           'param_conn_type': ConnType('fmri'),
+           'split_to_test': 1,
+           'sweep_type': SweepType('edge_node_meta'),
+           'target_var': 'gender',
+           'time_length': 490,
+           'param_gat_heads': 0,
 
-N_EPOCHS = 1
-TARGET_VAR = 'gender'
-ACTIVATION = 'relu'
-THRESHOLD = 5
-SPLIT_TO_TEST = 1
-NUM_GNN_LAYERS = 1
-BATCH_SIZE = 400
-REMOVE_NODES = False
-NUM_NODES = 68
-CONN_TYPE = ConnType('fmri')
-CONV_STRATEGY = ConvStrategy('tcn_entire')
-POOLING = PoolingStrategy('mean')
-CHANNELS_CONV = 8
-NORMALISATION = Normalisation('subject_norm')
-TIME_LENGTH = 490
-ENCODING_STRATEGY = EncodingStrategy('none')
-DATASET_TYPE = DatasetType.UKB
-ANALYSIS_TYPE = AnalysisType.ST_UNIMODAL
-MULTIMODAL_SIZE = 0
-USE_EDGE_WEIGHTS = True
-SWEEP_TYPE = SweepType('edge_node_meta')
-TEMPORAL_EMBED_SIZE = 128
+           'batch_size': 400,
+           'device_run': 'cuda:1',
+           # 'early_stop_steps': config.early_stop_steps,
+           'edge_weights': True,
+           'model_with_sigmoid': True,
+           'num_epochs': 1,
+           'param_activation': 'relu',
+           'param_channels_conv': 8,
+           'param_conv_strategy': ConvStrategy('tcn_entire'),
+           'param_dropout': 0.3,
+           'param_encoding_strategy': EncodingStrategy('none'),
+           # 'param_lr': config.lr,
+           'param_normalisation': Normalisation('subject_norm'),
+           'param_num_gnn_layers': 1,
+           'param_pooling': PoolingStrategy('mean'),
+           'param_threshold': 5,
+           # 'param_weight_decay': config.weight_decay,
+           'temporal_embed_size': 128,
+
+           'multimodal_size': 0
+           }
+run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
 
 torch.manual_seed(1)
-#torch.backends.cudnn.deterministic = True
-#torch.backends.cudnn.benchmark = False
 
+N_OUT_SPLITS: int = 5
+N_INNER_SPLITS: int = 5
 
-name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
-                                                 time_length=TIME_LENGTH,
-                                                 target_var=TARGET_VAR,
-                                                 threshold=THRESHOLD,
-                                                 normalisation=Normalisation.SUBJECT,
-                                                 connectivity_type=ConnType.FMRI,
-                                                 analysis_type=ANALYSIS_TYPE,
-                                             encoding_strategy=ENCODING_STRATEGY,
-                                                 dataset_type=DATASET_TYPE,
-                                             edge_weights=USE_EDGE_WEIGHTS)
+dataset = generate_dataset(run_cfg)
 
-class_dataset = UKBDataset
-#class_dataset = HCPDataset
+skf_outer_generator = create_fold_generator(dataset, run_cfg['dataset_type'], run_cfg['analysis_type'], N_OUT_SPLITS)
 
-dataset = class_dataset(root=name_dataset,
-                            target_var=TARGET_VAR,
-                            num_nodes=NUM_NODES,
-                            threshold=THRESHOLD,
-                            connectivity_type=ConnType.FMRI,
-                            normalisation=Normalisation.SUBJECT,
-                            analysis_type=ANALYSIS_TYPE,
-                        encoding_strategy=ENCODING_STRATEGY,
-                            time_length=TIME_LENGTH,
-                        edge_weights=USE_EDGE_WEIGHTS)
-#if ENCODING_STRATEGY != EncodingStrategy.NONE:
-#    from encoders import AE # Necessary to load
-#    encoding_model = torch.load(create_best_encoder_name(ts_length=TIME_LENGTH,
-#                                                         outer_split_num=SPLIT_TO_TEST,
-#                                                         encoder_name=ENCODING_STRATEGY.value))
-#else:
-#    encoding_model = None
-encoding_model = None
-model = SpatioTemporalModel(num_time_length=TIME_LENGTH,
-                                dropout_perc=0.3,
-                                pooling=POOLING,
-                                channels_conv=CHANNELS_CONV,
-                                activation=ACTIVATION,
-                                conv_strategy=CONV_STRATEGY,
-                                sweep_type=SWEEP_TYPE,
-                                gat_heads=0,
-                                edge_weights=USE_EDGE_WEIGHTS,
-                                final_sigmoid=True,
-                                num_nodes=NUM_NODES,
-                                num_gnn_layers=NUM_GNN_LAYERS,
-                                multimodal_size=MULTIMODAL_SIZE,
-                            encoding_strategy=ENCODING_STRATEGY,
-                            temporal_embed_size=TEMPORAL_EMBED_SIZE,
-                                encoding_model=None
-                                ).to(device)
-pytorch_total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-print(pytorch_total_trainable_params)
+outer_split_num: int = 0
+for train_index, test_index in skf_outer_generator:
+    outer_split_num += 1
+    # Only run for the specific fold defined in the script arguments.
+    if outer_split_num != run_cfg['split_to_test']:
+        continue
 
-## For UKB
-import pandas as pd
-from sklearn.preprocessing import LabelEncoder
-ys = []
-bmis = []
-ages = []
+    X_train_out = dataset[torch.tensor(train_index)]
+    X_test_out = dataset[torch.tensor(test_index)]
 
-for data in dataset:
-    ys.append(data.y.item())
-    bmis.append(data.bmi.item())
-    ages.append(data.age.item())
+    break
 
-bmis_e = pd.qcut(bmis, 7, labels=False)
-bmis_e[np.isnan(bmis_e)] = 7
-ages_e = pd.qcut(ages, 7, labels=False)
+model: SpatioTemporalModel = generate_st_model(run_cfg, for_test=True)
 
-tmp = [f'{ys[i]}{ages_e[i]}{bmis_e[i]}' for i in range(len(dataset))]
-
-strat_labels = LabelEncoder().fit_transform(tmp)
-
-######
-
-
-train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+train_loader = DataLoader(X_train_out, batch_size=run_cfg['batch_size'], shuffle=True)
 
 model.train()
 loss_all = 0
@@ -141,12 +91,12 @@ exit()
 
 #############################################################
 #
-#pip install nolds
+# pip install nolds
 #
-#git clone https://github.com/raphaelvallat/entropy.git entropy/
-#cd entropy/
-#pip install -r requirements.txt
-#python setup.py develop
+# git clone https://github.com/raphaelvallat/entropy.git entropy/
+# cd entropy/
+# pip install -r requirements.txt
+# python setup.py develop
 # (I had to install numba through conda in order for entropy to work)
 
 from scipy.stats import skew, kurtosis
@@ -189,33 +139,31 @@ merged_stats = (means, variances, mins, maxs, skewnesses, kurtos, entro_app, ent
 merged_stats = np.vstack(merged_stats).T
 assert merged_stats.shape == (68, 16)
 
-
-
-
-
 #########################
 
 
-
-#unique_people = []
-#unique_y = []
-#for person_id, outcome in zip(dataset.data.hcp_id.tolist(), dataset.data.y.tolist()):
+# unique_people = []
+# unique_y = []
+# for person_id, outcome in zip(dataset.data.hcp_id.tolist(), dataset.data.y.tolist()):
 #    if person_id not in unique_people:
 #        unique_people.append(person_id)
 #        unique_y.append(outcome)
 from sklearn.preprocessing import LabelEncoder
 
+
 def merge_y_and_session(ys, sessions, directions):
     tmp = torch.cat([ys.long().view(-1, 1),
                      sessions.view(-1, 1),
-                     directions.view(-1,1)], dim=1)
+                     directions.view(-1, 1)], dim=1)
     return LabelEncoder().fit_transform([str(l) for l in tmp.numpy()])
+
 
 y_final = merge_y_and_session(dataset.data.y,
                               dataset.data.session,
                               dataset.data.direction)
 
 from sklearn.model_selection import GroupKFold
+
 skf = GroupKFold(n_splits=10)
 skf_generator = skf.split(np.zeros((len(dataset), 1)),
                           y=y_final,
@@ -223,7 +171,6 @@ skf_generator = skf.split(np.zeros((len(dataset), 1)),
 
 split_num = 0
 for train_index, test_index in skf_generator:
-
     train_data = dataset[torch.tensor(train_index)]
     test_data = dataset[torch.tensor(test_index)]
 
@@ -265,7 +212,6 @@ skf_generator = skf.split(np.zeros((len(dataset), 1)),
                           y_final,
                           groups=dataset.data.hcp_id.tolist())
 for train_index, test_index in skf_generator:
-
     train_data = dataset[torch.tensor(train_index)]
     test_data = dataset[torch.tensor(test_index)]
 
@@ -293,4 +239,3 @@ for train_index, test_index in skf_generator:
           "\t", len_test_rl, "/", len_test_rl)
 
     split_num += 1
-

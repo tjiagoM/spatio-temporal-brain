@@ -5,7 +5,7 @@ import wandb
 from torch_geometric.data import DataLoader
 
 from datasets import HCPDataset
-from main_loop import send_global_results, generate_st_model, evaluate_classifier
+from main_loop import send_global_results, generate_st_model, evaluate_model
 from model import SpatioTemporalModel
 from utils import DatasetType, AnalysisType, ConnType, \
     create_name_for_model, Normalisation, create_name_for_brain_dataset, EncodingStrategy, PoolingStrategy, \
@@ -110,7 +110,7 @@ dataset = HCPDataset(root=name_dataset,
 dataset.data.x = dataset.data.x[:, :490]
 
 test_out_loader = DataLoader(dataset, batch_size=w_config['batch_size'], shuffle=False)
-test_metrics = evaluate_classifier(model, test_out_loader, w_config['param_pooling'], w_config['device_run'])
+test_metrics = evaluate_model(model, test_out_loader, w_config['param_pooling'], w_config['device_run'])
 print(test_metrics)
 
 wandb.init(entity='st-team', name=f'ukb_eval_on_hcp_{run_id}')

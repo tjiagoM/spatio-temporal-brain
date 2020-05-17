@@ -4,7 +4,7 @@ import numpy as np
 from xgboost import XGBClassifier
 
 from datasets import FlattenCorrsDataset
-from main_loop import generate_xgb_model, return_metrics, send_global_results
+from main_loop import generate_xgb_model, return_classifier_metrics, send_global_results
 from utils import DatasetType, AnalysisType, ConnType, create_name_for_flattencorrs_dataset, create_name_for_xgbmodel
 
 RUN_NAME = 'ukb_eval_on_hcp_flatten'
@@ -45,10 +45,10 @@ dataset = FlattenCorrsDataset(root=name_dataset,
 hcp_arr = np.array([data.x.numpy() for data in dataset])
 hcp_y_test = [int(data.sex.item()) for data in dataset]
 
-test_metrics = return_metrics(hcp_y_test,
-                              pred_prob=model.predict_proba(hcp_arr)[:, 1],
-                              pred_binary=model.predict(hcp_arr),
-                              flatten_approach=True)
+test_metrics = return_classifier_metrics(hcp_y_test,
+                                         pred_prob=model.predict_proba(hcp_arr)[:, 1],
+                                         pred_binary=model.predict(hcp_arr),
+                                         flatten_approach=True)
 print(test_metrics)
 
 wandb.init(entity='st-team', name=RUN_NAME)

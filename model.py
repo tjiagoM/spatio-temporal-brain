@@ -345,6 +345,8 @@ class SpatioTemporalModel(nn.Module):
             x = global_mean_pool(x, data.batch)
         elif self.pooling == PoolingStrategy.DIFFPOOL:
             adj_tmp = pyg_utils.to_dense_adj(edge_index, data.batch, edge_attr=edge_attr)
+            if edge_attr is not None: # Because edge_attr only has 1 feature per edge
+                adj_tmp = adj_tmp[:, :, :, 0]
             x_tmp, batch_mask = pyg_utils.to_dense_batch(x, data.batch)
 
             x, link_loss, ent_loss = self.diff_pool(x_tmp, adj_tmp, batch_mask)
