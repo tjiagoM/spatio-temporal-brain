@@ -15,8 +15,8 @@ from sklearn.preprocessing import RobustScaler
 from torch_geometric.data import InMemoryDataset, Data
 
 from utils import Normalisation, ConnType, AnalysisType, EncodingStrategy, DatasetType
-from utils_datasets import OLD_NETMATS_PEOPLE, DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, UKB_IDS_PATH, UKB_PHENOTYPE_PATH, \
-    UKB_TIMESERIES_PATH, NODE_FEATURES_NAMES, STRUCT_COLUMNS
+from utils_datasets import DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, UKB_IDS_PATH, UKB_PHENOTYPE_PATH, \
+    UKB_TIMESERIES_PATH, NODE_FEATURES_NAMES, STRUCT_COLUMNS, UKB_WITHOUT_BMI
 
 PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
 
@@ -284,7 +284,7 @@ class UKBDataset(BrainDataset):
                  encoding_strategy: EncodingStrategy = EncodingStrategy.NONE,
                  transform=None, pre_transform=None):
 
-        if target_var not in ['gender', 'age']:
+        if target_var not in ['gender', 'age', 'bmi']:
             print("UKBDataset not prepared for that target_var!")
             exit(-2)
         if connectivity_type not in [ConnType.FMRI]:
@@ -323,17 +323,23 @@ class UKBDataset(BrainDataset):
 
         if self.target_var == 'gender':
             y = torch.tensor([covars.loc[person, 'Sex']], dtype=torch.float)
+        elif self.target_var == 'bmi':
+            y = torch.tensor([covars.loc[person, 'BMI.at.scan']], dtype=torch.float)
         else:
             y = torch.tensor([covars.loc[person, 'Age.at.scan']], dtype=torch.float)
 
         data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
         data.ukb_id = torch.tensor([person])
-        data.bmi = torch.tensor([covars.loc[person, 'BMI.at.scan']])
-        data.age = torch.tensor([covars.loc[person, 'Age.at.scan']])
+
         if self.target_var == 'gender':
+            data.age = torch.tensor([covars.loc[person, 'Age.at.scan']])
+            data.bmi = torch.tensor([covars.loc[person, 'BMI.at.scan']])
+        elif self.target_var == 'bmi':
+            data.sex = torch.tensor([covars.loc[person, 'Sex']])
             data.age = torch.tensor([covars.loc[person, 'Age.at.scan']])
         else:
             data.sex = torch.tensor([covars.loc[person, 'Sex']])
+            data.bmi = torch.tensor([covars.loc[person, 'BMI.at.scan']])
 
         return data
 
@@ -351,6 +357,8 @@ class UKBDataset(BrainDataset):
         for person in filtered_people:
             if person in [1663368, 3443644]:
                 # No information in Covars file
+                continue
+            if self.target_var == 'bmi' and person in UKB_WITHOUT_BMI:
                 continue
 
             if self.connectivity_type == ConnType.FMRI:

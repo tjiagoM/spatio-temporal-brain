@@ -705,9 +705,6 @@ if __name__ == '__main__':
                                       label_scaler=scaler_labels)
         print(test_metrics)
 
-        print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
-              ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
-                        test_metrics['sensitivity'], test_metrics['specificity']))
         if scaler_labels is None:
             print('{:1d}-Final: {:.7f}, Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
                   ''.format(outer_split_num, test_metrics['loss'], test_metrics['auc'], test_metrics['acc'],
