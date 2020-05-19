@@ -12,16 +12,16 @@ run_cfg = {'analysis_type': AnalysisType.ST_UNIMODAL,
            'num_nodes': 68,
            'param_conn_type': ConnType('fmri'),
            'split_to_test': 1,
-           'sweep_type': SweepType('edge_node_meta'),
-           'target_var': 'gender',
+           'sweep_type': SweepType('no_gnn'),
+           'target_var': 'bmi',
            'time_length': 490,
            'param_gat_heads': 0,
 
            'batch_size': 400,
-           'device_run': 'cuda:1',
+           'device_run': 'cpu',
            # 'early_stop_steps': config.early_stop_steps,
-           'edge_weights': True,
-           'model_with_sigmoid': True,
+           'edge_weights': False,
+           'model_with_sigmoid': False,
            'num_epochs': 1,
            'param_activation': 'relu',
            'param_channels_conv': 8,
@@ -47,7 +47,7 @@ N_INNER_SPLITS: int = 5
 
 dataset = generate_dataset(run_cfg)
 
-skf_outer_generator = create_fold_generator(dataset, run_cfg['dataset_type'], run_cfg['analysis_type'], N_OUT_SPLITS)
+skf_outer_generator = create_fold_generator(dataset, run_cfg, N_OUT_SPLITS)
 
 outer_split_num: int = 0
 for train_index, test_index in skf_outer_generator:

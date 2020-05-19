@@ -69,8 +69,9 @@ def train_model(model, train_loader, optimizer, pooling_mechanism, device, label
 
 def return_regressor_metrics(labels, pred_prob, label_scaler, loss_value=None, link_loss_value=None,
                              ent_loss_value=None):
-    new_labels = label_scaler.inverse_transform(labels)
-    new_preds = label_scaler.inverse_transform(pred_prob)
+    new_labels = label_scaler.inverse_transform(labels.reshape(-1, 1))[:,0]
+    new_preds = label_scaler.inverse_transform(pred_prob.reshape(-1, 1))[:,0]
+    print('First 5 values:', new_labels.shape, new_labels[:5], new_preds.shape, new_preds[:5])
     r2 = r2_score(new_labels, new_preds)
     r = stats.pearsonr(new_labels, new_preds)[0]
 
@@ -227,10 +228,15 @@ def create_fold_generator(dataset: BrainDataset, run_cfg: Dict[str, Any], num_sp
             elif run_cfg['target_var'] == 'gender':
                 sexes.append(data.y.item())
                 ages.append(data.age.item())
+                bmis.append(data.bmi.item())
             elif run_cfg['target_var'] == 'age':
                 sexes.append(data.sex.item())
                 ages.append(data.y.item())
-            bmis.append(data.bmi.item())
+                bmis.append(data.bmi.item())
+            elif run_cfg['target_var'] == 'bmi':
+                sexes.append(data.sex.item())
+                ages.append(data.age.item())
+                bmis.append(data.y.item())
         bmis = pd.qcut(bmis, 7, labels=False)
         bmis[np.isnan(bmis)] = 7
         ages = pd.qcut(ages, 7, labels=False)
@@ -276,14 +282,7 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> Union[BrainDataset, FlattenCorr
                                 encoding_strategy=run_cfg['param_encoding_strategy'],
                                 time_length=run_cfg['time_length'],
                                 edge_weights=run_cfg['edge_weights'])
-    # if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
-    #    if num_nodes == 376:
-    #        flatten_correlations = create_ukb_corrs_flatten()
-    #    else:
-    #        flatten_correlations = create_hcp_correlation_vals(num_nodes, ts_split_num=ts_spit_num)
-    # elif run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS_THRESHOLD:
-    #    flatten_correlations = create_hcp_correlation_vals(num_nodes, ts_split_num=ts_spit_num,
-    #                                                       binarise=True, threshold=param_threshold)
+
     return dataset
 
 
@@ -562,7 +561,7 @@ if __name__ == '__main__':
         exit(-1)
 
     print('This run will not be deterministic')
-    if run_cfg['target_var'] not in ['gender', 'age']:
+    if run_cfg['target_var'] not in ['gender', 'age', 'bmi']:
         print('Unrecognised target_var')
         exit(-1)
 
@@ -571,7 +570,7 @@ if __name__ == '__main__':
     elif run_cfg['analysis_type'] == AnalysisType.ST_UNIMODAL:
         run_cfg['multimodal_size'] = 0
 
-    if run_cfg['target_var'] == 'age':
+    if run_cfg['target_var'] in ['age', 'bmi']:
         run_cfg['model_with_sigmoid'] = False
 
     print('Resulting run_cfg:', run_cfg)
@@ -595,7 +594,7 @@ if __name__ == '__main__':
 
     scaler_labels = None
     # Scaling for regression problem
-    if run_cfg['target_var'] == 'age':
+    if run_cfg['target_var'] in ['age', 'bmi']:
         print('Mean of distribution BEFORE scaling:', np.mean([data.y.item() for data in X_train_out]),
               '/', np.mean([data.y.item() for data in X_test_out]))
         scaler_labels = StandardScaler().fit(np.array([data.y.item() for data in X_train_out]).reshape(-1, 1))
@@ -609,7 +608,7 @@ if __name__ == '__main__':
     if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
         print('Positive sex classes:', sum([data.sex.item() for data in X_train_out]),
               '/', sum([data.sex.item() for data in X_test_out]))
-    elif run_cfg['target_var'] == 'age':
+    elif run_cfg['target_var'] in ['age', 'bmi']:
         print('Mean of distribution', np.mean([data.y.item() for data in X_train_out]),
               '/', np.mean([data.y.item() for data in X_test_out]))
     else:  # target_var == gender
@@ -639,7 +638,7 @@ if __name__ == '__main__':
         if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
             print("Inner Positive sex classes:", sum([data.sex.item() for data in X_train_in]),
                   "/", sum([data.sex.item() for data in X_val_in]))
-        elif run_cfg['target_var'] == 'age':
+        elif run_cfg['target_var'] in ['age', 'bmi']:
             print('Mean of distribution', np.mean([data.y.item() for data in X_train_in]),
                   '/', np.mean([data.y.item() for data in X_val_in]))
         else:
