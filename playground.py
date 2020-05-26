@@ -13,7 +13,7 @@ run_cfg = {'analysis_type': AnalysisType.ST_UNIMODAL,
            'param_conn_type': ConnType('fmri'),
            'split_to_test': 1,
            'sweep_type': SweepType('no_gnn'),
-           'target_var': 'bmi',
+           'target_var': 'gender',
            'time_length': 490,
            'param_gat_heads': 0,
 

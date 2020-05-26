@@ -12,15 +12,35 @@ import wandb
 from scipy.stats import stats
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report, r2_score
 from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from torch_geometric.data import DataLoader
-from xgboost import XGBClassifier
+from xgboost import XGBClassifier, XGBRegressor, XGBModel
 
 from datasets import BrainDataset, HCPDataset, UKBDataset, FlattenCorrsDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
     SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, create_name_for_xgbmodel
+
+
+class MSLELoss(torch.nn.Module):
+    def __init__(self):
+        super(MSLELoss, self).__init__()
+        self.squared_error = torch.nn.MSELoss(reduction='none')
+
+    def forward(self, y_hat, y):
+        # the log(predictions) corresponding to no data should be set to 0
+        log_y_hat = y_hat.log()  # where(y_hat > 0, torch.zeros_like(y_hat)).log()
+        # the we set the log(labels) that correspond to no data to be 0 as well
+        log_y = y.log()  # where(y > 0, torch.zeros_like(y)).log()
+        # where there is no data log_y_hat = log_y = 0, so the squared error will be 0 in these places
+        loss = self.squared_error(log_y_hat, log_y)
+        # print('A', loss.shape)
+        # print(loss.shape, loss)
+        # loss = torch.sum(loss, dim=1)
+        # if not sum_losses:
+        #    loss = loss / seq_length.clamp(min=1)
+        return loss.mean()
 
 
 def train_model(model, train_loader, optimizer, pooling_mechanism, device, label_scaler=None):
@@ -57,6 +77,8 @@ def train_model(model, train_loader, optimizer, pooling_mechanism, device, label
         if pooling_mechanism == PoolingStrategy.DIFFPOOL:
             loss_all_link += loss_b_link.item() * data.num_graphs
             loss_all_ent += loss_b_ent.item() * data.num_graphs
+
+        torch.nn.utils.clip_grad_value_(model.parameters(), 1)
         optimizer.step()
     print("GRAD", np.mean(grads['final_l']), np.max(grads['final_l']), np.std(grads['final_l']))
     # len(train_loader) gives the number of batches
@@ -67,13 +89,15 @@ def train_model(model, train_loader, optimizer, pooling_mechanism, device, label
         train_loader.dataset)
 
 
-def return_regressor_metrics(labels, pred_prob, label_scaler, loss_value=None, link_loss_value=None,
+def return_regressor_metrics(labels, pred_prob, label_scaler=None, loss_value=None, link_loss_value=None,
                              ent_loss_value=None):
-    new_labels = label_scaler.inverse_transform(labels.reshape(-1, 1))[:,0]
-    new_preds = label_scaler.inverse_transform(pred_prob.reshape(-1, 1))[:,0]
-    print('First 5 values:', new_labels.shape, new_labels[:5], new_preds.shape, new_preds[:5])
-    r2 = r2_score(new_labels, new_preds)
-    r = stats.pearsonr(new_labels, new_preds)[0]
+    if label_scaler is not None:
+        labels = label_scaler.inverse_transform(labels.reshape(-1, 1))[:, 0]
+        pred_prob = label_scaler.inverse_transform(pred_prob.reshape(-1, 1))[:, 0]
+
+    print('First 5 values:', labels.shape, labels[:5], pred_prob.shape, pred_prob[:5])
+    r2 = r2_score(labels, pred_prob)
+    r = stats.pearsonr(labels, pred_prob)[0]
 
     return {'loss': loss_value,
             'link_loss': link_loss_value,
@@ -127,21 +151,21 @@ def evaluate_model(model, loader, pooling_mechanism, device, label_scaler=None):
             data = data.to(device)
             if pooling_mechanism == PoolingStrategy.DIFFPOOL:
                 output_batch, link_loss, ent_loss = model(data)
-                output_batch = output_batch.flatten()
-                loss = criterion(output_batch, data.y) + link_loss + ent_loss
+                # output_batch = output_batch.flatten()
+                loss = criterion(output_batch, data.y.unsqueeze(1)) + link_loss + ent_loss
                 loss_b_link = link_loss
                 loss_b_ent = ent_loss
             else:
                 output_batch = model(data)
-                output_batch = output_batch.flatten()
-                loss = criterion(output_batch, data.y)
+                # output_batch = output_batch.flatten()
+                loss = criterion(output_batch, data.y.unsqueeze(1))
 
             test_error += loss.item() * data.num_graphs
             if pooling_mechanism == PoolingStrategy.DIFFPOOL:
                 test_link_loss += loss_b_link.item() * data.num_graphs
                 test_ent_loss += loss_b_ent.item() * data.num_graphs
 
-            pred = output_batch.detach().cpu().numpy()
+            pred = output_batch.flatten().detach().cpu().numpy()
 
             label = data.y.detach().cpu().numpy()
             predictions.append(pred)
@@ -225,6 +249,8 @@ def create_fold_generator(dataset: BrainDataset, run_cfg: Dict[str, Any], num_sp
         for data in dataset:
             if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
                 sexes.append(data.sex.item())
+                ages.append(data.age.item())
+                bmis.append(data.bmi.item())
             elif run_cfg['target_var'] == 'gender':
                 sexes.append(data.y.item())
                 ages.append(data.age.item())
@@ -286,18 +312,31 @@ def generate_dataset(run_cfg: Dict[str, Any]) -> Union[BrainDataset, FlattenCorr
     return dataset
 
 
-def generate_xgb_model(run_cfg: Dict[str, Any]) -> XGBClassifier:
-    model = XGBClassifier(subsample=run_cfg['subsample'],
-                          learning_rate=run_cfg['learning_rate'],
-                          max_depth=run_cfg['max_depth'],
-                          min_child_weight=run_cfg['min_child_weight'],
-                          colsample_bytree=run_cfg['colsample_bytree'],
-                          colsample_bynode=run_cfg['colsample_bynode'],
-                          colsample_bylevel=run_cfg['colsample_bylevel'],
-                          n_estimators=run_cfg['n_estimators'],
-                          gamma=run_cfg['gamma'],
-                          n_jobs=-1,
-                          random_state=1111)
+def generate_xgb_model(run_cfg: Dict[str, Any]) -> XGBModel:
+    if run_cfg['target_var'] == 'gender':
+        model = XGBClassifier(subsample=run_cfg['subsample'],
+                              learning_rate=run_cfg['learning_rate'],
+                              max_depth=run_cfg['max_depth'],
+                              min_child_weight=run_cfg['min_child_weight'],
+                              colsample_bytree=run_cfg['colsample_bytree'],
+                              colsample_bynode=run_cfg['colsample_bynode'],
+                              colsample_bylevel=run_cfg['colsample_bylevel'],
+                              n_estimators=run_cfg['n_estimators'],
+                              gamma=run_cfg['gamma'],
+                              n_jobs=-1,
+                              random_state=1111)
+    else:
+        model = XGBRegressor(subsample=run_cfg['subsample'],
+                             learning_rate=run_cfg['learning_rate'],
+                             max_depth=run_cfg['max_depth'],
+                             min_child_weight=run_cfg['min_child_weight'],
+                             colsample_bytree=run_cfg['colsample_bytree'],
+                             colsample_bynode=run_cfg['colsample_bynode'],
+                             colsample_bylevel=run_cfg['colsample_bylevel'],
+                             n_estimators=run_cfg['n_estimators'],
+                             gamma=run_cfg['gamma'],
+                             n_jobs=-1,
+                             random_state=1111)
     return model
 
 
@@ -340,7 +379,7 @@ def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> Spatio
     return model
 
 
-def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: XGBClassifier,
+def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: XGBModel,
                   X_train_in: FlattenCorrsDataset, X_val_in: FlattenCorrsDataset) -> Dict:
     model_saving_path = create_name_for_xgbmodel(model=model,
                                                  outer_split_num=out_fold_num,
@@ -354,40 +393,58 @@ def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], 
     if run_cfg['target_var'] == 'gender':
         y_train = [int(data.sex.item()) for data in X_train_in]
         y_val = [int(data.sex.item()) for data in X_val_in]
+    elif run_cfg['target_var'] == 'age':
+        # np.array() because of printing calls in the regressor_metrics function
+        y_train = np.array([float(data.age.item()) for data in X_train_in])
+        y_val = np.array([float(data.age.item()) for data in X_val_in])
 
     model.fit(train_arr, y_train, callbacks=[wandb.xgboost.wandb_callback()])
 
     pickle.dump(model, open(model_saving_path, "wb"))
 
-    train_metrics = return_classifier_metrics(y_train,
-                                              pred_prob=model.predict_proba(train_arr)[:, 1],
-                                              pred_binary=model.predict(train_arr),
-                                              flatten_approach=True)
-    val_metrics = return_classifier_metrics(y_val,
-                                            pred_prob=model.predict_proba(val_arr)[:, 1],
-                                            pred_binary=model.predict(val_arr),
-                                            flatten_approach=True)
+    if run_cfg['target_var'] == 'gender':
+        train_metrics = return_classifier_metrics(y_train,
+                                                  pred_prob=model.predict_proba(train_arr)[:, 1],
+                                                  pred_binary=model.predict(train_arr),
+                                                  flatten_approach=True)
+        val_metrics = return_classifier_metrics(y_val,
+                                                pred_prob=model.predict_proba(val_arr)[:, 1],
+                                                pred_binary=model.predict(val_arr),
+                                                flatten_approach=True)
 
-    print('{:1d}-{:1d}: Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
-          ' {:.4f} '.format(out_fold_num, in_fold_num,
-                            train_metrics['auc'], val_metrics['auc'],
-                            train_metrics['acc'], val_metrics['acc'],
-                            train_metrics['f1'], val_metrics['f1']))
-    wandb.log({
-        f'train_auc{in_fold_num}': train_metrics['auc'], f'val_auc{in_fold_num}': val_metrics['auc'],
-        f'train_acc{in_fold_num}': train_metrics['acc'], f'val_acc{in_fold_num}': val_metrics['acc'],
-        f'train_sens{in_fold_num}': train_metrics['sensitivity'],
-        f'val_sens{in_fold_num}': val_metrics['sensitivity'],
-        f'train_spec{in_fold_num}': train_metrics['specificity'],
-        f'val_spec{in_fold_num}': val_metrics['specificity'],
-        f'train_f1{in_fold_num}': train_metrics['f1'], f'val_f1{in_fold_num}': val_metrics['f1']
-    })
+        print('{:1d}-{:1d}: Auc: {:.4f} / {:.4f}, Acc: {:.4f} / {:.4f}, F1: {:.4f} /'
+              ' {:.4f} '.format(out_fold_num, in_fold_num,
+                                train_metrics['auc'], val_metrics['auc'],
+                                train_metrics['acc'], val_metrics['acc'],
+                                train_metrics['f1'], val_metrics['f1']))
+        wandb.log({
+            f'train_auc{in_fold_num}': train_metrics['auc'], f'val_auc{in_fold_num}': val_metrics['auc'],
+            f'train_acc{in_fold_num}': train_metrics['acc'], f'val_acc{in_fold_num}': val_metrics['acc'],
+            f'train_sens{in_fold_num}': train_metrics['sensitivity'],
+            f'val_sens{in_fold_num}': val_metrics['sensitivity'],
+            f'train_spec{in_fold_num}': train_metrics['specificity'],
+            f'val_spec{in_fold_num}': val_metrics['specificity'],
+            f'train_f1{in_fold_num}': train_metrics['f1'], f'val_f1{in_fold_num}': val_metrics['f1']
+        })
+    else:
+        train_metrics = return_regressor_metrics(y_train,
+                                                 pred_prob=model.predict(train_arr))
+        val_metrics = return_regressor_metrics(y_val,
+                                               pred_prob=model.predict(val_arr))
+
+        print('{:1d}-{:1d}: R2: {:.4f} / {:.4f}, R: {:.4f} / {:.4f}'.format(out_fold_num, in_fold_num,
+                                                                            train_metrics['r2'], val_metrics['r2'],
+                                                                            train_metrics['r'], val_metrics['r']))
+        wandb.log({
+            f'train_r2{in_fold_num}': train_metrics['r2'], f'val_r2{in_fold_num}': val_metrics['r2'],
+            f'train_r{in_fold_num}': train_metrics['r'], f'val_r{in_fold_num}': val_metrics['r']
+        })
 
     return val_metrics
 
 
 def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: SpatioTemporalModel,
-                 X_train_in: BrainDataset, X_val_in: BrainDataset, label_scaler: StandardScaler = None) -> Dict:
+                 X_train_in: BrainDataset, X_val_in: BrainDataset, label_scaler: MinMaxScaler = None) -> Dict:
     train_in_loader = DataLoader(X_train_in, batch_size=run_cfg['batch_size'], shuffle=True, **kwargs_dataloader)
     val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
 
@@ -454,8 +511,8 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
     return best_model_metrics
 
 
-def get_empty_metrics_dict(label_scaler) -> Dict[str, list]:
-    if label_scaler is None:
+def get_empty_metrics_dict(run_cfg: Dict[str, Any]) -> Dict[str, list]:
+    if run_cfg['target_var'] == 'gender':
         tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': [],
                     'ent_loss': [], 'link_loss': []}
     else:
@@ -594,10 +651,11 @@ if __name__ == '__main__':
 
     scaler_labels = None
     # Scaling for regression problem
-    if run_cfg['target_var'] in ['age', 'bmi']:
+    if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL] and \
+            run_cfg['target_var'] in ['age', 'bmi']:
         print('Mean of distribution BEFORE scaling:', np.mean([data.y.item() for data in X_train_out]),
               '/', np.mean([data.y.item() for data in X_test_out]))
-        scaler_labels = StandardScaler().fit(np.array([data.y.item() for data in X_train_out]).reshape(-1, 1))
+        scaler_labels = MinMaxScaler().fit(np.array([data.y.item() for data in X_train_out]).reshape(-1, 1))
         for elem in X_train_out:
             elem.y[0] = scaler_labels.transform([elem.y.numpy()])[0, 0]
         for elem in X_test_out:
@@ -608,6 +666,8 @@ if __name__ == '__main__':
     if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
         print('Positive sex classes:', sum([data.sex.item() for data in X_train_out]),
               '/', sum([data.sex.item() for data in X_test_out]))
+        print('Mean age distribution:', np.mean([data.age.item() for data in X_train_out]),
+              '/', np.mean([data.age.item() for data in X_test_out]))
     elif run_cfg['target_var'] in ['age', 'bmi']:
         print('Mean of distribution', np.mean([data.y.item() for data in X_train_out]),
               '/', np.mean([data.y.item() for data in X_test_out]))
@@ -620,7 +680,7 @@ if __name__ == '__main__':
     #################
     # Main inner-loop
     #################
-    overall_metrics: Dict[str, list] = get_empty_metrics_dict(scaler_labels)
+    overall_metrics: Dict[str, list] = get_empty_metrics_dict(run_cfg)
     inner_loop_run: int = 0
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1
@@ -628,7 +688,7 @@ if __name__ == '__main__':
         if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
             model: SpatioTemporalModel = generate_st_model(run_cfg)
         elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
-            model: XGBClassifier = generate_xgb_model(run_cfg)
+            model: XGBModel = generate_xgb_model(run_cfg)
         else:
             model = None
 
@@ -638,6 +698,8 @@ if __name__ == '__main__':
         if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
             print("Inner Positive sex classes:", sum([data.sex.item() for data in X_train_in]),
                   "/", sum([data.sex.item() for data in X_val_in]))
+            print('Mean age distribution:', np.mean([data.age.item() for data in X_train_in]),
+                  '/', np.mean([data.age.item() for data in X_val_in]))
         elif run_cfg['target_var'] in ['age', 'bmi']:
             print('Mean of distribution', np.mean([data.y.item() for data in X_train_in]),
                   '/', np.mean([data.y.item() for data in X_val_in]))
@@ -712,7 +774,7 @@ if __name__ == '__main__':
             print('{:1d}-Final: {:.7f}, R2: {:.4f}, R: {:.4f}'
                   ''.format(outer_split_num, test_metrics['loss'], test_metrics['r2'], test_metrics['r']))
     elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
-        model: XGBClassifier = generate_xgb_model(run_cfg)
+        model: XGBModel = generate_xgb_model(run_cfg)
         model_saving_path = create_name_for_xgbmodel(model=model,
                                                      outer_split_num=run_cfg['split_to_test'],
                                                      inner_split_num=inner_fold_for_val,
@@ -723,16 +785,24 @@ if __name__ == '__main__':
 
         if run_cfg['target_var'] == 'gender':
             y_test = [int(data.sex.item()) for data in X_test_out]
+            test_metrics = return_classifier_metrics(y_test,
+                                                     pred_prob=model.predict_proba(test_arr)[:, 1],
+                                                     pred_binary=model.predict(test_arr),
+                                                     flatten_approach=True)
+            print(test_metrics)
 
-        test_metrics = return_classifier_metrics(y_test,
-                                                 pred_prob=model.predict_proba(test_arr)[:, 1],
-                                                 pred_binary=model.predict(test_arr),
-                                                 flatten_approach=True)
-        print(test_metrics)
-
-        print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
-              ''.format(outer_split_num, test_metrics['auc'], test_metrics['acc'],
-                        test_metrics['sensitivity'], test_metrics['specificity']))
+            print('{:1d}-Final: Auc: {:.4f}, Acc: {:.4f}, Sens: {:.4f}, Speci: {:.4f}'
+                  ''.format(outer_split_num, test_metrics['auc'], test_metrics['acc'],
+                            test_metrics['sensitivity'], test_metrics['specificity']))
+        elif run_cfg['target_var'] == 'age':
+            # np.array() because of printing calls in the regressor_metrics function
+            y_test = np.array([float(data.age.item()) for data in X_test_out])
+            test_metrics = return_regressor_metrics(y_test,
+                                                    pred_prob=model.predict(test_arr))
+            print(test_metrics)
+            print('{:1d}-Final: R2: {:.4f}, R: {:.4f}'.format(outer_split_num,
+                                                              test_metrics['r2'],
+                                                              test_metrics['r']))
 
     send_global_results(test_metrics)
 

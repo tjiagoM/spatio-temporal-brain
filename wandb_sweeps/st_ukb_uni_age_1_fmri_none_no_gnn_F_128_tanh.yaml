@@ -2,7 +2,7 @@ method: random
 #metric:
 #  goal: minimize
 #  name: mean_val_loss
-name: st_ukb_uni_bmi_1_fmri_none_no_gnn_F_128_tanh
+name: st_ukb_uni_age_1_fmri_none_no_gnn_F_128_tanh
 program: main_loop.py
 parameters:
   dataset_type:

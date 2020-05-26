@@ -7,7 +7,7 @@ import fcntl
 import numpy as np
 import torch
 from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
+from xgboost import XGBModel
 
 
 @unique
@@ -19,6 +19,7 @@ class SweepType(str, Enum):
     GAT = 'gat'
     META_NODE = 'node_meta'
     META_EDGE_NODE = 'edge_node_meta'
+    FLATTEN_CORRS = 'flatten_corrs'
 
 
 @unique
@@ -177,13 +178,13 @@ def create_name_for_encoder_model(ts_length, outer_split_num, encoder_name,
                                        ]) + suffix
 
 
-def create_name_for_xgbmodel(run_cfg: Dict[str, Any], outer_split_num: int, model: XGBClassifier, inner_split_num: int,
+def create_name_for_xgbmodel(run_cfg: Dict[str, Any], outer_split_num: int, model: XGBModel, inner_split_num: int,
                              prefix_location='logs/', suffix='.pkl') -> str:
     if run_cfg['analysis_type'] == AnalysisType.FLATTEN_CORRS:
         model_str_representation = run_cfg['analysis_type'].value
         for key in ['colsample_bylevel', 'colsample_bynode', 'colsample_bytree', 'gamma', 'learning_rate', 'max_depth',
                     'min_child_weight', 'n_estimators', 'subsample']:
-            model_str_representation += key[-3:] + '_' + str(model.get_xgb_params()[key])
+            model_str_representation += key[-3:] + '_' + str(model.get_params()[key])
     return prefix_location + '_'.join([run_cfg['target_var'],
                                        run_cfg['dataset_type'].value,
                                        str(outer_split_num),
