@@ -8,13 +8,13 @@ from utils import Normalisation, ConnType, ConvStrategy, PoolingStrategy, Encodi
     AnalysisType, DatasetType, SweepType
 
 run_cfg = {'analysis_type': AnalysisType.ST_UNIMODAL,
-           'dataset_type': DatasetType.UKB,
+           'dataset_type': DatasetType.HCP,
            'num_nodes': 68,
            'param_conn_type': ConnType('fmri'),
            'split_to_test': 1,
            'sweep_type': SweepType('no_gnn'),
            'target_var': 'gender',
-           'time_length': 490,
+           'time_length': 1200,
            'param_gat_heads': 0,
 
            'batch_size': 400,
