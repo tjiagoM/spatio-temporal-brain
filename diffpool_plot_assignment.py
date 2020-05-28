@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.cluster.hierarchy import fcluster
 
 from utils_datasets import STRUCT_COLUMNS
 
@@ -13,6 +14,11 @@ def plot_and_save_interp(arr, name, sweep_name):
     g_obj = sns.clustermap(s_df, yticklabels=1, xticklabels=1)
     g_obj.ax_heatmap.set_xticklabels(g_obj.ax_heatmap.get_xmajorticklabels(), fontsize=7)
     g_obj.ax_heatmap.set_yticklabels(g_obj.ax_heatmap.get_ymajorticklabels(), fontsize=7)
+
+    if sweep_name != 'nodeedge':
+        ord_ind = fcluster(g_obj.dendrogram_col.linkage, 4, criterion='maxclust')
+        pd.DataFrame(ord_ind, index=s_df.index, columns=['Cl']).to_csv(f'results/dp_clust_{sweep_name}_{name}.csv')
+
     g_obj.savefig(f'figures/dp_interp_{sweep_name}_{name}.pdf')
     plt.close()
 
@@ -30,6 +36,10 @@ sweep_name = args.sweep_name
 
 # run_id = 'fdy5th0d'
 # sweep_name = 'no'
+# node -> diffpool:
+# --run_id 077bkvxp
+# nodeedge -> diffpool:
+# --run_id zuctoloq
 
 s_male = np.load(f'results/dp_interp_{run_id}_male.npy')
 s_female = np.load(f'results/dp_interp_{run_id}_female.npy')
