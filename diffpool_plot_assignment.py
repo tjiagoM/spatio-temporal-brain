@@ -17,7 +17,12 @@ def plot_and_save_interp(arr, name, sweep_name):
 
     if sweep_name != 'nodeedge':
         ord_ind = fcluster(g_obj.dendrogram_col.linkage, 4, criterion='maxclust')
-        pd.DataFrame(ord_ind, index=s_df.index, columns=['Cl']).to_csv(f'results/dp_clust_{sweep_name}_{name}.csv')
+
+        tmp_df = pd.DataFrame(ord_ind, index=s_df.index, columns=['Cl'])
+        tmp_df.index = tmp_df.index.map(lambda x: x.replace('l_', 'lh_').replace('r_', 'rh_'))
+        tmp_df.loc['rh_medialwall', 'Cl'] = 0
+        tmp_df.loc['lh_medialwall', 'Cl'] = 0
+        tmp_df.to_csv(f'results/dp_clust_{sweep_name}_{name}.csv', index_label='label')
 
     g_obj.savefig(f'figures/dp_interp_{sweep_name}_{name}.pdf')
     plt.close()
