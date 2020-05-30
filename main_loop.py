@@ -562,7 +562,6 @@ if __name__ == '__main__':
         'num_nodes': config.num_nodes,
         'param_conn_type': ConnType(config.conn_type),
         'split_to_test': config.fold_num,
-        'sweep_type': SweepType(config.sweep_type),
         'target_var': config.target_var,
         'time_length': config.time_length,
     }
@@ -584,6 +583,7 @@ if __name__ == '__main__':
         run_cfg['param_pooling'] = PoolingStrategy(config.pooling)
         run_cfg['param_threshold'] = config.threshold
         run_cfg['param_weight_decay'] = config.weight_decay
+        run_cfg['sweep_type'] = SweepType(config.sweep_type)
         run_cfg['temporal_embed_size'] = config.temporal_embed_size
 
         run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
@@ -726,9 +726,11 @@ if __name__ == '__main__':
         update_overall_metrics(overall_metrics, inner_fold_metrics)
 
         # One inner loop only
-        if run_cfg['dataset_type'] == DatasetType.UKB and run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL,
-                                                                                       AnalysisType.ST_MULTIMODAL]:
-            break
+        #if run_cfg['dataset_type'] == DatasetType.UKB and run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL,
+        #                                                                               AnalysisType.ST_MULTIMODAL]:
+        #    break
+        # One inner loop no matter what analysis type for more systematic comparison
+        break
 
     send_inner_loop_metrics_to_wandb(overall_metrics)
     print('Overall inner loop results:', overall_metrics)

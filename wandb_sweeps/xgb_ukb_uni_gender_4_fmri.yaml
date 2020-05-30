@@ -1,0 +1,56 @@
+method: random
+name: xgb_ukb_uni_gender_4_fmri
+program: main_loop.py
+parameters:
+  dataset_type:
+    value: ukb
+  fold_num:
+    value: 4
+  conn_type:
+    value: fmri
+  analysis_type:
+    value: flatten_corrs
+  num_nodes:
+    value: 68
+  target_var:
+    value: gender
+  time_length:
+    value: 490
+  colsample_bylevel:
+    distribution: uniform
+    max: 1
+    min: 0.4
+  colsample_bynode:
+    distribution: uniform
+    max: 1
+    min: 0.4
+  colsample_bytree:
+    distribution: uniform
+    max: 1
+    min: 0.4
+  gamma:
+    distribution: int_uniform
+    max: 5
+    min: 0
+  learning_rate:
+    distribution: uniform
+    max: 1
+    min: 0.05
+  max_depth:
+    distribution: int_uniform
+    max: 15
+    min: 3
+  min_child_weight:
+    distribution: int_uniform
+    max: 10
+    min: 1
+  n_estimators:
+    distribution: categorical
+    values:
+      - 50
+      - 100
+      - 500
+  subsample:
+    distribution: uniform
+    max: 1
+    min: 0.4
