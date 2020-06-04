@@ -32,16 +32,17 @@ best_runs = {
                      2: {'run_id': '7vb4ckzl', 'dropout': 0.20686909521891877},
                      3: {'run_id': 'mt29y65e'},
                      4: {'run_id': 'fjnpo77p'}},
-    'node_mean': {0: {'run_id': ''},
-                  1: {'run_id': ''},
-                  2: {'run_id': ''},
-                  3: {'run_id': ''},
+    'node_mean': {0: {'run_id': '3yj09s2x'},
+                  1: {'run_id': 'u6cfugyc'},
+                  2: {'run_id': '7597akad'},
+                  3: {'run_id': 'j63gkpoe'},
                   4: {'run_id': ''}},
-    'node_diffpool': {0: {'run_id': ''},
-                      1: {'run_id': ''},
-                      2: {'run_id': ''},
-                      3: {'run_id': ''},
-                      4: {'run_id': ''}}
+
+    'node_diffpool': {0: {'run_id': '077bkvxp'},
+                      1: {'run_id': '4tle1l3g', 'dropout': 0.22238630459171502},
+                      2: {'run_id': '88eje3no'},
+                      3: {'run_id': 'x94lygb9'},
+                      4: {'run_id': 'yaogr549'}}
 }
 
 DEVICE_RUN = 'cuda:1'

@@ -99,12 +99,16 @@ class DiffPoolLayer(torch.nn.Module):
 
 
 class EdgeModel(torch.nn.Module):
-    def __init__(self, num_node_features, num_edge_features):
+    def __init__(self, num_node_features, num_edge_features, activation='relu'):
         super().__init__()
         self.input_size = 2 * num_node_features + num_edge_features
+        dict_activations = {'relu': nn.ReLU(),
+                            'elu': nn.ELU(),
+                            'tanh': nn.Tanh()}
+        self.activation = dict_activations[activation]
         self.edge_mlp = nn.Sequential(
             nn.Linear(self.input_size, int(self.input_size / 2)),
-            nn.ReLU(),
+            self.activation,
             nn.Linear(int(self.input_size / 2), num_edge_features),
         )
 
@@ -119,17 +123,22 @@ class EdgeModel(torch.nn.Module):
 
 
 class NodeModel(torch.nn.Module):
-    def __init__(self, num_node_features, num_edge_features):
+    def __init__(self, num_node_features, num_edge_features, activation='relu'):
         super(NodeModel, self).__init__()
         self.input_size = num_node_features + num_edge_features
+        dict_activations = {'relu': nn.ReLU(),
+                            'elu': nn.ELU(),
+                            'tanh': nn.Tanh()}
+        self.activation = dict_activations[activation]
+
         self.node_mlp_1 = nn.Sequential(
             nn.Linear(self.input_size, self.input_size * 2),
-            nn.ReLU(),
+            self.activation,
             nn.Linear(self.input_size * 2, self.input_size * 2),
         )
         self.node_mlp_2 = nn.Sequential(
             nn.Linear(num_node_features + self.input_size * 2, self.input_size),
-            nn.ReLU(),
+            self.activation,
             nn.Linear(self.input_size, num_node_features),
         )
 
@@ -234,12 +243,15 @@ class SpatioTemporalModel(nn.Module):
                                          dropout=dropout_perc)
         elif self.sweep_type == SweepType.META_EDGE_NODE:
             self.meta_layer = MetaLayer(edge_model=EdgeModel(num_node_features=self.NODE_EMBED_SIZE,
-                                                             num_edge_features=1),
+                                                             num_edge_features=1,
+                                                             activation=activation),
                                         node_model=NodeModel(num_node_features=self.NODE_EMBED_SIZE,
-                                                             num_edge_features=1))
+                                                             num_edge_features=1,
+                                                             activation=activation))
         elif self.sweep_type == SweepType.META_NODE:
             self.meta_layer = MetaLayer(node_model=NodeModel(num_node_features=self.NODE_EMBED_SIZE,
-                                                             num_edge_features=1))
+                                                             num_edge_features=1,
+                                                             activation=activation))
 
         if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
             self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
