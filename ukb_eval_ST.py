@@ -36,8 +36,7 @@ best_runs = {
                   1: {'run_id': 'u6cfugyc'},
                   2: {'run_id': '7597akad'},
                   3: {'run_id': 'j63gkpoe'},
-                  4: {'run_id': ''}},
-
+                  4: {'run_id': 'l1w81fh2', 'dropout': 0.37245464912261556, 'lr': 0.00048327684496385213}},
     'node_diffpool': {0: {'run_id': '077bkvxp'},
                       1: {'run_id': '4tle1l3g', 'dropout': 0.22238630459171502},
                       2: {'run_id': '88eje3no'},
@@ -45,7 +44,7 @@ best_runs = {
                       4: {'run_id': 'yaogr549'}}
 }
 
-DEVICE_RUN = 'cuda:1'
+DEVICE_RUN = 'cpu'
 
 for model_type, runs_all in best_runs.items():
     print('----', model_type)
@@ -68,6 +67,10 @@ for model_type, runs_all in best_runs.items():
         w_config['dataset_type'] = DatasetType(w_config['dataset_type'])
         w_config['device_run'] = DEVICE_RUN
         w_config['param_lr'] = w_config['lr']
+        if 'lr' not in run_info.keys():
+            w_config['param_lr'] = w_config['lr']
+        else:
+            w_config['param_lr'] = float(run_info['lr'])
         w_config['model_with_sigmoid'] = True
         w_config['param_activation'] = w_config['activation']
         w_config['param_channels_conv'] = w_config['channels_conv']
