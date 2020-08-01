@@ -12,39 +12,60 @@ from utils import DatasetType, AnalysisType, ConnType, \
 
 # Extra fields besides run_id are due to precision issues when saving.
 best_runs = {
-    'no_diffpool': {0: {'run_id': 'fdy5th0d', 'model_v': '64'},
-                    1: {'run_id': 'w8ylfez9', 'dropout': 0.24218285663325959},
-                    2: {'run_id': 'xl8woeqr'},
-                    3: {'run_id': 'jmjga3w9', 'weight_d': 0.0072375354916992245},
-                    4: {'run_id': 'aft5sncg'}},
-    'no_mean': {0: {'run_id': 'ffy60yhy', 'model_v': '64'},
-                1: {'run_id': '33tbqog2'},
-                2: {'run_id': 'fepf04je', 'weight_d': 4.0287379093021184e-07},
-                3: {'run_id': 'dhl9l0y4'},
-                4: {'run_id': 'cijrrmgf'}},
-    'n_e_mean': {0: {'run_id': '65slgxut', 'weight_d': 9.017758245804703e-06},
-                 1: {'run_id': 'uqakiqlk'},
-                 2: {'run_id': 'i9a83qtc'},
-                 3: {'run_id': 'jp88x8mf', 'dropout': 0.025361867527413186},
-                 4: {'run_id': 'q5te841d'}},
-    'n_e_diffpool': {0: {'run_id': 'zuctoloq'},
-                     1: {'run_id': '68fgmmdo'},
-                     2: {'run_id': '7vb4ckzl', 'dropout': 0.20686909521891877},
-                     3: {'run_id': 'mt29y65e'},
-                     4: {'run_id': 'fjnpo77p'}},
-    'node_mean': {0: {'run_id': '3yj09s2x'},
-                  1: {'run_id': 'u6cfugyc'},
-                  2: {'run_id': '7597akad'},
-                  3: {'run_id': 'j63gkpoe'},
-                  4: {'run_id': 'l1w81fh2', 'dropout': 0.37245464912261556, 'lr': 0.00048327684496385213}},
-    'node_diffpool': {0: {'run_id': '077bkvxp'},
-                      1: {'run_id': '4tle1l3g', 'dropout': 0.22238630459171502},
-                      2: {'run_id': '88eje3no'},
-                      3: {'run_id': 'x94lygb9'},
-                      4: {'run_id': 'yaogr549'}}
+    '100_n_diffpool': {0: {'run_id': 'khnljhrj'},
+                        1: {'run_id': 'k9y54v5w', 'weight_d': 0.0012895162344404025},
+                        2: {'run_id': '8ulilkox'},
+                        3: {'run_id': 'm1lyyxez'},
+                        4: {'run_id': 'lz7r38t4'}}
+    #'100_n_mean': {0: {'run_id': 'zqfxsg2g'},
+    #                    1: {'run_id': 'uiuoh583'},
+    #                    2: {'run_id': 'lryrz1z8', 'weight_d': 2.5965696862532323e-07},
+    #                    3: {'run_id': '937rms0w'},
+    #                    4: {'run_id': 'sqn6ovck', 'dropout': 0.46961407058088156}},
+    #'100_n_e_mean': {0: {'run_id': '94uhovir', 'weight_d': 1.5759293238676228e-07},
+    #                    1: {'run_id': 'rag1ypk2', 'lr': 1.0061199415847143e-05, 'dropout': 0.09294885751683715},
+    #                    2: {'run_id': '9l3dd2lh'},
+    #                    3: {'run_id': 'iugiapic'},
+    #                    4: {'run_id': 'ndp2mqm2', 'lr': 0.00011814265529647913}},
+    #'100_n_e_diffpool': {0: {'run_id': '1oysy05q'},
+    #                1: {'run_id': 'nxqb9kvj'},
+    #                2: {'run_id': 'skripjyc', 'weight_d': 1.5483273684368499e-06},
+    #                3: {'run_id': '6b3si6pc'},
+    #                4: {'run_id': 's1nhqmnj'}},
+
+    #'no_diffpool': {0: {'run_id': 'fdy5th0d', 'model_v': '64'},
+    #                1: {'run_id': 'w8ylfez9', 'dropout': 0.24218285663325959},
+    #                2: {'run_id': 'xl8woeqr'},
+    #                3: {'run_id': 'jmjga3w9', 'weight_d': 0.0072375354916992245},
+    #                4: {'run_id': 'aft5sncg'}},
+    #'no_mean': {0: {'run_id': 'ffy60yhy', 'model_v': '64'},
+    #            1: {'run_id': '33tbqog2'},
+    #            2: {'run_id': 'fepf04je', 'weight_d': 4.0287379093021184e-07},
+    #            3: {'run_id': 'dhl9l0y4'},
+    #            4: {'run_id': 'cijrrmgf'}},
+    #'n_e_mean': {0: {'run_id': '65slgxut', 'weight_d': 9.017758245804703e-06},
+    #             1: {'run_id': 'uqakiqlk'},
+    #             2: {'run_id': 'i9a83qtc'},
+    #             3: {'run_id': 'jp88x8mf', 'dropout': 0.025361867527413186},
+    #             4: {'run_id': 'q5te841d'}},
+    #'n_e_diffpool': {0: {'run_id': 'zuctoloq'},
+    #                 1: {'run_id': '68fgmmdo'},
+    #                 2: {'run_id': '7vb4ckzl', 'dropout': 0.20686909521891877},
+    #                 3: {'run_id': 'mt29y65e'},
+    #                 4: {'run_id': 'fjnpo77p'}},
+    #'node_mean': {0: {'run_id': '3yj09s2x'},
+    #              1: {'run_id': 'u6cfugyc'},
+    #              2: {'run_id': '7597akad'},
+    #              3: {'run_id': 'j63gkpoe'},
+    #              4: {'run_id': 'l1w81fh2', 'dropout': 0.37245464912261556, 'lr': 0.00048327684496385213}},
+    #'node_diffpool': {0: {'run_id': '077bkvxp'},
+    #                  1: {'run_id': '4tle1l3g', 'dropout': 0.22238630459171502},
+    #                  2: {'run_id': '88eje3no'},
+    #                  3: {'run_id': 'x94lygb9'},
+    #                  4: {'run_id': 'yaogr549'}}
 }
 
-DEVICE_RUN = 'cpu'
+DEVICE_RUN = 'cuda'
 
 for model_type, runs_all in best_runs.items():
     print('----', model_type)
@@ -131,7 +152,7 @@ for model_type, runs_all in best_runs.items():
                 model_saving_path = model_saving_path.replace('T_no_W_F', 'GC_FGA_F')
         model.load_state_dict(torch.load(model_saving_path, map_location=w_config['device_run']))
         model.eval()
-
+        #continue
         # Getting HCP Data
         name_dataset = create_name_for_brain_dataset(num_nodes=68,
                                                      time_length=1200,
