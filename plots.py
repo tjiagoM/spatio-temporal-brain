@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from scipy.stats import friedmanchisquare
 
 from sklearn.metrics import roc_curve, auc, roc_auc_score, classification_report
@@ -243,18 +244,21 @@ print(stat, p)
 ####################################################################
 ##########################################################################
 # Check graphs and timeseries
-from datasets import BrainDataset
-from utils import create_name_for_brain_dataset, Normalisation, ConnType
+from utils import Normalisation, ConnType, AnalysisType, EncodingStrategy, DatasetType
 import networkx as nx
 import os
 import matplotlib.pyplot as plt
 import numpy as np
+from main_loop import generate_dataset
+from datasets import UKBDataset
+import torch
+import pandas as pd
 
-
-def to_networkx2(data, node_attrs=None, edge_attrs=None, to_undirected=False, remove_self_loops=False):
+def to_networkx2(data, node_attrs=None, edge_attrs=None, to_undirected=False,
+                remove_self_loops=False):
     r"""Converts a :class:`torch_geometric.data.Data` instance to a
-    :obj:`networkx.DiGraph` if :attr:`to_undirected` is set to :obj:`True`, or an undirected
-    :obj:`networkx.Graph` otherwise.
+    :obj:`networkx.DiGraph` if :attr:`to_undirected` is set to :obj:`True`, or
+    an undirected :obj:`networkx.Graph` otherwise.
 
     Args:
         data (torch_geometric.data.Data): The data object.
@@ -262,26 +266,38 @@ def to_networkx2(data, node_attrs=None, edge_attrs=None, to_undirected=False, re
             copied. (default: :obj:`None`)
         edge_attrs (iterable of str, optional): The edge attributes to be
             copied. (default: :obj:`None`)
-        to_undirected (bool, optional): If set to :obj:`True`, it will return a :obj:`networkx.Graph`.
-            In practice, the undirected graph will correspond to the upper triangle of the
+        to_undirected (bool, optional): If set to :obj:`True`, will return a
+            a :obj:`networkx.Graph` instead of a :obj:`networkx.DiGraph`. The
+            undirected graph will correspond to the upper triangle of the
             corresponding adjacency matrix. (default: :obj:`False`)
-        remove_self_loops (bool, optional): If set to :obj:`True`, it will not include self loops in
-            the returning graph.  (default: :obj:`False`)
+        remove_self_loops (bool, optional): If set to :obj:`True`, will not
+            include self loops in the resulting graph. (default: :obj:`False`)
     """
 
     if to_undirected:
         G = nx.Graph()
     else:
         G = nx.DiGraph()
+
     G.add_nodes_from(range(data.num_nodes))
 
-    values = {key: data[key].squeeze().tolist() for key in data.keys}
+    values = {}
+    for key, item in data:
+        if torch.is_tensor(item):
+            values[key] = item.squeeze().tolist()
+        else:
+            values[key] = item
+        if isinstance(values[key], (list, tuple)) and len(values[key]) == 1:
+            values[key] = item[0]
 
     for i, (u, v) in enumerate(data.edge_index.t().tolist()):
+
         if to_undirected and v > u:
             continue
-        if u == v and remove_self_loops:
+
+        if remove_self_loops and u == v:
             continue
+
         G.add_edge(u, v)
         for key in edge_attrs if edge_attrs is not None else []:
             G[u][v][key] = values[key][i]
@@ -292,61 +308,113 @@ def to_networkx2(data, node_attrs=None, edge_attrs=None, to_undirected=False, re
 
     return G
 
+# For cycle to quickly explore the graphs and to chose a few
+for num_nodes, time_length in [(68, 490)]: #(50, 1200),
+    run_cfg = {
+        'num_nodes': num_nodes,
+        'time_length': time_length,
+        'target_var' : 'gender',
+        'param_threshold' : 10,
+        'param_normalisation' : Normalisation('subject_norm'),
+        'param_conn_type' : ConnType('fmri'),
+        'analysis_type' : AnalysisType('st_unimodal'),
+        'param_encoding_strategy' : EncodingStrategy('none'),
+        'dataset_type' : DatasetType('ukb'),
+        'edge_weights' : True
+    }
 
-for NUM_NODES, TIME_LENGTH in [(50, 1200), (376, 490)]:
-    TARGET_VAR = 'gender'
-    THRESHOLD = 5
-    NORMALISATION = Normalisation('roi_norm')
-    CONN_TYPE = ConnType('fmri')
-    REMOVE_NODES = False
-
-    name_dataset = create_name_for_brain_dataset(num_nodes=NUM_NODES,
-                                                 time_length=TIME_LENGTH,
-                                                 target_var=TARGET_VAR,
-                                                 threshold=THRESHOLD,
-                                                 normalisation=NORMALISATION,
-                                                 connectivity_type=CONN_TYPE,
-                                                 disconnect_nodes=REMOVE_NODES)
-
-    dataset = BrainDataset(root=name_dataset,
-                           time_length=TIME_LENGTH,
-                           num_nodes=NUM_NODES,
-                           target_var=TARGET_VAR,
-                           threshold=THRESHOLD,
-                           normalisation=NORMALISATION,
-                           connectivity_type=CONN_TYPE,
-                           disconnect_nodes=REMOVE_NODES)
+    dataset: UKBDataset = generate_dataset(run_cfg)
 
     female_ind = [ind for ind, data in enumerate(dataset) if data.y == 0]
     male_ind = [ind for ind, data in enumerate(dataset) if data.y == 1]
 
     np.random.seed(seed=11)
 
-    rand_indices = np.random.randint(low=0, high=int(len(dataset) / 2), size=15).tolist()
+    rand_indices = np.random.randint(low=0, high=min([len(female_ind), len(male_ind)]), size=15).tolist()
 
     data_0 = dataset[female_ind][rand_indices]
     data_1 = dataset[male_ind][rand_indices]
 
-    for i, _ in enumerate(rand_indices):
-        g_fem = to_networkx2(data_0[i])
-        g_mal = to_networkx2(data_1[i])
+    for i, rand_ind in enumerate(rand_indices):
+        g_fem = to_networkx2(data_0[i], to_undirected=True, remove_self_loops=True, edge_attrs=['edge_attr'])
+        g_mal = to_networkx2(data_1[i], to_undirected=True, remove_self_loops=True, edge_attrs=['edge_attr'])
 
         for sex_type, G in [['Female', g_fem], ['Male', g_mal]]:
             fig, ax = plt.subplots(1, 2, figsize=(20, 10))
 
+            # Getting the values of all edges in order to scale them in range [0, 1]
+            all_edges = []
+            for edge in G.edges(data='edge_attr'):
+                all_edges.append(edge[2])
+
             ax[0].set_axis_off()
             ax[0].set_title('Spring Layout, 500 iters, k=5')
             pos = nx.spring_layout(G, k=5, iterations=500, scale=5)
-            nx.draw_networkx(G, pos, ax=ax[0], with_labels=False, node_size=5, width=0.1, arrows=False)
+            nx.draw_networkx(G, pos, ax=ax[0], with_labels=False, node_size=75, edgelist=[], arrows=False)
+            # width makes the weight value between [0, 1], and scale it by 2
+            for edge in G.edges(data='edge_attr'):
+                nx.draw_networkx_edges(G, pos, ax=ax[0], edgelist=[edge], width=2*(edge[2] - min(all_edges)) / (max(all_edges) - min(all_edges)), arrows=False)
 
             ax[1].set_axis_off()
             ax[1].set_title('Kamada Kawai Layout')
             pos = nx.kamada_kawai_layout(G)
-            nx.draw_networkx(G, pos, ax=ax[1], with_labels=False, node_size=5, width=0.1, arrows=False)
+            nx.draw_networkx(G, pos, ax=ax[1], with_labels=False, node_size=75, edgelist=[], arrows=False)
+            for edge in G.edges(data='edge_attr'):
+                nx.draw_networkx_edges(G, pos, ax=ax[1], edgelist=[edge], width=2*(edge[2] - min(all_edges)) / (max(all_edges) - min(all_edges)), arrows=False)
 
-            fig.suptitle(f'Random Person {i}, {sex_type}', fontsize=20)
+            fig.suptitle(f'Random Person {rand_ind}, {sex_type} with {run_cfg["param_threshold"]}% threshold', fontsize=20)
             plt.tight_layout()
 
-            plt.savefig(os.path.join('figures', f'graph_{NUM_NODES}_{sex_type}_{i}.png'))
+            plt.savefig(os.path.join('figures', f'graph_{num_nodes}_{sex_type}_{i}.png'))
             plt.close()
 
+#
+# Plot one specific graph and some of its timeseries
+#
+run_cfg = {
+    'num_nodes': 68,
+    'time_length': 490,
+    'target_var' : 'gender',
+    'param_threshold' : 10,
+    'param_normalisation' : Normalisation('subject_norm'),
+    'param_conn_type' : ConnType('fmri'),
+    'analysis_type' : AnalysisType('st_unimodal'),
+    'param_encoding_strategy' : EncodingStrategy('none'),
+    'dataset_type' : DatasetType('ukb'),
+    'edge_weights' : True
+}
+
+dataset: UKBDataset = generate_dataset(run_cfg)
+male_ind = [ind for ind, data in enumerate(dataset) if data.y == 1]
+data_0 = dataset[male_ind][3775]
+
+G = to_networkx2(data_0, to_undirected=True, remove_self_loops=True, edge_attrs=['edge_attr'])
+all_edges = []
+for edge in G.edges(data='edge_attr'):
+    all_edges.append(edge[2])
+
+_, ax = plt.subplots(figsize=(7, 7))
+pos = nx.spring_layout(G, k=5, iterations=500, scale=5)
+nx.draw_networkx(G, pos, ax=ax, with_labels=False, node_size=75, edgelist=[], arrows=False)
+# width makes the weight value between [0, 1], and scale it by 2
+for edge in G.edges(data='edge_attr'):
+    nx.draw_networkx_edges(G, pos, ax=ax, edgelist=[edge], width=3*(edge[2] - min(all_edges)) / (max(all_edges) - min(all_edges)), arrows=False)
+
+fig.suptitle(f'Random Person {rand_ind}, {sex_type} with {run_cfg["param_threshold"]}% threshold', fontsize=20)
+plt.axis('off')
+plt.tight_layout()
+plt.savefig(os.path.join('figures', f'graph_example.pdf'), bbox_inches = 'tight', pad_inches = 0)
+plt.close()
+
+# Timeseries
+from utils_datasets import STRUCT_COLUMNS
+plt.figure(figsize=(6,6))
+ts = data_0.x
+data = {STRUCT_COLUMNS[5] : ts[5, :], STRUCT_COLUMNS[15] : ts[15, :], STRUCT_COLUMNS[37] : ts[37, :], STRUCT_COLUMNS[65] : ts[65, :]}
+df = pd.DataFrame(data)
+axes = df.plot(subplots=True, figsize=(7, 7), legend=False, colormap='Dark2')
+for ax in axes:
+    ax.legend(loc='upper left')
+plt.tight_layout()
+plt.savefig(os.path.join('figures', f'ts_example.pdf'), bbox_inches = 'tight', pad_inches = 0)
+plt.close()
