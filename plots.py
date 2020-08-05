@@ -418,3 +418,67 @@ for ax in axes:
 plt.tight_layout()
 plt.savefig(os.path.join('figures', f'ts_example.pdf'), bbox_inches = 'tight', pad_inches = 0)
 plt.close()
+
+
+
+###
+###
+### Plot TCN kernels
+###
+###
+import torch
+import wandb
+import matplotlib.pyplot as plt
+from main_loop import generate_st_model
+from model import SpatioTemporalModel
+from utils import change_w_config_, create_name_for_model
+
+
+# this run_id correspond to 2nd fold of 100_n_e_diffpool
+run_id = 'nxqb9kvj'
+api = wandb.Api()
+best_run = api.run(f'/st-team/spatio-temporal-brain/runs/{run_id}')
+w_config = best_run.config
+inner_fold_for_val: int = 1
+
+change_w_config_(w_config)
+w_config['device_run'] = 'cuda'
+
+model: SpatioTemporalModel = generate_st_model(w_config, for_test=True)
+model_saving_path: str = create_name_for_model(target_var=w_config['target_var'],
+                                               model=model,
+                                               outer_split_num=w_config['fold_num'],
+                                               inner_split_num=inner_fold_for_val,
+                                               n_epochs=w_config['num_epochs'],
+                                               threshold=w_config['threshold'],
+                                               batch_size=w_config['batch_size'],
+                                               num_nodes=w_config['num_nodes'],
+                                               conn_type=w_config['param_conn_type'],
+                                               normalisation=w_config['param_normalisation'],
+                                               analysis_type=w_config['analysis_type'],
+                                               metric_evaluated='loss',
+                                               dataset_type=w_config['dataset_type'],
+                                               lr=w_config['param_lr'],
+                                               weight_decay=w_config['param_weight_decay'],
+                                               edge_weights=w_config['edge_weights'])
+
+model.load_state_dict(torch.load(model_saving_path, map_location=w_config['device_run']))
+model.eval()
+
+import seaborn as sns
+
+weights_to_plot = [
+    model.temporal_conv.network[0].conv1.weight.squeeze(1).detach().cpu().numpy(),
+    model.temporal_conv.network[0].conv2.weight.reshape(16, -1).detach().cpu().numpy()
+]
+weights_figsize = ((8, 7), (20, 5))
+weights_names = ('conv1', 'conv2')
+
+for kernel, figsize, name in zip(weights_to_plot, weights_figsize, weights_names):
+    _, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(kernel,
+                ax=ax,
+                yticklabels=False, xticklabels=False,
+                cmap='viridis')
+    plt.savefig(f'figures/tcn_{name}.pdf', bbox_inches = 'tight', pad_inches = 0)
+    plt.close()
