@@ -11,7 +11,7 @@ from utils import DatasetType, AnalysisType, ConnType, create_name_for_flattenco
 best_runs = {
     'sex_flatten': {0: {'run_id': 'zqahc9zb'},
                     1: {'run_id': 'vvhqjyhm'},
-                    2: {'run_id': 'areerly7'},
+                    2: {'run_id': 'areerly7', 'ode': 0.9801913876776511},
                     3: {'run_id': '1o9rbbgd'},
                     4: {'run_id': 'igl3va7i'}}
 }
@@ -36,6 +36,8 @@ for model_type, runs_all in best_runs.items():
         w_config['analysis_type'] = AnalysisType(w_config['analysis_type'])
         w_config['dataset_type'] = DatasetType(w_config['dataset_type'])
         w_config['param_conn_type'] = ConnType(w_config['conn_type'])
+        if 'ode' in run_info.keys():
+            w_config['colsample_bynode'] = float(run_info['ode'])
 
         # Getting best model
         inner_fold_for_val: int = 1
