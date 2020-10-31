@@ -29,7 +29,7 @@ for (sweep_name in sweep_names)
       rh_list <- rh_map$cluster
       names(rh_list) <-  rh_map$label
 
-      saving_path <- paste('figures/dp_interp_', granularity_id, '_', sweep_name, '_', group_id, '.png', sep='')
+      saving_path <- paste('figures/dp_clust_', granularity_id, '_', sweep_name, '_', group_id, '.png', sep='')
 
       vis.region.values.on.subject(subjects_dir,
                 'subject1',

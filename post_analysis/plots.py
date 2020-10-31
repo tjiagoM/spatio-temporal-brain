@@ -365,7 +365,7 @@ for num_nodes, time_length in [(68, 490)]: #(50, 1200),
             fig.suptitle(f'Random Person {rand_ind}, {sex_type} with {run_cfg["param_threshold"]}% threshold', fontsize=20)
             plt.tight_layout()
 
-            plt.savefig(os.path.join('figures', f'graph_{num_nodes}_{sex_type}_{i}.png'))
+            plt.savefig(os.path.join('../figures', f'graph_{num_nodes}_{sex_type}_{i}.png'))
             plt.close()
 
 #
@@ -383,28 +383,37 @@ run_cfg = {
     'dataset_type' : DatasetType('ukb'),
     'edge_weights' : True
 }
+STRUCT_SIMPLE_NAMES = ['L.BSTS', 'L.CACG', 'L.CMFG', 'L.CU', 'L.EC', 'L.FG', 'L.IPG', 'L.ITG', 'L.ICG', 'L.LOG', 'L.LOFG', 'L.LG', 'L.MOFG', 'L.MTG', 'L.PHIG', 'L.PaCG', 'L.POP', 'L.POR', 'L.PTR', 'L.PCAL', 'L.PoCG', 'L.PCG', 'L.PrCG', 'L.PCU', 'L.RACG', 'L.RMFG', 'L.SFG', 'L.SPG', 'L.STG', 'L.SMG', 'L.FP', 'L.TP', 'L.TTG', 'L.IN', 'R.BSTS', 'R.CACG', 'R.CMFG', 'R.CU', 'R.EC', 'R.FG', 'R.IPG', 'R.ITG', 'R.ICG', 'R.LOG', 'R.LOFG', 'R.LG', 'R.MOFG', 'R.MTG', 'R.PHIG', 'R.PaCG', 'R.POP', 'R.POR', 'R.PTR', 'R.PCAL', 'R.PoCG', 'R.PCG', 'R.PrCG', 'R.PCU', 'R.RACG', 'R.RMFG', 'R.SFG', 'R.SPG', 'R.STG', 'R.SMG', 'R.FP', 'R.TP', 'R.TTG', 'R.IN']
 
 dataset: UKBDataset = generate_dataset(run_cfg)
 male_ind = [ind for ind, data in enumerate(dataset) if data.y == 1]
 data_0 = dataset[male_ind][3775]
 
 G = to_networkx2(data_0, to_undirected=True, remove_self_loops=True, edge_attrs=['edge_attr'])
+mapping = {ind: STRUCT_SIMPLE_NAMES[ind] for ind in range(len(STRUCT_SIMPLE_NAMES))}
+nx.relabel_nodes(G, mapping, copy=False)
+np.save('figures/example_graph.npy', nx.to_numpy_matrix(G, weight='edge_attr'))
+#pd.DataFrame(nx.to_numpy_matrix(G, weight='edge_attr'), index=STRUCT_COLUMNS, columns=STRUCT_COLUMNS).to_csv('figures/example_graph.csv')
 all_edges = []
 for edge in G.edges(data='edge_attr'):
     all_edges.append(edge[2])
 
 _, ax = plt.subplots(figsize=(7, 7))
-pos = nx.spring_layout(G, k=5, iterations=500, scale=5)
-nx.draw_networkx(G, pos, ax=ax, with_labels=False, node_size=75, edgelist=[], arrows=False)
+pos = nx.spring_layout(G, k=12, iterations=1000)
+#pos = nx.kamada_kawai_layout(G, weight='edge_attr')
+##pos = nx.nx_agraph.graphviz_layout(G)
+nx.draw_networkx(G, pos, ax=ax, with_labels=True, node_size=575, font_size=10, edgelist=[], arrows=False)
 # width makes the weight value between [0, 1], and scale it by 2
 for edge in G.edges(data='edge_attr'):
     nx.draw_networkx_edges(G, pos, ax=ax, edgelist=[edge], width=3*(edge[2] - min(all_edges)) / (max(all_edges) - min(all_edges)), arrows=False)
 
-fig.suptitle(f'Random Person {rand_ind}, {sex_type} with {run_cfg["param_threshold"]}% threshold', fontsize=20)
+#fig.suptitle(f'Random Person {rand_ind}, {sex_type} with {run_cfg["param_threshold"]}% threshold', fontsize=20)
 plt.axis('off')
 plt.tight_layout()
-plt.savefig(os.path.join('figures', f'graph_example.pdf'), bbox_inches = 'tight', pad_inches = 0)
+#plt.savefig(os.path.join('figures', f'graph_example.pdf'), bbox_inches = 'tight', pad_inches = 0)
+plt.show()
 plt.close()
+
 
 # Timeseries
 from utils_datasets import STRUCT_COLUMNS
@@ -416,7 +425,7 @@ axes = df.plot(subplots=True, figsize=(7, 7), legend=False, colormap='Dark2')
 for ax in axes:
     ax.legend(loc='upper left')
 plt.tight_layout()
-plt.savefig(os.path.join('figures', f'ts_example.pdf'), bbox_inches = 'tight', pad_inches = 0)
+plt.savefig(os.path.join('../figures', f'ts_example.pdf'), bbox_inches ='tight', pad_inches = 0)
 plt.close()
 
 

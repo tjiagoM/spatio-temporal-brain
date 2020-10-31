@@ -14,8 +14,20 @@ from utils_datasets import STRUCT_COLUMNS
 
 def plot_and_save_interp(arr, name, sweep_name):
     s_df = pd.DataFrame(arr, index=STRUCT_COLUMNS, columns=STRUCT_COLUMNS)
+
+    # First create a dummy clustermap to know how the dendrogram is created and find the right mask next
     g_obj = sns.clustermap(s_df, yticklabels=1, xticklabels=1, dendrogram_ratio=(0.1, 0.2),
                            cbar_pos=(0, 0.85, 0.02, 0.15), cmap="viridis")
+    mask_array = np.full(arr.shape, False)
+    mask_array[np.tril_indices(mask_array.shape[0])] = True
+
+    mask_after = mask_array[np.argsort(g_obj.dendrogram_row.reordered_ind), :]
+    mask_after = mask_after[:, np.argsort(g_obj.dendrogram_col.reordered_ind)]
+
+    g_obj = sns.clustermap(s_df, yticklabels=1, xticklabels=1, dendrogram_ratio=(0.1, 0.2),
+                           cbar_pos = (0, 0.85, 0.02,0.15), cmap = "viridis", mask = mask_after,
+                           linewidths = 0.5, linecolor = (0.7, 0.7, 0.7, 0.2))
+
     g_obj.ax_heatmap.set_xticklabels(g_obj.ax_heatmap.get_xmajorticklabels(), fontsize=7)
     g_obj.ax_heatmap.set_yticklabels(g_obj.ax_heatmap.get_ymajorticklabels(), fontsize=7)
 
@@ -33,6 +45,7 @@ def plot_and_save_interp(arr, name, sweep_name):
             t2_df = tmp_df[tmp_df.index.str.startswith(hemi_char)]
             t2_df.index = t2_df.index.map(lambda x: x.replace(hemi_char, ''))
             t2_df.to_csv(f'results/dp_clust_{granularity_id}_{sweep_name}_{hemi_char}{name}.csv', index_label='label')
+
 
     g_obj.savefig(f'figures/dp_interp_{sweep_name}_{name}.pdf')
     plt.close()
