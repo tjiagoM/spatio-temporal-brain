@@ -1,7 +1,9 @@
 [![GitHub license](https://img.shields.io/github/license/tjiagoM/spatio-temporal-brain)](https://github.com/tjiagoM/spatio-temporal-brain/blob/master/LICENSE)
-[![DOI](https://img.shields.io/badge/DOI-10.0000/...-blue.svg)](https://doi.org)
+[![DOI](https://img.shields.io/badge/DOI-10.1101/2020.11.08.370288-blue.svg)](https://doi.org/10.1101/2020.11.08.370288)
 
 # A Deep Graph Neural Network Architecture for Spatio-temporal rs-fMRI data
+
+![Spatio-temporal flow](meta_data/st_graphical_abstract.png)
 
 This repository contains an implementation of a deep neural network architecture combining both graph neural networks (GNNs) and temporal convolutional networks (TCNs), which is able to learn from the spatial and temporal components of rs-fMRI data in an end-to-end fashion. Please check the [publications](#publications) at the end of this page for more details on how this architecture was used and evaluated.
 
@@ -71,11 +73,17 @@ Data cannot be publicly shared in this repository, we are working on giving more
 
 ## Publications
 
-The architecture implemented in this repository is described in detail in [a preprint at BioRxiv](https://biorxiv.org). If you use this architecture in your research work please cite the paper, with the following bibtex:
+The architecture implemented in this repository is described in detail in [a preprint at BioRxiv](https://doi.org/10.1101/2020.11.08.370288). If you use this architecture in your research work please cite the paper, with the following bibtex:
 
 ```
 @article{Azevedo2020,
-
+  doi = {10.1101/2020.11.08.370288},
+  url = {https://doi.org/10.1101/2020.11.08.370288},
+  year = {2020},
+  month = nov,
+  publisher = {Cold Spring Harbor Laboratory},
+  author = {Tiago Azevedo and Alexander Campbell and Rafael Romero-Garcia and Luca Passamonti and Richard A.I. Bethlehem and Pietro Lio and Nicola Toschi},
+  title = {A Deep Graph Neural Network Architecture for Modelling Spatio-temporal Dynamics in resting-stating functional {MRI} Data}
 }
 ``` 
 
