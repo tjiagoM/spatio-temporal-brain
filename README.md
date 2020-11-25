@@ -1,7 +1,7 @@
 [![GitHub license](https://img.shields.io/github/license/tjiagoM/spatio-temporal-brain)](https://github.com/tjiagoM/spatio-temporal-brain/blob/master/LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.1101/2020.11.08.370288-blue.svg)](https://doi.org/10.1101/2020.11.08.370288)
 
-# A Deep Graph Neural Network Architecture for Spatio-temporal rs-fMRI data
+# A Deep Graph Neural Network Architecture for Modelling Spatio-temporal Dynamics in rs-fMRI Data
 
 ![Spatio-temporal flow](meta_data/st_graphical_abstract.png)
 
@@ -83,7 +83,7 @@ The architecture implemented in this repository is described in detail in [a pre
   month = nov,
   publisher = {Cold Spring Harbor Laboratory},
   author = {Tiago Azevedo and Alexander Campbell and Rafael Romero-Garcia and Luca Passamonti and Richard A.I. Bethlehem and Pietro Lio and Nicola Toschi},
-  title = {A Deep Graph Neural Network Architecture for Modelling Spatio-temporal Dynamics in resting-stating functional {MRI} Data}
+  title = {A Deep Graph Neural Network Architecture for Modelling Spatio-temporal Dynamics in resting-state functional {MRI} Data}
 }
 ``` 
 
