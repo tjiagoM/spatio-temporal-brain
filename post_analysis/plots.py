@@ -419,9 +419,15 @@ plt.close()
 from utils_datasets import STRUCT_COLUMNS
 plt.figure(figsize=(6,6))
 ts = data_0.x
-data = {STRUCT_COLUMNS[5] : ts[5, :], STRUCT_COLUMNS[15] : ts[15, :], STRUCT_COLUMNS[37] : ts[37, :], STRUCT_COLUMNS[65] : ts[65, :]}
+data = {STRUCT_COLUMNS[5] : ts[5, :], STRUCT_COLUMNS[15] : ts[15, :], STRUCT_COLUMNS[37] : ts[37, :], STRUCT_COLUMNS[40] : ts[40, :]}
 df = pd.DataFrame(data)
-axes = df.plot(subplots=True, figsize=(7, 7), legend=False, colormap='Dark2')
+# To match graph in paper
+specific_colours = [(0.862745098039216, 0.07843137254902, 0.07843137254902, 1),
+                    (0.588235294117647, 0.588235294117647, 0.784313725490196, 1),
+                    (1, 0.501960784313726, 0, 1),
+                    (0.313725490196078, 0.627450980392157, 0.07843137254902, 1)
+                    ]
+axes = df.plot(subplots=True, figsize=(7, 7), legend=False, color=specific_colours)
 for ax in axes:
     ax.legend(loc='upper left')
 plt.tight_layout()
