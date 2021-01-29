@@ -18,7 +18,7 @@ from utils import Normalisation, ConnType, AnalysisType, EncodingStrategy, Datas
 from utils_datasets import DESIKAN_COMPLETE_TS, DESIKAN_TRACKS, UKB_IDS_PATH, UKB_PHENOTYPE_PATH, \
     UKB_TIMESERIES_PATH, NODE_FEATURES_NAMES, STRUCT_COLUMNS, UKB_WITHOUT_BMI
 
-PEOPLE_DEMOGRAPHICS_PATH = 'meta_data/people_demographics.csv'
+HCP_DEMOGRAPHICS_PATH = 'meta_data/hcp_info.csv'
 
 
 def get_desikan_tracks_path(person: int):
@@ -183,8 +183,8 @@ class HCPDataset(BrainDataset):
             exit(-2)
 
         self.ts_split_num: int = int(4800 / time_length)
-        self.info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
-        self.nodefeats_df = pd.read_csv('meta_data/node_features_powtransformer.csv', index_col=0)
+        self.info_df = pd.read_csv(HCP_DEMOGRAPHICS_PATH).set_index('Subject')
+        #self.nodefeats_df = pd.read_csv('meta_data/node_features_powtransformer.csv', index_col=0)
 
         super(HCPDataset, self).__init__(root, target_var=target_var, num_nodes=num_nodes, threshold=threshold,
                                          connectivity_type=connectivity_type, normalisation=normalisation,
@@ -229,7 +229,7 @@ class HCPDataset(BrainDataset):
     def process(self):
         # Read data into huge `Data` list.
         data_list: list[Data] = []
-        assert self.time_length == 1200
+        assert self.time_length == 1200  or self.time_length == 490
 
         # The same people as for the multimodal part
         filtered_people = sorted(list(set(DESIKAN_COMPLETE_TS).intersection(set(DESIKAN_TRACKS))))
@@ -268,6 +268,10 @@ class HCPDataset(BrainDataset):
                                                  dtype=torch.float).unsqueeze(1)
                     else:
                         edge_attr = None
+
+                # Crop timeseries
+                if  self.time_length != 1200:
+                    ts = ts[:self.time_length, :]
 
                 data = self.__create_data_object(person=person, ts=ts, ind=ind, edge_attr=edge_attr,
                                                  edge_index=edge_index)
@@ -449,7 +453,7 @@ class FlattenCorrsDataset(InMemoryDataset):
 
 
     def __get_hcp_data_object(self, person: int, direction: str, ind: int) -> Data:
-        info_df = pd.read_csv(PEOPLE_DEMOGRAPHICS_PATH).set_index('Subject')
+        info_df = pd.read_csv(HCP_DEMOGRAPHICS_PATH).set_index('Subject')
 
         idx_to_filter = np.concatenate((np.arange(0, 34), np.arange(49, 83)))
         ts = np.genfromtxt(get_desikan_ts_path(person, direction))

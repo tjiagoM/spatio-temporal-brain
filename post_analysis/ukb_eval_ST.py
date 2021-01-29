@@ -11,64 +11,128 @@ from utils import DatasetType, AnalysisType, ConnType, \
     ConvStrategy, SweepType
 
 # Extra fields besides run_id are due to precision issues when saving.
-best_runs = {
+best_runs_ukb = {
     '100_n_diffpool': {0: {'run_id': 'khnljhrj'},
-                        1: {'run_id': 'k9y54v5w', 'weight_d': 0.0012895162344404025},
-                        2: {'run_id': '8ulilkox'},
-                        3: {'run_id': 'm1lyyxez'},
-                        4: {'run_id': 'lz7r38t4'}}
-    #'100_n_mean': {0: {'run_id': 'zqfxsg2g'},
+                       1: {'run_id': 'k9y54v5w', 'weight_d': 0.0012895162344404025},
+                       2: {'run_id': '8ulilkox'},
+                       3: {'run_id': 'm1lyyxez'},
+                       4: {'run_id': 'lz7r38t4'}}
+    # '100_n_mean': {0: {'run_id': 'zqfxsg2g'},
     #                    1: {'run_id': 'uiuoh583'},
     #                    2: {'run_id': 'lryrz1z8', 'weight_d': 2.5965696862532323e-07},
     #                    3: {'run_id': '937rms0w'},
     #                    4: {'run_id': 'sqn6ovck', 'dropout': 0.46961407058088156}},
-    #'100_n_e_mean': {0: {'run_id': '94uhovir', 'weight_d': 1.5759293238676228e-07},
+    # '100_n_e_mean': {0: {'run_id': '94uhovir', 'weight_d': 1.5759293238676228e-07},
     #                    1: {'run_id': 'rag1ypk2', 'lr': 1.0061199415847143e-05, 'dropout': 0.09294885751683715},
     #                    2: {'run_id': '9l3dd2lh'},
     #                    3: {'run_id': 'iugiapic'},
     #                    4: {'run_id': 'ndp2mqm2', 'lr': 0.00011814265529647913}},
-    #'100_n_e_diffpool': {0: {'run_id': '1oysy05q'},
+    # '100_n_e_diffpool': {0: {'run_id': '1oysy05q'},
     #                1: {'run_id': 'nxqb9kvj'},
     #                2: {'run_id': 'skripjyc', 'weight_d': 1.5483273684368499e-06},
     #                3: {'run_id': '6b3si6pc'},
     #                4: {'run_id': 's1nhqmnj'}},
 
-    #'no_diffpool': {0: {'run_id': 'fdy5th0d', 'model_v': '64'},
+    # 'no_diffpool': {0: {'run_id': 'fdy5th0d', 'model_v': '64'},
     #                1: {'run_id': 'w8ylfez9', 'dropout': 0.24218285663325959},
     #                2: {'run_id': 'xl8woeqr'},
     #                3: {'run_id': 'jmjga3w9', 'weight_d': 0.0072375354916992245},
     #                4: {'run_id': 'aft5sncg'}},
-    #'no_mean': {0: {'run_id': 'ffy60yhy', 'model_v': '64'},
+    # 'no_mean': {0: {'run_id': 'ffy60yhy', 'model_v': '64'},
     #            1: {'run_id': '33tbqog2'},
     #            2: {'run_id': 'fepf04je', 'weight_d': 4.0287379093021184e-07},
     #            3: {'run_id': 'dhl9l0y4'},
     #            4: {'run_id': 'cijrrmgf'}},
-    #'n_e_mean': {0: {'run_id': '65slgxut', 'weight_d': 9.017758245804703e-06},
+    # 'n_e_mean': {0: {'run_id': '65slgxut', 'weight_d': 9.017758245804703e-06},
     #             1: {'run_id': 'uqakiqlk'},
     #             2: {'run_id': 'i9a83qtc'},
     #             3: {'run_id': 'jp88x8mf', 'dropout': 0.025361867527413186},
     #             4: {'run_id': 'q5te841d'}},
-    #'n_e_diffpool': {0: {'run_id': 'zuctoloq'},
+    # 'n_e_diffpool': {0: {'run_id': 'zuctoloq'},
     #                 1: {'run_id': '68fgmmdo'},
     #                 2: {'run_id': '7vb4ckzl', 'dropout': 0.20686909521891877},
     #                 3: {'run_id': 'mt29y65e'},
     #                 4: {'run_id': 'fjnpo77p'}},
-    #'node_mean': {0: {'run_id': '3yj09s2x'},
+    # 'node_mean': {0: {'run_id': '3yj09s2x'},
     #              1: {'run_id': 'u6cfugyc'},
     #              2: {'run_id': '7597akad'},
     #              3: {'run_id': 'j63gkpoe'},
     #              4: {'run_id': 'l1w81fh2', 'dropout': 0.37245464912261556, 'lr': 0.00048327684496385213}},
-    #'node_diffpool': {0: {'run_id': '077bkvxp'},
+    # 'node_diffpool': {0: {'run_id': '077bkvxp'},
     #                  1: {'run_id': '4tle1l3g', 'dropout': 0.22238630459171502},
     #                  2: {'run_id': '88eje3no'},
     #                  3: {'run_id': 'x94lygb9'},
     #                  4: {'run_id': 'yaogr549'}}
 }
 
-DEVICE_RUN = 'cuda'
+best_runs_hcp = {
+    'N + E $\\rightarrow$ Average': {0: {'run_id': 'sa4vz637'},
+                                     1: {'run_id': 'qvc3red3'},
+                                     2: {'run_id': 'ho5ei0bu', 'weight_d': 0.00045494145445063716},
+                                     3: {'run_id': '4gh6r613', 'dropout': 0.18552011553500802},
+                                     4: {'run_id': 'sa4vz637'}},
 
-for model_type, runs_all in best_runs.items():
-    print('----', model_type)
+    'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'rjqgjo6t', 'lr': 0.0073454738206698645},
+                                      1: {'run_id': 'qhe3tmpg', 'weight_d': 0.0009706058274764595},
+                                      2: {'run_id': 'w8zrimq3', 'weight_d': 1.6485231846614363e-07},
+                                      3: {'run_id': 'e3hwsnkt', 'weight_d': 0.001836297034235979, 'dropout': 0.45716370274856044},
+                                      4: {'run_id': 'fsn6xi4c'}},
+
+    'N $\\rightarrow$ Average': {0: {'run_id': 'kb0h0cqg', 'weight_d': 2.3628232603528274e-05},
+                                 1: {'run_id': 'jq3p5ywv'},
+                                 2: {'run_id': 'ru0v7dw2', 'weight_d': 1.8440482416802742e-06},
+                                 3: {'run_id': 'wkuh266s'},
+                                 4: {'run_id': 'ncospvb1', 'lr': 0.0009052654172784859}},
+
+    'N $\\rightarrow$ DiffPool': {0: {'run_id': '0rmhut2t'},
+                                  1: {'run_id': '2qx0o67s'},
+                                  2: {'run_id': 'ldmx3h4m', 'dropout': 0.43977735162063747, 'weight_d': 0.00010610234153585897},
+                                  3: {'run_id': 'lhw0byv5'},
+                                  4: {'run_id': 'r2r6wedp'}},
+
+    '$\\rightarrow$ DiffPool': {0: {'run_id': 'vzz9dp8c'},
+                                1: {'run_id': 'u92k3gck', 'dropout': 0.44280658914412885},
+                                2: {'run_id': 'mj3u34ae'},
+                                3: {'run_id': 'h9ltbjhh'},
+                                4: {'run_id': 'xu3w7v5o'}},
+
+    '$\\rightarrow$ Average': {0: {'run_id': 'u3g615fx', 'dropout': 0.09824567099751609},
+                               1: {'run_id': 'i2t60lbt'},
+                               2: {'run_id': '0reqccd2'},
+                               3: {'run_id': 'fozuxf7z', 'dropout': 0.10414535975968037, 'weight_d': 0.0010280190032795579},
+                               4: {'run_id': 'sqz196tb', 'dropout': 0.23326601015409346}}
+}
+
+best_runs_hcp100_THRES = {
+    'N + E $\\rightarrow$ Average': {0: {'run_id': 'n01iu8xy'},
+                                     1: {'run_id': 'fanpxslb'},
+                                     2: {'run_id': '03tubetj'},
+                                     3: {'run_id': 'm2uvk64e'},
+                                     4: {'run_id': 'z3y05mah'}},
+
+    'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'a9rmzt3g', 'weight_d': 9.811306344339555e-07},
+                                      1: {'run_id': 'r493ayys'},
+                                      2: {'run_id': 'wziewuzd'},
+                                      3: {'run_id': 'd2w9v9gs'},
+                                      4: {'run_id': 't2r06tnx', 'dropout': 0.37409969176335156}},
+
+    'N $\\rightarrow$ Average': {0: {'run_id': '1es5sh3n', 'weight_d': 1.8837375147749088e-07},
+                                 1: {'run_id': 'ltbs42t0'},
+                                 2: {'run_id': '176rklv8'},
+                                 3: {'run_id': '5zllqu19'},
+                                 4: {'run_id': '7i5l5401', 'lr': 0.00019906466949509087}},
+
+    'N $\\rightarrow$ DiffPool': {0: {'run_id': 'okwt3li5', 'weight_d': 1.2414858556355677e-05},
+                                  1: {'run_id': 'iitaqcnl', 'lr': 0.00036632425868720524},
+                                  2: {'run_id': '0yt9maap'},
+                                  3: {'run_id': '18uo4s8c'},
+                                  4: {'run_id': 'w0h1kykp', 'lr': 0.0012616677803190923}}
+}
+
+DEVICE_RUN = 'cpu'
+
+
+def print_metrics(model_name, runs_all, validate_hcp=False):
     metrics_ukb = {'f1': [], 'acc': [], 'auc': [], 'sensitivity': [], 'specificity': []}
     metrics_hcp = {'f1': [], 'acc': [], 'auc': [], 'sensitivity': [], 'specificity': []}
     for fold_num, run_info in runs_all.items():
@@ -152,46 +216,58 @@ for model_type, runs_all in best_runs.items():
                 model_saving_path = model_saving_path.replace('T_no_W_F', 'GC_FGA_F')
         model.load_state_dict(torch.load(model_saving_path, map_location=w_config['device_run']))
         model.eval()
-        #continue
-        # Getting HCP Data
-        name_dataset = create_name_for_brain_dataset(num_nodes=68,
-                                                     time_length=1200,
-                                                     target_var='gender',
-                                                     threshold=w_config['threshold'],
-                                                     normalisation=w_config['param_normalisation'],
-                                                     connectivity_type=w_config['param_conn_type'],
-                                                     analysis_type=w_config['analysis_type'],
-                                                     encoding_strategy=w_config['param_encoding_strategy'],
-                                                     dataset_type=DatasetType('hcp'),
-                                                     edge_weights=w_config['edge_weights'])
-        print('Going with', name_dataset)
-        dataset = HCPDataset(root=name_dataset,
-                             target_var='gender',
-                             num_nodes=68,
-                             threshold=w_config['threshold'],
-                             connectivity_type=w_config['param_conn_type'],
-                             normalisation=w_config['param_normalisation'],
-                             analysis_type=w_config['analysis_type'],
-                             encoding_strategy=w_config['param_encoding_strategy'],
-                             time_length=1200,
-                             edge_weights=w_config['edge_weights'])
+        if not validate_hcp:
+            continue
+        else:
+            # Getting HCP Data
+            name_dataset = create_name_for_brain_dataset(num_nodes=68,
+                                                         time_length=1200,
+                                                         target_var='gender',
+                                                         threshold=w_config['threshold'],
+                                                         normalisation=w_config['param_normalisation'],
+                                                         connectivity_type=w_config['param_conn_type'],
+                                                         analysis_type=w_config['analysis_type'],
+                                                         encoding_strategy=w_config['param_encoding_strategy'],
+                                                         dataset_type=DatasetType('hcp'),
+                                                         edge_weights=w_config['edge_weights'])
+            print('Going with', name_dataset)
+            dataset = HCPDataset(root=name_dataset,
+                                 target_var='gender',
+                                 num_nodes=68,
+                                 threshold=w_config['threshold'],
+                                 connectivity_type=w_config['param_conn_type'],
+                                 normalisation=w_config['param_normalisation'],
+                                 analysis_type=w_config['analysis_type'],
+                                 encoding_strategy=w_config['param_encoding_strategy'],
+                                 time_length=1200,
+                                 edge_weights=w_config['edge_weights'])
 
-        # dataset.data is private, might change in future versions of pyg...
-        dataset.data.x = dataset.data.x[:, :490]
+            # dataset.data is private, might change in future versions of pyg...
+            dataset.data.x = dataset.data.x[:, :490]
 
-        test_out_loader = DataLoader(dataset, batch_size=w_config['batch_size'], shuffle=False)
-        test_metrics = evaluate_model(model, test_out_loader, w_config['param_pooling'], w_config['device_run'])
-        for metric in metrics_hcp.keys():
-            metrics_hcp[metric].append(test_metrics[metric])
+            test_out_loader = DataLoader(dataset, batch_size=w_config['batch_size'], shuffle=False)
+            test_metrics = evaluate_model(model, test_out_loader, w_config['param_pooling'], w_config['device_run'])
+            for metric in metrics_hcp.keys():
+                metrics_hcp[metric].append(test_metrics[metric])
 
-    print('UKB:')
+    # print('UKB:')
+    print(model_name, end=' & ')
     print(f'{round(np.mean(metrics_ukb["auc"]), 2)} ({round(np.std(metrics_ukb["auc"]), 3)}) & '
           f'{round(np.mean(metrics_ukb["acc"]), 2)} ({round(np.std(metrics_ukb["acc"]), 3)}) & '
           f'{round(np.mean(metrics_ukb["sensitivity"]), 2)} ({round(np.std(metrics_ukb["sensitivity"]), 3)}) & '
           f'{round(np.mean(metrics_ukb["specificity"]), 2)} ({round(np.std(metrics_ukb["specificity"]), 3)})')
 
-    print('HCP:')
-    print(f'{round(np.mean(metrics_hcp["auc"]), 2)} ({round(np.std(metrics_hcp["auc"]), 3)}) & '
-          f'{round(np.mean(metrics_hcp["acc"]), 2)} ({round(np.std(metrics_hcp["acc"]), 3)}) & '
-          f'{round(np.mean(metrics_hcp["sensitivity"]), 2)} ({round(np.std(metrics_hcp["sensitivity"]), 3)}) & '
-          f'{round(np.mean(metrics_hcp["specificity"]), 2)} ({round(np.std(metrics_hcp["specificity"]), 3)})')
+    if validate_hcp:
+        print('HCP:')
+        print(f'{round(np.mean(metrics_hcp["auc"]), 2)} ({round(np.std(metrics_hcp["auc"]), 3)}) & '
+              f'{round(np.mean(metrics_hcp["acc"]), 2)} ({round(np.std(metrics_hcp["acc"]), 3)}) & '
+              f'{round(np.mean(metrics_hcp["sensitivity"]), 2)} ({round(np.std(metrics_hcp["sensitivity"]), 3)}) & '
+              f'{round(np.mean(metrics_hcp["specificity"]), 2)} ({round(np.std(metrics_hcp["specificity"]), 3)})')
+
+
+if __name__ == '__main__':
+
+    #for model_type, runs_all in best_runs_hcp.items():
+    for model_type, runs_all in best_runs_hcp100_THRES.items():
+        # print('----', model_type)
+        print_metrics(model_type, runs_all)

@@ -3,7 +3,7 @@ pytorch_data/
 logs/
 encoder_comparisons/
 results/
-execute_*.sh
+execute_scripts/
 figures/
 wandb/
 old_logs/
