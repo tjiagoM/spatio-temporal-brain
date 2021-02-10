@@ -193,10 +193,13 @@ class SpatioTemporalModel(nn.Module):
             self.multimodal_lin = nn.Linear(self.multimodal_size, self.multimodal_size)
             self.multimodal_batch = BatchNorm1d(self.multimodal_size)
 
+        self.conv_strategy = conv_strategy
         self.encoding_strategy = encoding_strategy
         self.encoder_model = encoding_model
         if encoding_model is not None:
             self.NODE_EMBED_SIZE = self.encoding_model.EMBED_SIZE
+        elif self.conv_strategy == ConvStrategy.NONE:
+            self.NODE_EMBED_SIZE = num_time_length
 
         if self.encoding_strategy == EncodingStrategy.STATS:
             self.stats_lin = nn.Linear(self.TEMPORAL_EMBED_SIZE, self.TEMPORAL_EMBED_SIZE)
@@ -209,8 +212,6 @@ class SpatioTemporalModel(nn.Module):
                             'tanh': nn.Tanh()}
         self.activation = dict_activations[activation]
         self.activation_str = activation
-
-        self.conv_strategy = conv_strategy
         self.num_nodes = num_nodes
 
         self.channels_conv = channels_conv

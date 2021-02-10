@@ -129,6 +129,19 @@ best_runs_hcp100_THRES = {
                                   4: {'run_id': 'w0h1kykp', 'lr': 0.0012616677803190923}}
 }
 
+best_runs_no_tcn = {
+    'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'jvdmlsb8', 'lr': 1.08259983623932e-05},
+                                       1: {'run_id': 'pwcgm2f5'},
+                                       2: {'run_id': '4hi4gopl'},
+                                       3: {'run_id': 'cui32j71'},
+                                       4: {'run_id': '6znarbqk'}},
+    'N $\\rightarrow$ Average': {0: {'run_id': 'jeioiaga', 'lr': 0.00020401399698042745},
+                               1: {'run_id': 'pw1vegqq'},
+                               2: {'run_id': '4pr1522m'},
+                               3: {'run_id': 'ujkir4o1'},
+                               4: {'run_id': 'fq835uju'}}
+}
+
 DEVICE_RUN = 'cpu'
 
 
@@ -268,6 +281,7 @@ def print_metrics(model_name, runs_all, validate_hcp=False):
 if __name__ == '__main__':
 
     #for model_type, runs_all in best_runs_hcp.items():
-    for model_type, runs_all in best_runs_hcp100_THRES.items():
+    #for model_type, runs_all in best_runs_hcp100_THRES.items():
+    for model_type, runs_all in best_runs_no_tcn.items():
         # print('----', model_type)
         print_metrics(model_type, runs_all)
