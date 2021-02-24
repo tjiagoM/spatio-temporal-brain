@@ -16,53 +16,53 @@ best_runs_ukb = {
                        1: {'run_id': 'k9y54v5w', 'weight_d': 0.0012895162344404025},
                        2: {'run_id': '8ulilkox'},
                        3: {'run_id': 'm1lyyxez'},
-                       4: {'run_id': 'lz7r38t4'}}
-    # '100_n_mean': {0: {'run_id': 'zqfxsg2g'},
-    #                    1: {'run_id': 'uiuoh583'},
-    #                    2: {'run_id': 'lryrz1z8', 'weight_d': 2.5965696862532323e-07},
-    #                    3: {'run_id': '937rms0w'},
-    #                    4: {'run_id': 'sqn6ovck', 'dropout': 0.46961407058088156}},
-    # '100_n_e_mean': {0: {'run_id': '94uhovir', 'weight_d': 1.5759293238676228e-07},
-    #                    1: {'run_id': 'rag1ypk2', 'lr': 1.0061199415847143e-05, 'dropout': 0.09294885751683715},
-    #                    2: {'run_id': '9l3dd2lh'},
-    #                    3: {'run_id': 'iugiapic'},
-    #                    4: {'run_id': 'ndp2mqm2', 'lr': 0.00011814265529647913}},
-    # '100_n_e_diffpool': {0: {'run_id': '1oysy05q'},
-    #                1: {'run_id': 'nxqb9kvj'},
-    #                2: {'run_id': 'skripjyc', 'weight_d': 1.5483273684368499e-06},
-    #                3: {'run_id': '6b3si6pc'},
-    #                4: {'run_id': 's1nhqmnj'}},
+                       4: {'run_id': 'lz7r38t4'}},
+    '100_n_mean': {0: {'run_id': 'zqfxsg2g'},
+                   1: {'run_id': 'uiuoh583'},
+                   2: {'run_id': 'lryrz1z8', 'weight_d': 2.5965696862532323e-07},
+                   3: {'run_id': '937rms0w'},
+                   4: {'run_id': 'sqn6ovck', 'dropout': 0.46961407058088156}},
+    '100_n_e_mean': {0: {'run_id': '94uhovir', 'weight_d': 1.5759293238676228e-07},
+                     1: {'run_id': 'rag1ypk2', 'lr': 1.0061199415847143e-05, 'dropout': 0.09294885751683715},
+                     2: {'run_id': '9l3dd2lh'},
+                     3: {'run_id': 'iugiapic'},
+                     4: {'run_id': 'ndp2mqm2', 'lr': 0.00011814265529647913}},
+    '100_n_e_diffpool': {0: {'run_id': '1oysy05q'},
+                         1: {'run_id': 'nxqb9kvj'},
+                         2: {'run_id': 'skripjyc', 'weight_d': 1.5483273684368499e-06},
+                         3: {'run_id': '6b3si6pc'},
+                         4: {'run_id': 's1nhqmnj'}},
 
-    # 'no_diffpool': {0: {'run_id': 'fdy5th0d', 'model_v': '64'},
-    #                1: {'run_id': 'w8ylfez9', 'dropout': 0.24218285663325959},
-    #                2: {'run_id': 'xl8woeqr'},
-    #                3: {'run_id': 'jmjga3w9', 'weight_d': 0.0072375354916992245},
-    #                4: {'run_id': 'aft5sncg'}},
-    # 'no_mean': {0: {'run_id': 'ffy60yhy', 'model_v': '64'},
-    #            1: {'run_id': '33tbqog2'},
-    #            2: {'run_id': 'fepf04je', 'weight_d': 4.0287379093021184e-07},
-    #            3: {'run_id': 'dhl9l0y4'},
-    #            4: {'run_id': 'cijrrmgf'}},
-    # 'n_e_mean': {0: {'run_id': '65slgxut', 'weight_d': 9.017758245804703e-06},
-    #             1: {'run_id': 'uqakiqlk'},
-    #             2: {'run_id': 'i9a83qtc'},
-    #             3: {'run_id': 'jp88x8mf', 'dropout': 0.025361867527413186},
-    #             4: {'run_id': 'q5te841d'}},
-    # 'n_e_diffpool': {0: {'run_id': 'zuctoloq'},
-    #                 1: {'run_id': '68fgmmdo'},
-    #                 2: {'run_id': '7vb4ckzl', 'dropout': 0.20686909521891877},
-    #                 3: {'run_id': 'mt29y65e'},
-    #                 4: {'run_id': 'fjnpo77p'}},
-    # 'node_mean': {0: {'run_id': '3yj09s2x'},
-    #              1: {'run_id': 'u6cfugyc'},
-    #              2: {'run_id': '7597akad'},
-    #              3: {'run_id': 'j63gkpoe'},
-    #              4: {'run_id': 'l1w81fh2', 'dropout': 0.37245464912261556, 'lr': 0.00048327684496385213}},
-    # 'node_diffpool': {0: {'run_id': '077bkvxp'},
-    #                  1: {'run_id': '4tle1l3g', 'dropout': 0.22238630459171502},
-    #                  2: {'run_id': '88eje3no'},
-    #                  3: {'run_id': 'x94lygb9'},
-    #                  4: {'run_id': 'yaogr549'}}
+    'no_diffpool': {0: {'run_id': 'fdy5th0d', 'model_v': '64'},
+                    1: {'run_id': 'w8ylfez9', 'dropout': 0.24218285663325959},
+                    2: {'run_id': 'xl8woeqr'},
+                    3: {'run_id': 'jmjga3w9', 'weight_d': 0.0072375354916992245},
+                    4: {'run_id': 'aft5sncg'}},
+    'no_mean': {0: {'run_id': 'ffy60yhy', 'model_v': '64'},
+                1: {'run_id': '33tbqog2'},
+                2: {'run_id': 'fepf04je', 'weight_d': 4.0287379093021184e-07},
+                3: {'run_id': 'dhl9l0y4'},
+                4: {'run_id': 'cijrrmgf'}},
+    'n_e_mean': {0: {'run_id': '65slgxut', 'weight_d': 9.017758245804703e-06},
+                 1: {'run_id': 'uqakiqlk'},
+                 2: {'run_id': 'i9a83qtc'},
+                 3: {'run_id': 'jp88x8mf', 'dropout': 0.025361867527413186},
+                 4: {'run_id': 'q5te841d'}},
+    'n_e_diffpool': {0: {'run_id': 'zuctoloq'},
+                     1: {'run_id': '68fgmmdo'},
+                     2: {'run_id': '7vb4ckzl', 'dropout': 0.20686909521891877},
+                     3: {'run_id': 'mt29y65e'},
+                     4: {'run_id': 'fjnpo77p'}},
+    'node_mean': {0: {'run_id': '3yj09s2x'},
+                  1: {'run_id': 'u6cfugyc'},
+                  2: {'run_id': '7597akad'},
+                  3: {'run_id': 'j63gkpoe'},
+                  4: {'run_id': 'l1w81fh2', 'dropout': 0.37245464912261556, 'lr': 0.00048327684496385213}},
+    'node_diffpool': {0: {'run_id': '077bkvxp'},
+                      1: {'run_id': '4tle1l3g', 'dropout': 0.22238630459171502},
+                      2: {'run_id': '88eje3no'},
+                      3: {'run_id': 'x94lygb9'},
+                      4: {'run_id': 'yaogr549'}}
 }
 
 best_runs_hcp = {
@@ -86,7 +86,8 @@ best_runs_hcp = {
 
     'N $\\rightarrow$ DiffPool': {0: {'run_id': '0rmhut2t'},
                                   1: {'run_id': '2qx0o67s'},
-                                  2: {'run_id': 'ldmx3h4m', 'dropout': 0.43977735162063747, 'weight_d': 0.00010610234153585897},
+                                  2: {'run_id': 'ldmx3h4m', 'dropout': 0.43977735162063747,
+                                      'weight_d': 0.00010610234153585897},
                                   3: {'run_id': 'lhw0byv5'},
                                   4: {'run_id': 'r2r6wedp'}},
 
@@ -130,16 +131,26 @@ best_runs_hcp100_THRES = {
 }
 
 best_runs_no_tcn = {
+    'N + E $\\rightarrow$ Average': {0: {'run_id': 'ghl7ut1d'},
+                                     1: {'run_id': '7m435n4q'},
+                                     2: {'run_id': 'r1y86x1r'},
+                                     3: {'run_id': '3senntqi'},
+                                     4: {'run_id': 'hoz7xwng'}},
     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'jvdmlsb8', 'lr': 1.08259983623932e-05},
-                                       1: {'run_id': 'pwcgm2f5'},
-                                       2: {'run_id': '4hi4gopl'},
-                                       3: {'run_id': 'cui32j71'},
-                                       4: {'run_id': '6znarbqk'}},
+                                      1: {'run_id': 'pwcgm2f5'},
+                                      2: {'run_id': '4hi4gopl'},
+                                      3: {'run_id': 'cui32j71'},
+                                      4: {'run_id': '6znarbqk'}},
     'N $\\rightarrow$ Average': {0: {'run_id': 'jeioiaga', 'lr': 0.00020401399698042745},
-                               1: {'run_id': 'pw1vegqq'},
-                               2: {'run_id': '4pr1522m'},
-                               3: {'run_id': 'ujkir4o1'},
-                               4: {'run_id': 'fq835uju'}}
+                                 1: {'run_id': 'pw1vegqq'},
+                                 2: {'run_id': '4pr1522m'},
+                                 3: {'run_id': 'ujkir4o1'},
+                                 4: {'run_id': 'fq835uju'}},
+    'N $\\rightarrow$ DiffPool': {0: {'run_id': 'm7iyc7v1'},
+                                  1: {'run_id': '5te5tckb', 'weight_d': 0.00036269022006563443},
+                                  2: {'run_id': '3q8rhjcf'},
+                                  3: {'run_id': '5p8cbif7'},
+                                  4: {'run_id': 'w8q3upf0', 'lr': 2.4015360242535414e-05}}
 }
 
 DEVICE_RUN = 'cpu'
@@ -280,8 +291,8 @@ def print_metrics(model_name, runs_all, validate_hcp=False):
 
 if __name__ == '__main__':
 
-    #for model_type, runs_all in best_runs_hcp.items():
-    #for model_type, runs_all in best_runs_hcp100_THRES.items():
+    # for model_type, runs_all in best_runs_hcp.items():
+    # for model_type, runs_all in best_runs_hcp100_THRES.items():
     for model_type, runs_all in best_runs_no_tcn.items():
         # print('----', model_type)
         print_metrics(model_type, runs_all)
