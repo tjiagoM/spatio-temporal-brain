@@ -65,7 +65,9 @@ class AnalysisType(str, Enum):
     FLATTEN_* represents the xgboost baseline
     """
     ST_UNIMODAL = 'st_unimodal'
+    ST_UNIMODAL_AVG = 'st_unimodal_avg'
     ST_MULTIMODAL = 'st_multimodal'
+    ST_MULTIMODAL_AVG = 'st_multimodal_avg'
     FLATTEN_CORRS = 'flatten_corrs'
     FLATTEN_CORRS_THRESHOLD = 'flatten_corrs_threshold'
 
@@ -200,7 +202,7 @@ def create_name_for_model(target_var: str, model, outer_split_num: int,
                           conn_type: ConnType, normalisation: Normalisation, analysis_type: AnalysisType,
                           metric_evaluated: str, dataset_type: DatasetType, edge_weights: bool,
                           lr=None, weight_decay=None, prefix_location='logs/', suffix='.pth') -> str:
-    if analysis_type in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL]:
+    if analysis_type in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
         model_str_representation = model.to_string_name()
 
     return prefix_location + '_'.join([target_var,
@@ -248,10 +250,11 @@ def change_w_config_(w_config):
 
     w_config['param_threshold'] = w_config['threshold']
 
-    if w_config['analysis_type'] == AnalysisType.ST_MULTIMODAL:
-        w_config['multimodal_size'] = 10
-    elif w_config['analysis_type'] == AnalysisType.ST_UNIMODAL:
-        w_config['multimodal_size'] = 0
+    w_config['multimodal_size'] = 0
+    #if w_config['analysis_type'] == AnalysisType.ST_MULTIMODAL:
+    #    w_config['multimodal_size'] = 10
+    #elif w_config['analysis_type'] == AnalysisType.ST_UNIMODAL:
+    #    w_config['multimodal_size'] = 0
 
     if w_config['target_var'] in ['age', 'bmi']:
         w_config['model_with_sigmoid'] = False

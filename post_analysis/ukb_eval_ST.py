@@ -65,6 +65,44 @@ best_runs_ukb = {
                       4: {'run_id': 'yaogr549'}}
 }
 
+best_runs_hcp_mutimodal = {
+    'N + E $\\rightarrow$ Average': {0: {'run_id': '07a67z8u'},
+                                     1: {'run_id': 'xw8e522m'},
+                                     2: {'run_id': '1bylvb19'},
+                                     3: {'run_id': 'sqom67f2', 'weight_d': 2.9374679233473266e-05},
+                                     4: {'run_id': 'sfp0bosh'}},
+
+    'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'y4tlvkw3', 'weight_d': 2.0886452942944824e-07},
+                                     1: {'run_id': 'z8ukakqj'},
+                                     2: {'run_id': 'm83hu98f'},
+                                     3: {'run_id': 'oppbggk4'},
+                                     4: {'run_id': '091sch9a'}},
+
+    'N $\\rightarrow$ Average': {0: {'run_id': '23h8havl'},
+                                 1: {'run_id': 'xpawu9zd', 'lr': 0.0015580526250956455},
+                                 2: {'run_id': 'yl8ipg1l', 'weight_d': 1.0625931884716547e-06},
+                                 3: {'run_id': 'fowj8exx'},
+                                 4: {'run_id': 'ujv3wfn3'}},
+
+    'N $\\rightarrow$ DiffPool': {0: {'run_id': '21hc1rhv'},
+                                  1: {'run_id': 'fnd09wi9'},
+                                  2: {'run_id': 'fr2mocx4'},
+                                  3: {'run_id': 'rj15u3sb'},
+                                  4: {'run_id': '2wz9sdhs', 'weight_d': 8.932211083951344e-06, 'lr': 0.00010244553293379699}},
+
+    '$\\rightarrow$ DiffPool': {0: {'run_id': 'tyn2n5uz'},
+                                1: {'run_id': 'ktsf06sz', 'dropout': 0.10881323224593871},
+                                2: {'run_id': 's3231z00'},
+                                3: {'run_id': '1p9sqsnw', 'weight_d': 0.0012808405947171365},
+                                4: {'run_id': '9v0s3bbw', 'weight_d': 2.8190324340461887e-07}},
+
+    '$\\rightarrow$ Average': {0: {'run_id': '73ewezmk', 'weight_d': 0.11570408267305961},
+                               1: {'run_id': 'n3z3k0y7', 'lr': 0.00038869815100589955},
+                               2: {'run_id': 'kytmnbsn'},
+                               3: {'run_id': 'cz6j10is', 'weight_d': 2.5890189957770794e-05},
+                               4: {'run_id': '9tse37pw', 'weight_d': 0.007524867386052227, 'dropout': 0.21951905493833926}}
+}
+
 best_runs_hcp = {
     'N + E $\\rightarrow$ Average': {0: {'run_id': 'sa4vz637'},
                                      1: {'run_id': 'qvc3red3'},
@@ -153,6 +191,24 @@ best_runs_no_tcn = {
                                   4: {'run_id': 'w8q3upf0', 'lr': 2.4015360242535414e-05}}
 }
 
+best_runs_ukb_avg_adj = {
+    'N + E $\\rightarrow$ Average': {0: {'run_id': 'jfiaza2l', 'weight_d': 0.00010299382210525737},
+                                     1: {'run_id': 'ybrxjq64'},
+                                     2: {'run_id': '4tzua12u'},
+                                     3: {'run_id': 'xrlomkms'},
+                                     4: {'run_id': 'jcuxpe72'}},
+    'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'h9mjvewy'},
+                                     1: {'run_id': '6ubjmj3v'},
+                                     2: {'run_id': '8cxnv2mn'},
+                                     3: {'run_id': 'fvsz0nfn'},
+                                     4: {'run_id': 'u9n9rihw'}},
+    'N $\\rightarrow$ DiffPool': {0: {'run_id': '7d55xauk', 'lr': 1.8302975363819142e-05},
+                                 1: {'run_id': 'sj2bp0pv', 'dropout': 0.11447361852373057},
+                                 2: {'run_id': 'gghxfgre'},
+                                 3: {'run_id': '0vpeh05a', 'weight_d': 1.7793008780208633e-06},
+                                 4: {'run_id': 'rvw34wmx'}}
+}
+
 DEVICE_RUN = 'cpu'
 
 
@@ -203,10 +259,10 @@ def print_metrics(model_name, runs_all, validate_hcp=False):
         if w_config['sweep_type'] == SweepType.GAT:
             w_config['param_gat_heads'] = w_config.gat_heads
 
-        if w_config['analysis_type'] == AnalysisType.ST_MULTIMODAL:
-            w_config['multimodal_size'] = 10
-        elif w_config['analysis_type'] == AnalysisType.ST_UNIMODAL:
-            w_config['multimodal_size'] = 0
+        #if w_config['analysis_type'] == AnalysisType.ST_MULTIMODAL:
+        #    w_config['multimodal_size'] = 10
+        #elif w_config['analysis_type'] == AnalysisType.ST_UNIMODAL:
+        w_config['multimodal_size'] = 0
 
         if w_config['target_var'] in ['age', 'bmi']:
             w_config['model_with_sigmoid'] = False
@@ -293,6 +349,8 @@ if __name__ == '__main__':
 
     # for model_type, runs_all in best_runs_hcp.items():
     # for model_type, runs_all in best_runs_hcp100_THRES.items():
-    for model_type, runs_all in best_runs_no_tcn.items():
+    #for model_type, runs_all in best_runs_no_tcn.items():
+    #for model_type, runs_all in best_runs_hcp_mutimodal.items():
+    for model_type, runs_all in best_runs_ukb_avg_adj.items():
         # print('----', model_type)
         print_metrics(model_type, runs_all)

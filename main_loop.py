@@ -565,7 +565,7 @@ if __name__ == '__main__':
         'target_var': config.target_var,
         'time_length': config.time_length,
     }
-    if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
+    if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
         run_cfg['batch_size'] = config.batch_size
         run_cfg['device_run'] = f'cuda:{get_freer_gpu()}'
         run_cfg['early_stop_steps'] = config.early_stop_steps
@@ -613,6 +613,7 @@ if __name__ == '__main__':
 
     # Handling inputs and what is possible
     if run_cfg['analysis_type'] not in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL,
+                                        AnalysisType.ST_MULTIMODAL_AVG, AnalysisType.ST_UNIMODAL_AVG,
                                         AnalysisType.FLATTEN_CORRS]:
         print('Not yet ready for this analysis type at the moment')
         exit(-1)
@@ -622,10 +623,11 @@ if __name__ == '__main__':
         print('Unrecognised target_var')
         exit(-1)
 
-    if run_cfg['analysis_type'] == AnalysisType.ST_MULTIMODAL:
-        run_cfg['multimodal_size'] = 10
-    elif run_cfg['analysis_type'] == AnalysisType.ST_UNIMODAL:
-        run_cfg['multimodal_size'] = 0
+    run_cfg['multimodal_size'] = 0
+    #if run_cfg['analysis_type'] == AnalysisType.ST_MULTIMODAL:
+    #    run_cfg['multimodal_size'] = 10
+    #elif run_cfg['analysis_type'] == AnalysisType.ST_UNIMODAL:
+    #    run_cfg['multimodal_size'] = 0
 
     if run_cfg['target_var'] in ['age', 'bmi']:
         run_cfg['model_with_sigmoid'] = False
@@ -685,7 +687,7 @@ if __name__ == '__main__':
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1
 
-        if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
+        if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
             model: SpatioTemporalModel = generate_st_model(run_cfg)
         elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
             model: XGBModel = generate_xgb_model(run_cfg)
@@ -707,7 +709,7 @@ if __name__ == '__main__':
             print("Inner Positive classes:", sum([data.y.item() for data in X_train_in]),
                   "/", sum([data.y.item() for data in X_val_in]))
 
-        if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
+        if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
             inner_fold_metrics = fit_st_model(out_fold_num=run_cfg['split_to_test'],
                                               in_fold_num=inner_loop_run,
                                               run_cfg=run_cfg,
@@ -739,7 +741,7 @@ if __name__ == '__main__':
     # Final metrics on test set, calculated already for being easy to get the metrics on the best model later
     # Getting best model of the run
     inner_fold_for_val: int = 1
-    if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL]:
+    if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
         model: SpatioTemporalModel = generate_st_model(run_cfg, for_test=True)
 
         model_saving_path: str = create_name_for_model(target_var=run_cfg['target_var'],

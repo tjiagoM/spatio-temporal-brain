@@ -8,6 +8,8 @@ figures/
 wandb/
 old_logs/
 tmp_gpu.txt
+meta_data/Main_Covars.csv
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
