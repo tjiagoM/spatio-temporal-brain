@@ -90,6 +90,8 @@ def get_freer_gpu() -> int:
     # os.system('nvidia-smi -q -d Memory |grep -A4 GPU|grep Free >tmp_gpu')
     # memory_available = [int(x.split()[2]) for x in open('tmp_gpu', 'r').readlines()]
     # return np.argmax(memory_available)
+    print('Overriding GPU info and getting GPU 0...')
+    return 0
     print('Getting free GPU info...')
     gpu_to_use: int = 0
     with open('tmp_gpu.txt', 'r+') as fd:
@@ -197,28 +199,25 @@ def create_name_for_xgbmodel(run_cfg: Dict[str, Any], outer_split_num: int, mode
                                        ]) + suffix
 
 
-def create_name_for_model(target_var: str, model, outer_split_num: int,
-                          inner_split_num: int, n_epochs: int, threshold: int, batch_size: int, num_nodes: int,
-                          conn_type: ConnType, normalisation: Normalisation, analysis_type: AnalysisType,
-                          metric_evaluated: str, dataset_type: DatasetType, edge_weights: bool,
-                          lr=None, weight_decay=None, prefix_location='logs/', suffix='.pth') -> str:
-    if analysis_type in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
+def create_name_for_model(run_cfg: Dict[str, Any], model, outer_split_num: int, inner_split_num: int,
+                          prefix_location='logs/', suffix='.pt') -> str:
+    if run_cfg['analysis_type'] in [AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
         model_str_representation = model.to_string_name()
 
-    return prefix_location + '_'.join([target_var,
-                                       dataset_type.value,
+    lr = round(run_cfg['param_lr'], 7)
+    weight_decay = round(run_cfg['param_weight_decay'], 7)
+
+    return prefix_location + '_'.join([run_cfg['target_var'],
+                                       run_cfg['dataset_type'].value,
                                        str(outer_split_num),
                                        str(inner_split_num),
-                                       metric_evaluated,
                                        model_str_representation,
                                        str(lr),
                                        str(weight_decay),
-                                       str(n_epochs),
-                                       str(threshold),
-                                       normalisation.value[:3],
-                                       str(batch_size),
-                                       str(num_nodes),
-                                       conn_type.value
+                                       str(run_cfg['param_threshold']),
+                                       run_cfg['param_normalisation'].value[:3],
+                                       str(run_cfg['num_nodes']),
+                                       run_cfg['param_conn_type'].value
                                        ]) + suffix
 
 def change_w_config_(w_config):

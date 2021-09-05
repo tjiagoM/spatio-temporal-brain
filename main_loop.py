@@ -22,6 +22,7 @@ from utils import create_name_for_brain_dataset, create_name_for_model, Normalis
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
     SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, create_name_for_xgbmodel
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class MSLELoss(torch.nn.Module):
     def __init__(self):
@@ -61,11 +62,15 @@ def train_model(model, train_loader, optimizer, pooling_mechanism, device, label
         optimizer.zero_grad()
         if pooling_mechanism == PoolingStrategy.DIFFPOOL:
             output_batch, link_loss, ent_loss = model(data)
+            output_batch = output_batch.clamp(0, 1)  # For NaNs
+            output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch) # For NaNs
             loss = criterion(output_batch, data.y.unsqueeze(1)) + link_loss + ent_loss
             loss_b_link = link_loss
             loss_b_ent = ent_loss
         else:
             output_batch = model(data)
+            output_batch = output_batch.clamp(0, 1) # For NaNs
+            output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch) # For NaNs
             loss = criterion(output_batch, data.y.unsqueeze(1))
 
         loss.backward()
@@ -151,12 +156,16 @@ def evaluate_model(model, loader, pooling_mechanism, device, label_scaler=None):
             data = data.to(device)
             if pooling_mechanism == PoolingStrategy.DIFFPOOL:
                 output_batch, link_loss, ent_loss = model(data)
+                output_batch = output_batch.clamp(0, 1)  # For NaNs
+                output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch)  # For NaNs
                 # output_batch = output_batch.flatten()
                 loss = criterion(output_batch, data.y.unsqueeze(1)) + link_loss + ent_loss
                 loss_b_link = link_loss
                 loss_b_ent = ent_loss
             else:
                 output_batch = model(data)
+                output_batch = output_batch.clamp(0, 1)  # For NaNs
+                output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch)  # For NaNs
                 # output_batch = output_batch.flatten()
                 loss = criterion(output_batch, data.y.unsqueeze(1))
 
@@ -352,22 +361,8 @@ def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> Spatio
                                                              outer_split_num=outer_split_num,
                                                              encoder_name=run_cfg['param_encoding_strategy'].value))
 
-    model = SpatioTemporalModel(num_time_length=run_cfg['time_length'],
-                                dropout_perc=run_cfg['param_dropout'],
-                                pooling=run_cfg['param_pooling'],
-                                channels_conv=run_cfg['param_channels_conv'],
-                                activation=run_cfg['param_activation'],
-                                conv_strategy=run_cfg['param_conv_strategy'],
-                                sweep_type=run_cfg['sweep_type'],
-                                gat_heads=run_cfg['param_gat_heads'],
-                                edge_weights=run_cfg['edge_weights'],
-                                final_sigmoid=run_cfg['model_with_sigmoid'],
-                                num_nodes=run_cfg['num_nodes'],
-                                num_gnn_layers=run_cfg['param_num_gnn_layers'],
-                                encoding_strategy=run_cfg['param_encoding_strategy'],
-                                encoding_model=encoding_model,
-                                multimodal_size=run_cfg['multimodal_size'],
-                                temporal_embed_size=run_cfg['temporal_embed_size']
+    model = SpatioTemporalModel(run_cfg=run_cfg,
+                                encoding_model=encoding_model
                                 ).to(run_cfg['device_run'])
 
     if not for_test:
@@ -445,29 +440,18 @@ def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], 
 
 def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: SpatioTemporalModel,
                  X_train_in: BrainDataset, X_val_in: BrainDataset, label_scaler: MinMaxScaler = None) -> Dict:
-    train_in_loader = DataLoader(X_train_in, batch_size=run_cfg['batch_size'], shuffle=True, **kwargs_dataloader)
-    val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
+    train_in_loader = DataLoader(X_train_in, batch_size=run_cfg['batch_size'], shuffle=True)#, **kwargs_dataloader)
+    val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=False)#, **kwargs_dataloader)
 
     optimizer = torch.optim.Adam(model.parameters(),
                                  lr=run_cfg['param_lr'],
                                  weight_decay=run_cfg['param_weight_decay'])
 
-    model_saving_path = create_name_for_model(target_var=run_cfg['target_var'],
+    model_saving_name = create_name_for_model(run_cfg=run_cfg,
                                               model=model,
                                               outer_split_num=out_fold_num,
                                               inner_split_num=in_fold_num,
-                                              n_epochs=run_cfg['num_epochs'],
-                                              threshold=run_cfg['param_threshold'],
-                                              batch_size=run_cfg['batch_size'],
-                                              num_nodes=run_cfg['num_nodes'],
-                                              conn_type=run_cfg['param_conn_type'],
-                                              normalisation=run_cfg['param_normalisation'],
-                                              analysis_type=run_cfg['analysis_type'],
-                                              metric_evaluated='loss',
-                                              dataset_type=run_cfg['dataset_type'],
-                                              edge_weights=run_cfg['edge_weights'],
-                                              lr=run_cfg['param_lr'],
-                                              weight_decay=run_cfg['param_weight_decay']
+                                              prefix_location=''
                                               )
 
     best_model_metrics = {'loss': 9999}
@@ -506,7 +490,8 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
 
             # wandb.unwatch()#[model])
             # torch.save(model, model_names['loss'])
-            torch.save(model.state_dict(), model_saving_path)
+            torch.save(model.state_dict(), os.path.join('logs', model_saving_name))
+            torch.save(model.state_dict(), os.path.join(wandb.run.dir, model_saving_name))
     # wandb.unwatch()
     return best_model_metrics
 
@@ -546,8 +531,9 @@ if __name__ == '__main__':
     # Because of strange bug with symbolic links in server
     os.environ['WANDB_DISABLE_CODE'] = 'true'
 
-    wandb.init(entity='st-team')
+    wandb.init(project='st_extra', save_code=True)
     config = wandb.config
+
     print('Config file from wandb:', config)
 
     torch.manual_seed(1)
@@ -589,12 +575,21 @@ if __name__ == '__main__':
         run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
 
         # Not sure whether this makes a difference with the cuda random issues, but it was in the examples :(
-        kwargs_dataloader = {'num_workers': 1, 'pin_memory': True} if run_cfg['device_run'].startswith('cuda') else {}
+        #kwargs_dataloader = {'num_workers': 1, 'pin_memory': True} if run_cfg['device_run'].startswith('cuda') else {}
 
         # Definitions depending on sweep_type
         run_cfg['param_gat_heads'] = 0
         if run_cfg['sweep_type'] == SweepType.GAT:
             run_cfg['param_gat_heads'] = config.gat_heads
+
+
+        # For Ablation study only (?)
+        # TODO: comment out
+        run_cfg['tcn_depth'] = config.tcn_depth
+        run_cfg['tcn_kernel'] = config.tcn_kernel
+        run_cfg['tcn_hidden_units'] = config.tcn_hidden_units
+        run_cfg['tcn_final_transform_layers'] = config.tcn_final_transform_layers
+        run_cfg['tcn_norm_strategy'] = config.tcn_norm_strategy
 
     elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
         run_cfg['device_run'] = 'cpu'
@@ -744,27 +739,17 @@ if __name__ == '__main__':
     if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
         model: SpatioTemporalModel = generate_st_model(run_cfg, for_test=True)
 
-        model_saving_path: str = create_name_for_model(target_var=run_cfg['target_var'],
-                                                       model=model,
-                                                       outer_split_num=run_cfg['split_to_test'],
-                                                       inner_split_num=inner_fold_for_val,
-                                                       n_epochs=run_cfg['num_epochs'],
-                                                       threshold=run_cfg['param_threshold'],
-                                                       batch_size=run_cfg['batch_size'],
-                                                       num_nodes=run_cfg['num_nodes'],
-                                                       conn_type=run_cfg['param_conn_type'],
-                                                       normalisation=run_cfg['param_normalisation'],
-                                                       analysis_type=run_cfg['analysis_type'],
-                                                       metric_evaluated='loss',
-                                                       dataset_type=run_cfg['dataset_type'],
-                                                       lr=run_cfg['param_lr'],
-                                                       weight_decay=run_cfg['param_weight_decay'],
-                                                       edge_weights=run_cfg['edge_weights'])
+        model_saving_path: str = create_name_for_model(run_cfg=run_cfg,
+                                              model=model,
+                                              outer_split_num=run_cfg['split_to_test'],
+                                              inner_split_num=inner_fold_for_val
+                                              )
+
         model.load_state_dict(torch.load(model_saving_path))
         model.eval()
 
         # Calculating on test set
-        test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
+        test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False)#, **kwargs_dataloader)
 
         test_metrics = evaluate_model(model, test_out_loader, run_cfg['param_pooling'], run_cfg['device_run'],
                                       label_scaler=scaler_labels)
@@ -810,5 +795,5 @@ if __name__ == '__main__':
 
     send_global_results(test_metrics)
 
-    if run_cfg['device_run'] == 'cuda:0':
-        free_gpu_info()
+    #if run_cfg['device_run'] == 'cuda:0':
+    #    free_gpu_info()

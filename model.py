@@ -1,4 +1,5 @@
 from sys import exit
+from typing import Dict, Any
 
 import torch
 import torch.nn as nn
@@ -6,7 +7,7 @@ import torch.nn.functional as F
 import torch_geometric.utils as pyg_utils
 from math import ceil
 from torch.nn import BatchNorm1d
-from torch_geometric.nn import DenseSAGEConv, dense_diff_pool
+from torch_geometric.nn import DenseGraphConv, dense_diff_pool
 from torch_geometric.nn import MetaLayer
 from torch_geometric.nn import global_mean_pool, GCNConv, GATConv
 from torch_geometric.utils import to_dense_batch
@@ -21,18 +22,14 @@ class GNN(torch.nn.Module):
                  in_channels,
                  hidden_channels,
                  out_channels,
-                 normalize=False,
-                 add_loop=False,
                  lin=True):
         super(GNN, self).__init__()
 
-        self.add_loop = add_loop
-
-        self.conv1 = DenseSAGEConv(in_channels, hidden_channels, normalize)
+        self.conv1 = DenseGraphConv(in_channels, hidden_channels)
         self.bn1 = torch.nn.BatchNorm1d(hidden_channels)
-        self.conv2 = DenseSAGEConv(hidden_channels, hidden_channels, normalize)
+        self.conv2 = DenseGraphConv(hidden_channels, hidden_channels)
         self.bn2 = torch.nn.BatchNorm1d(hidden_channels)
-        self.conv3 = DenseSAGEConv(hidden_channels, out_channels, normalize)
+        self.conv3 = DenseGraphConv(hidden_channels, out_channels)
         self.bn3 = torch.nn.BatchNorm1d(out_channels)
 
         if lin is True:
@@ -51,9 +48,9 @@ class GNN(torch.nn.Module):
 
     def forward(self, x, adj, mask=None):
         x0 = x
-        x1 = self.bn(1, F.relu(self.conv1(x0, adj, mask, self.add_loop)))
-        x2 = self.bn(2, F.relu(self.conv2(x1, adj, mask, self.add_loop)))
-        x3 = self.bn(3, F.relu(self.conv3(x2, adj, mask, self.add_loop)))
+        x1 = self.bn(1, F.relu(self.conv1(x0, adj, mask)))
+        x2 = self.bn(2, F.relu(self.conv2(x1, adj, mask)))
+        x3 = self.bn(3, F.relu(self.conv3(x2, adj, mask)))
 
         x = torch.cat([x1, x2, x3], dim=-1)
 
@@ -71,8 +68,8 @@ class DiffPoolLayer(torch.nn.Module):
         self.INTERN_EMBED_SIZE = self.init_feats  # ceil(self.init_feats / 3)
 
         num_nodes = ceil(0.25 * self.max_nodes)
-        self.gnn1_pool = GNN(self.init_feats, self.INTERN_EMBED_SIZE, num_nodes, add_loop=True)
-        self.gnn1_embed = GNN(self.init_feats, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, add_loop=True, lin=False)
+        self.gnn1_pool = GNN(self.init_feats, self.INTERN_EMBED_SIZE, num_nodes)
+        self.gnn1_embed = GNN(self.init_feats, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False)
 
         num_nodes = ceil(0.25 * num_nodes)
         self.gnn2_pool = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, num_nodes)
@@ -159,12 +156,26 @@ class NodeModel(torch.nn.Module):
 
 
 class SpatioTemporalModel(nn.Module):
-    def __init__(self, num_time_length: int, dropout_perc: float, pooling: PoolingStrategy, channels_conv: int,
-                 activation: str, conv_strategy: ConvStrategy, sweep_type: SweepType, num_gnn_layers: int = 1,
-                 gat_heads: int = 0, multimodal_size: int = 0, temporal_embed_size: int = 16, model_version: str = '70',
-                 encoding_strategy: EncodingStrategy = EncodingStrategy.NONE, encoding_model=None,
-                 edge_weights: bool = False, final_sigmoid: bool = True, num_nodes: int = None):
+    def __init__(self, run_cfg: Dict[str, Any],
+                 multimodal_size: int = 0, model_version: str = '80',
+                 encoding_model=None):
         super(SpatioTemporalModel, self).__init__()
+
+        num_time_length = run_cfg['time_length']
+        dropout_perc = run_cfg['param_dropout']
+        pooling = run_cfg['param_pooling']
+        channels_conv = run_cfg['param_channels_conv']
+        activation = run_cfg['param_activation']
+        conv_strategy = run_cfg['param_conv_strategy']
+        sweep_type = run_cfg['sweep_type']
+        gat_heads = run_cfg['param_gat_heads']
+        edge_weights = run_cfg['edge_weights']
+        final_sigmoid = run_cfg['model_with_sigmoid']
+        num_nodes = run_cfg['num_nodes']
+        num_gnn_layers = run_cfg['param_num_gnn_layers']
+        encoding_strategy = run_cfg['param_encoding_strategy']
+        multimodal_size = run_cfg['multimodal_size']
+        temporal_embed_size = run_cfg['temporal_embed_size']
 
         self.VERSION = model_version
 
@@ -255,16 +266,41 @@ class SpatioTemporalModel(nn.Module):
                                                              activation=activation))
 
         if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
-            self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
-            self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.NODE_EMBED_SIZE - self.multimodal_size)
+            #self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
+            #self.lin_temporal = nn.Linear(self.size_before_lin_temporal, self.NODE_EMBED_SIZE - self.multimodal_size)
+            if run_cfg['tcn_hidden_units'] == 8:
+                self.size_before_lin_temporal = self.channels_conv * (2 ** (run_cfg['tcn_depth'] - 1)) * self.num_time_length
+            else:
+                self.size_before_lin_temporal = run_cfg['tcn_hidden_units'] * self.num_time_length
+
+            if run_cfg['tcn_final_transform_layers'] == 1:
+                self.lin_temporal = nn.Linear(self.size_before_lin_temporal,
+                                              self.NODE_EMBED_SIZE - self.multimodal_size)
+            elif run_cfg['tcn_final_transform_layers'] == 2:
+                self.lin_temporal = nn.Sequential(
+                    nn.Linear(self.size_before_lin_temporal, int(self.size_before_lin_temporal / 2)),
+                    self.activation, nn.Dropout(dropout_perc),
+                    nn.Linear(int(self.size_before_lin_temporal / 2), self.NODE_EMBED_SIZE - self.multimodal_size))
+            elif run_cfg['tcn_final_transform_layers'] == 3:
+                self.lin_temporal = nn.Sequential(
+                    nn.Linear(self.size_before_lin_temporal, int(self.size_before_lin_temporal / 2)),
+                    self.activation, nn.Dropout(dropout_perc),
+                    nn.Linear(int(self.size_before_lin_temporal / 2), int(self.size_before_lin_temporal / 3)),
+                    self.activation, nn.Dropout(dropout_perc),
+                    nn.Linear(int(self.size_before_lin_temporal / 3), self.NODE_EMBED_SIZE - self.multimodal_size))
+
+            tcn_layers = []
+            for i in range(run_cfg['tcn_depth']):
+                if run_cfg['tcn_hidden_units'] == 8:
+                    tcn_layers.append(self.channels_conv * (2 ** i) )
+                else:
+                    tcn_layers.append(run_cfg['tcn_hidden_units'])
 
             self.temporal_conv = TemporalConvNet(1,
-                                                 [self.channels_conv, self.channels_conv * 2,
-                                                  self.channels_conv * 4, self.channels_conv * 8],
-                                                 kernel_size=7,
-                                                 stride=2,
+                                                 tcn_layers,
+                                                 kernel_size=run_cfg['tcn_kernel'],
                                                  dropout=self.dropout,
-                                                 num_time_length=self.num_time_length)
+                                                 norm_strategy=run_cfg['tcn_norm_strategy'])
         elif self.conv_strategy == ConvStrategy.CNN_ENTIRE:
             stride = 2
             padding = 3

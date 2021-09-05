@@ -1,0 +1,92 @@
+method: random
+
+name: tcn_ablations_hcp
+program: main_loop.py
+parameters:
+  dataset_type:
+    value: hcp
+  sweep_type:
+    value: node_meta
+  tcn_depth:
+    distribution: int_uniform
+    min: 2
+    max: 4
+  tcn_norm_strategy:
+    distribution: categorical
+    values:
+      - weight
+      - batchnorm
+  tcn_kernel:
+    distribution: int_uniform
+    min: 3
+    max: 7
+  tcn_hidden_units:
+    distribution: categorical
+    values:
+      - 8
+      - 16
+      - 32
+      - 64
+  tcn_final_transform_layers:
+    distribution: int_uniform
+    min: 1
+    max: 3
+  temporal_embed_size:
+    distribution: categorical
+    values:
+      - 8
+      - 16
+      - 32
+      - 64
+      - 128
+  edge_weights:
+    value: true
+  fold_num:
+    value: 2
+  conn_type:
+    value: struct
+  batch_size:
+    value: 100
+  analysis_type:
+    value: st_multimodal
+  num_epochs:
+    value: 250
+  num_nodes:
+    value: 68
+  activation:
+    value: relu
+  channels_conv:
+    value: 8
+  conv_strategy:
+    value: tcn_entire
+  dropout:
+    distribution: uniform
+    max: 0.7
+    min: 0
+  early_stop_steps:
+    value: 33
+  encoding_strategy:
+    value: none
+  num_gnn_layers:
+    value: 1
+  threshold:
+    value: 10
+  lr:
+    distribution: log_uniform
+    max: -6.907755278982137
+    min: -11.512925464970229
+  normalisation:
+    distribution: categorical
+    values:
+    - subject_norm
+    - roi_norm
+  pooling:
+    value: mean
+  target_var:
+    value: gender
+  time_length:
+    value: 490
+  weight_decay:
+    distribution: log_uniform
+    max: 0
+    min: -23.025850929940457
