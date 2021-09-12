@@ -20,7 +20,8 @@ from datasets import BrainDataset, HCPDataset, UKBDataset, FlattenCorrsDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
-    SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, create_name_for_xgbmodel
+    SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, \
+    create_name_for_xgbmodel, LRScheduler, Optimiser
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
@@ -443,10 +444,49 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
     train_in_loader = DataLoader(X_train_in, batch_size=run_cfg['batch_size'], shuffle=True)#, **kwargs_dataloader)
     val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=False)#, **kwargs_dataloader)
 
-    optimizer = torch.optim.Adam(model.parameters(),
-                                 lr=run_cfg['param_lr'],
-                                 weight_decay=run_cfg['param_weight_decay'])
+    ###########
+    ## OPTIMISER
+    ###########
+    if run_cfg['optimiser'] == Optimiser.SGD:
+        print('OPTIMISER: SGD')
+        optimizer = torch.optim.SGD(model.parameters(),
+                                     lr=run_cfg['param_lr'],
+                                     weight_decay=run_cfg['param_weight_decay'],
+                                    )
+    elif run_cfg['optimiser'] == Optimiser.ADAM:
+        print('OPTIMISER: Adam')
+        optimizer = torch.optim.Adam(model.parameters(),
+                                     lr=run_cfg['param_lr'],
+                                     weight_decay=run_cfg['param_weight_decay'])
+    elif run_cfg['optimiser'] == Optimiser.ADAMW:
+        print('OPTIMISER: AdamW')
+        optimizer = torch.optim.AdamW(model.parameters(),
+                                     lr=run_cfg['param_lr'],
+                                     weight_decay=run_cfg['param_weight_decay'])
+    elif run_cfg['optimiser'] == Optimiser.RMSPROP:
+        print('OPTIMISER: RMSprop')
+        optimizer = torch.optim.RMSprop(model.parameters(),
+                                        lr=run_cfg['param_lr'],
+                                        weight_decay=run_cfg['param_weight_decay'])
 
+    ###########
+    ## LR SCHEDULER
+    ###########
+    if run_cfg['lr_scheduler'] == LRScheduler.STEP:
+        print('LR SCHEDULER: Step')
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(run_cfg['num_epochs'] / 5), gamma=0.1)
+    elif run_cfg['lr_scheduler'] == LRScheduler.PLATEAU:
+        print('LR SCHEDULER: Plateau')
+        torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                   mode='min',
+                                                   patience=run_cfg['early_stop_steps']-2)
+    elif run_cfg['lr_scheduler'] == LRScheduler.COS_ANNEALING:
+        print('LR SCHEDULER: Cosine Annealing')
+        torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=run_cfg['num_epochs'])
+    elif run_cfg['lr_scheduler'] == LRScheduler.NONE:
+        print('GOING WITH _NO_ LR SCHEDULER')
+
+    ###
     model_saving_name = create_name_for_model(run_cfg=run_cfg,
                                               model=model,
                                               outer_split_num=out_fold_num,
@@ -492,6 +532,11 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
             # torch.save(model, model_names['loss'])
             torch.save(model.state_dict(), os.path.join('logs', model_saving_name))
             torch.save(model.state_dict(), os.path.join(wandb.run.dir, model_saving_name))
+
+        if run_cfg['lr_scheduler'] in [LRScheduler.STEP, LRScheduler.COS_ANNEALING]:
+            scheduler.step()
+        elif run_cfg['lr_scheduler'] == LRScheduler.PLATEAU:
+            scheduler.step(val_metrics['loss'])
     # wandb.unwatch()
     return best_model_metrics
 
@@ -590,6 +635,10 @@ if __name__ == '__main__':
         run_cfg['tcn_hidden_units'] = config.tcn_hidden_units
         run_cfg['tcn_final_transform_layers'] = config.tcn_final_transform_layers
         run_cfg['tcn_norm_strategy'] = config.tcn_norm_strategy
+
+        # Training characteristics
+        run_cfg['lr_scheduler'] = LRScheduler(config.lr_scheduler)
+        run_cfg['optimiser'] = Optimiser(config.optimiser)
 
     elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
         run_cfg['device_run'] = 'cpu'

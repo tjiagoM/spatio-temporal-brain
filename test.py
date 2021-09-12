@@ -65,9 +65,9 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     #if run_cfg['sweep_type'] == SweepType.GAT:
     #    run_cfg['param_gat_heads'] = config.gat_heads
 
-    run_cfg['tcn_depth'] = 4
+    run_cfg['tcn_depth'] = 3
     run_cfg['tcn_kernel'] = 7
-    run_cfg['tcn_hidden_units'] = 8
+    run_cfg['tcn_hidden_units'] = 64
     run_cfg['tcn_final_transform_layers'] = 3
     run_cfg['tcn_norm_strategy'] = 'batchnorm'
 

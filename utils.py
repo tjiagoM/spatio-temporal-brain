@@ -81,6 +81,22 @@ class EncodingStrategy(str, Enum):
     STATS = 'stats'
 
 
+@unique
+class LRScheduler(str, Enum):
+    NONE = 'none'
+    STEP = 'step'
+    PLATEAU = 'plateau'
+    COS_ANNEALING = 'cosine_annealing'
+
+
+@unique
+class Optimiser(str, Enum):
+    SGD = 'sgd'
+    ADAM = 'adam'
+    ADAMW = 'adamw'
+    RMSPROP = 'rmsprop'
+
+
 def get_freer_gpu() -> int:
     """
     Considers that there is only GPU 0 and 1.
