@@ -1,14 +1,17 @@
+import os
 import random
 from collections import Counter, defaultdict
+from copy import deepcopy
 from enum import Enum, unique
 from typing import NoReturn, Dict, Any
 
-import fcntl
+#import fcntl
 import numpy as np
 import torch
+import wandb
 from sklearn.preprocessing import LabelEncoder
+from torch_geometric.utils import degree
 from xgboost import XGBModel
-
 
 @unique
 # 3 first letters need to be different (for logging)
@@ -54,8 +57,13 @@ class ConvStrategy(str, Enum):
 # 3 first letters need to be different (for logging)
 class PoolingStrategy(str, Enum):
     MEAN = 'mean'
+    ADD = 'add'
     DIFFPOOL = 'diff_pool'
     CONCAT = 'concat'
+    # The following 3 used temporarily for hyperparameter search
+    DP_ADD = 'dpadd'
+    DP_MEAN = 'dpmean'
+    DP_MAX = 'dpmax'
 
 
 @unique
@@ -97,6 +105,131 @@ class Optimiser(str, Enum):
     RMSPROP = 'rmsprop'
 
 
+# Adapted from https://github.com/Bjarten/early-stopping-pytorch/blob/master/pytorchtools.py
+class EarlyStopping:
+    """Early stops the training if validation loss doesn't improve after a given patience."""
+    def __init__(self, model_saving_name, patience=33, delta=0, trace_func=print):
+        """
+        Args:
+            patience (int): How long to wait after last time validation loss improved.
+                            Default: 33
+            delta (float): Minimum change in the monitored quantity to qualify as an improvement.
+                            Default: 0
+            trace_func (function): trace print function.
+                            Default: print
+        """
+        self.epochs_run = 0
+        self.patience = patience
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.delta = delta
+        self.model_saving_name = model_saving_name
+        self.trace_func = trace_func
+        self.best_model_metrics = {'loss': np.Inf}
+
+    def __call__(self, val_metrics, model, label_scaler=None):
+        self.epochs_run += 1
+        val_loss = val_metrics['loss']
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+            self.save_model_and_metrics(val_metrics, model, label_scaler)
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            self.trace_func(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.save_model_and_metrics(val_metrics, model, label_scaler)
+            self.counter = 0
+
+    def save_model_and_metrics(self, val_metrics, model, label_scaler):
+        '''Saves model and metrics when validation loss decrease.'''
+
+        torch.save(model.state_dict(), os.path.join(wandb.run.dir, self.model_saving_name))
+
+        self.best_model_metrics['loss'] = val_metrics['loss']
+        self.best_model_metrics['best_epoch'] = self.epochs_run
+        if label_scaler is None:
+            self.best_model_metrics['sensitivity'] = val_metrics['sensitivity']
+            self.best_model_metrics['specificity'] = val_metrics['specificity']
+            self.best_model_metrics['acc'] = val_metrics['acc']
+            self.best_model_metrics['f1'] = val_metrics['f1']
+            self.best_model_metrics['auc'] = val_metrics['auc']
+        else:
+            self.best_model_metrics['r2'] = val_metrics['r2']
+            self.best_model_metrics['r'] = val_metrics['r']
+
+        if 'ent_loss' in val_metrics:
+            self.best_model_metrics['ent_loss'] = val_metrics['ent_loss']
+            self.best_model_metrics['link_loss'] = val_metrics['link_loss']
+
+###
+# Adapted from: https://github.com/rwightman/pytorch-image-models/blob/master/timm/utils/model_ema.py
+class ModelEmaV2(torch.nn.Module):
+    """ Model Exponential Moving Average V2
+    Keep a moving average of everything in the model state_dict (parameters and buffers).
+    V2 of this module is simpler, it does not match params/buffers based on name but simply
+    iterates in order. It works with torchscript (JIT of full model).
+    This is intended to allow functionality like
+    https://www.tensorflow.org/api_docs/python/tf/train/ExponentialMovingAverage
+    A smoothed version of the weights is necessary for some training schemes to perform well.
+    E.g. Google's hyper-params for training MNASNet, MobileNet-V3, EfficientNet, etc that use
+    RMSprop with a short 2.4-3 epoch decay period and slow LR decay rate of .96-.99 requires EMA
+    smoothing of weights to match results. Pay attention to the decay constant you are using
+    relative to your update count per epoch.
+    To keep EMA from using GPU resources, set device='cpu'. This will save a bit of memory but
+    disable validation of the EMA weights. Validation will have to be done manually in a separate
+    process, or after the training stops converging.
+    This class is sensitive where it is initialized in the sequence of model init,
+    GPU assignment and distributed training wrappers.
+    """
+    def __init__(self, new_model, decay=0.9999, device=None):
+        super(ModelEmaV2, self).__init__()
+        # make a copy of the model for accumulating moving average of weights
+        #self.module = deepcopy(model)
+        #################################################
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ## Issues with deepcopy() when using weightnorm, therefore, new_model is assumed to be a
+        ## new model already
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.module = new_model
+        self.module.eval()
+        self.decay = decay
+        self.device = device  # perform ema on different device from model if set
+        if self.device is not None:
+            self.module.to(device=device)
+
+    def _update(self, model, update_fn):
+        with torch.no_grad():
+            for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
+                if self.device is not None:
+                    model_v = model_v.to(device=self.device)
+                ema_v.copy_(update_fn(ema_v, model_v))
+
+    def update(self, model):
+        self._update(model, update_fn=lambda e, m: self.decay * e + (1. - self.decay) * m)
+
+    def set(self, model):
+        self._update(model, update_fn=lambda e, m: m)
+
+
+def calculate_indegree_histogram(tmp_dataset):
+    max_deg_size = 0
+    for data in tmp_dataset:
+        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+        max_deg_size = max(torch.bincount(d).numel(), max_deg_size)
+
+    deg = torch.zeros(max_deg_size, dtype=torch.long)
+    for data in tmp_dataset:
+        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+        deg += torch.bincount(d, minlength=deg.numel())
+
+    return deg
+
 def get_freer_gpu() -> int:
     """
     Considers that there is only GPU 0 and 1.
@@ -108,41 +241,41 @@ def get_freer_gpu() -> int:
     # return np.argmax(memory_available)
     print('Overriding GPU info and getting GPU 0...')
     return 0
-    print('Getting free GPU info...')
-    gpu_to_use: int = 0
-    with open('tmp_gpu.txt', 'r+') as fd:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        # Someone is using GPU 0 already
-        info_file = fd.read()
-        if info_file == 'server':
-            print('Server usage, just give 0')
-        elif info_file == '0':
-            print('GPU 0 already in use')
-            gpu_to_use = 1
-        else:
-            print('Reserving GPU 0')
-            # Inform gpu 0 is now reserved
-            fd.seek(0)
-            fd.write('0')
-            fd.truncate()
-        fcntl.flock(fd, fcntl.LOCK_UN)
+    # print('Getting free GPU info...')
+    # gpu_to_use: int = 0
+    # with open('tmp_gpu.txt', 'r+') as fd:
+    #     fcntl.flock(fd, fcntl.LOCK_EX)
+    #     # Someone is using GPU 0 already
+    #     info_file = fd.read()
+    #     if info_file == 'server':
+    #         print('Server usage, just give 0')
+    #     elif info_file == '0':
+    #         print('GPU 0 already in use')
+    #         gpu_to_use = 1
+    #     else:
+    #         print('Reserving GPU 0')
+    #         # Inform gpu 0 is now reserved
+    #         fd.seek(0)
+    #         fd.write('0')
+    #         fd.truncate()
+    #     fcntl.flock(fd, fcntl.LOCK_UN)
 
     return gpu_to_use
 
 
 def free_gpu_info() -> NoReturn:
     print('Freeing GPU 0!')
-    with open('tmp_gpu.txt', 'r+') as fd:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        info_file = fd.read()
-        if info_file == 'server':
-            print('Server usage, no need to free GPU')
-        else:
-            fd.seek(0)
-            fd.write('')
-            fd.truncate()
+    #with open('tmp_gpu.txt', 'r+') as fd:
+    #    fcntl.flock(fd, fcntl.LOCK_EX)
+    #    info_file = fd.read()
+    #    if info_file == 'server':
+    #        print('Server usage, no need to free GPU')
+    #    else:
+    #        fd.seek(0)
+    #        fd.write('')
+    #        fd.truncate()
 
-        fcntl.flock(fd, fcntl.LOCK_UN)
+    #    fcntl.flock(fd, fcntl.LOCK_UN)
 
 
 def merge_y_and_others(ys, indices):

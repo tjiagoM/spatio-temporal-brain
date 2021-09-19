@@ -6,10 +6,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric.utils as pyg_utils
 from math import ceil
-from torch.nn import BatchNorm1d
-from torch_geometric.nn import DenseGraphConv, dense_diff_pool
+from torch.nn import BatchNorm1d, ModuleList
+from torch_geometric.nn import DenseGraphConv, dense_diff_pool, PNAConv, BatchNorm
 from torch_geometric.nn import MetaLayer
-from torch_geometric.nn import global_mean_pool, GCNConv, GATConv
+from torch_geometric.nn import global_mean_pool, GCNConv, GATConv, global_add_pool
 from torch_geometric.utils import to_dense_batch
 from torch_scatter import scatter_mean
 
@@ -22,14 +22,15 @@ class GNN(torch.nn.Module):
                  in_channels,
                  hidden_channels,
                  out_channels,
-                 lin=True):
+                 lin=True,
+                 aggr='add'):
         super(GNN, self).__init__()
 
-        self.conv1 = DenseGraphConv(in_channels, hidden_channels)
+        self.conv1 = DenseGraphConv(in_channels, hidden_channels, aggr=aggr)
         self.bn1 = torch.nn.BatchNorm1d(hidden_channels)
-        self.conv2 = DenseGraphConv(hidden_channels, hidden_channels)
+        self.conv2 = DenseGraphConv(hidden_channels, hidden_channels, aggr=aggr)
         self.bn2 = torch.nn.BatchNorm1d(hidden_channels)
-        self.conv3 = DenseGraphConv(hidden_channels, out_channels)
+        self.conv3 = DenseGraphConv(hidden_channels, out_channels, aggr=aggr)
         self.bn3 = torch.nn.BatchNorm1d(out_channels)
 
         if lin is True:
@@ -61,21 +62,21 @@ class GNN(torch.nn.Module):
 
 
 class DiffPoolLayer(torch.nn.Module):
-    def __init__(self, max_num_nodes, num_init_feats):
+    def __init__(self, max_num_nodes, num_init_feats, aggr):
         super(DiffPoolLayer, self).__init__()
         self.init_feats = num_init_feats
         self.max_nodes = max_num_nodes
         self.INTERN_EMBED_SIZE = self.init_feats  # ceil(self.init_feats / 3)
 
         num_nodes = ceil(0.25 * self.max_nodes)
-        self.gnn1_pool = GNN(self.init_feats, self.INTERN_EMBED_SIZE, num_nodes)
-        self.gnn1_embed = GNN(self.init_feats, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False)
+        self.gnn1_pool = GNN(self.init_feats, self.INTERN_EMBED_SIZE, num_nodes, aggr=aggr)
+        self.gnn1_embed = GNN(self.init_feats, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr)
 
         num_nodes = ceil(0.25 * num_nodes)
-        self.gnn2_pool = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, num_nodes)
-        self.gnn2_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False)
+        self.gnn2_pool = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, num_nodes, aggr=aggr)
+        self.gnn2_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr)
 
-        self.gnn3_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False)
+        self.gnn3_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr)
 
     def forward(self, x, adj, mask=None):
         s = self.gnn1_pool(x, adj, mask)
@@ -155,6 +156,40 @@ class NodeModel(torch.nn.Module):
         return self.node_mlp_2(out)
 
 
+class PNANodeModel(torch.nn.Module):
+    def __init__(self, num_node_features, num_edge_features, activation, run_cfg):
+        super(PNANodeModel, self).__init__()
+
+        if run_cfg['nodemodel_aggr'] == 'all':
+            aggregators = ['mean', 'min', 'max', 'std', 'sum']
+        else:
+            aggregators = [run_cfg['nodemodel_aggr']]
+
+        if run_cfg['nodemodel_scalers'] == 'all':
+            scalers = ['identity', 'amplification', 'attenuation']
+        else:
+            scalers = ['identity']
+
+        print(f'--> PNANodeModel going with aggregators={aggregators}, scalers={scalers}')
+
+        self.activation = activation
+        self.convs = ModuleList()
+        self.batch_norms = ModuleList()
+        for _ in range(run_cfg['nodemodel_layers']):
+            conv = PNAConv(in_channels=num_node_features, out_channels=num_node_features,
+                           aggregators=aggregators, scalers=scalers, deg=run_cfg['dataset_indegree'],
+                           edge_dim=num_edge_features, towers=1, pre_layers=1, post_layers=1,
+                           divide_input=False)
+            self.convs.append(conv)
+            self.batch_norms.append(BatchNorm(num_node_features))
+
+    def forward(self, x, edge_index, edge_attr):
+        for conv, batch_norm in zip(self.convs, self.batch_norms):
+            x = self.activation(batch_norm(conv(x, edge_index, edge_attr)))
+
+        return x
+
+
 class SpatioTemporalModel(nn.Module):
     def __init__(self, run_cfg: Dict[str, Any],
                  multimodal_size: int = 0, model_version: str = '80',
@@ -179,9 +214,9 @@ class SpatioTemporalModel(nn.Module):
 
         self.VERSION = model_version
 
-        if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
-            print('THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT')
-            exit(-1)
+        #if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
+        #    print('THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT')
+        #    exit(-1)
         if conv_strategy not in [ConvStrategy.TCN_ENTIRE, ConvStrategy.CNN_ENTIRE, ConvStrategy.NONE]:
             print('THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/TCN_ENTIRE/NONE')
             exit(-1)
@@ -261,9 +296,11 @@ class SpatioTemporalModel(nn.Module):
                                                              num_edge_features=1,
                                                              activation=activation))
         elif self.sweep_type == SweepType.META_NODE:
-            self.meta_layer = MetaLayer(node_model=NodeModel(num_node_features=self.NODE_EMBED_SIZE,
-                                                             num_edge_features=1,
-                                                             activation=activation))
+            #self.meta_layer = MetaLayer(node_model=NodeModel(num_node_features=self.NODE_EMBED_SIZE,
+            #                                                 num_edge_features=1,
+            #                                                 activation=activation))
+            self.meta_layer = PNANodeModel(num_node_features=self.NODE_EMBED_SIZE, num_edge_features=1,
+                                           activation=self.activation, run_cfg=run_cfg)
 
         if self.conv_strategy == ConvStrategy.TCN_ENTIRE:
             #self.size_before_lin_temporal = self.channels_conv * 8 * self.final_feature_size
@@ -326,12 +363,27 @@ class SpatioTemporalModel(nn.Module):
         if self.pooling == PoolingStrategy.DIFFPOOL:
             self.pre_final_linear = nn.Linear(3 * self.NODE_EMBED_SIZE, self.NODE_EMBED_SIZE)
 
-            self.diff_pool = DiffPoolLayer(num_nodes,
-                                           self.NODE_EMBED_SIZE)
+            self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='mean')
         elif self.pooling == PoolingStrategy.CONCAT:
             self.pre_final_linear = nn.Linear(self.num_nodes * self.NODE_EMBED_SIZE, self.NODE_EMBED_SIZE)
+        elif self.pooling in [PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN]:
+            self.pre_final_linear = nn.Linear(3 * self.NODE_EMBED_SIZE, self.NODE_EMBED_SIZE)
+            print(f'Special DiffPool: {self.pooling}.')
 
-        self.final_linear = nn.Linear(self.NODE_EMBED_SIZE, 1)
+            if self.pooling == PoolingStrategy.DP_MAX:
+                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='max')
+            elif self.pooling == PoolingStrategy.DP_ADD:
+                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='add')
+            elif self.pooling == PoolingStrategy.DP_MEAN:
+                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='mean')
+
+        if run_cfg['final_mlp_layers'] == 1:
+            self.final_linear = nn.Linear(self.NODE_EMBED_SIZE, 1)
+        elif run_cfg['final_mlp_layers'] == 2:
+            self.final_linear = nn.Sequential(
+                nn.Linear(self.NODE_EMBED_SIZE, int(self.NODE_EMBED_SIZE / 2)),
+                self.activation, nn.Dropout(dropout_perc),
+                nn.Linear(int(self.NODE_EMBED_SIZE / 2), 1))
 
     def init_weights(self):
         self.conv1d_1.weight.data.normal_(0, 0.01)
@@ -388,11 +440,15 @@ class SpatioTemporalModel(nn.Module):
                 x = self.activation(x)
                 x = F.dropout(x, training=self.training)
         elif self.sweep_type in [SweepType.META_NODE, SweepType.META_EDGE_NODE]:
-            x, edge_attr, _ = self.meta_layer(x, edge_index, edge_attr)
+            #x, edge_attr, _ = self.meta_layer(x, edge_index, edge_attr)
+            # TODO: Edit for both edge and node models
+            x = self.meta_layer(x, edge_index, edge_attr)
 
         if self.pooling == PoolingStrategy.MEAN:
             x = global_mean_pool(x, data.batch)
-        elif self.pooling == PoolingStrategy.DIFFPOOL:
+        elif self.pooling == PoolingStrategy.ADD:
+            x = global_add_pool(x, data.batch)
+        elif self.pooling in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN]:
             adj_tmp = pyg_utils.to_dense_adj(edge_index, data.batch, edge_attr=edge_attr)
             if edge_attr is not None: # Because edge_attr only has 1 feature per edge
                 adj_tmp = adj_tmp[:, :, :, 0]
@@ -410,10 +466,10 @@ class SpatioTemporalModel(nn.Module):
         x = self.final_linear(x)
 
         if self.final_sigmoid:
-            return torch.sigmoid(x) if self.pooling != PoolingStrategy.DIFFPOOL else (
+            return torch.sigmoid(x) if self.pooling not in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN] else (
                 torch.sigmoid(x), link_loss, ent_loss)
         else:
-            return x if self.pooling != PoolingStrategy.DIFFPOOL else (x, link_loss, ent_loss)
+            return x if self.pooling not in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN] else (x, link_loss, ent_loss)
 
     def to_string_name(self):
         model_vars = ['V_' + self.VERSION,

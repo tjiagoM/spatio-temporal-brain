@@ -4,7 +4,7 @@ import random
 from collections import deque
 from sys import exit
 from typing import Dict, Any, Union
-
+from torch_geometric.utils import degree
 import numpy as np
 import pandas as pd
 import torch
@@ -21,7 +21,8 @@ from main_loop import generate_dataset, create_fold_generator, get_empty_metrics
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
-    SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, create_name_for_xgbmodel
+    SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, \
+    create_name_for_xgbmodel, calculate_indegree_histogram
 
 wandb.init(project='st_extra')
 
@@ -49,11 +50,11 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['param_lr'] = 4.2791529866e-06
     run_cfg['param_normalisation'] = Normalisation('subject_norm')
     run_cfg['param_num_gnn_layers'] = 1
-    run_cfg['param_pooling'] = PoolingStrategy('mean')
+    run_cfg['param_pooling'] = PoolingStrategy('dpadd')
     run_cfg['param_threshold'] = 10
     run_cfg['param_weight_decay'] = 0.046926
     run_cfg['sweep_type'] = SweepType('node_meta')
-    run_cfg['temporal_embed_size'] = 128
+    run_cfg['temporal_embed_size'] = 64
 
     run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
 
@@ -67,9 +68,14 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
 
     run_cfg['tcn_depth'] = 3
     run_cfg['tcn_kernel'] = 7
-    run_cfg['tcn_hidden_units'] = 64
+    run_cfg['tcn_hidden_units'] = 32
     run_cfg['tcn_final_transform_layers'] = 3
     run_cfg['tcn_norm_strategy'] = 'batchnorm'
+
+    run_cfg['nodemodel_aggr'] = 'sum'
+    run_cfg['nodemodel_scalers'] = 'none'
+    run_cfg['nodemodel_layers'] = 4
+    run_cfg['final_mlp_layers'] = 1
 
 
 N_OUT_SPLITS: int = 5
@@ -97,14 +103,18 @@ inner_loop_run: int = 0
 for inner_train_index, inner_val_index in skf_inner_generator:
     inner_loop_run += 1
 
-    model: SpatioTemporalModel = generate_st_model(run_cfg)
-
     X_train_in = X_train_out[torch.tensor(inner_train_index)]
     X_val_in = X_train_out[torch.tensor(inner_val_index)]
 
+    run_cfg['dataset_indegree'] = calculate_indegree_histogram(X_train_in)
+
+    model: SpatioTemporalModel = generate_st_model(run_cfg)
+
     break
 
-
+# Number of trainable params: 164597203 (more complex mean, 8 hidden units)
+# Number of trainable params: 164618923 (more complex mean, 32 hidden units)
+# Number of trainable params: 164795453 (more complex DP, 32 hidden)
 #############################################################
 ############################################################
 out_fold_num=run_cfg['split_to_test']
@@ -120,4 +130,5 @@ val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=Fals
 
 for data in train_in_loader:
     data = data.to(run_cfg['device_run'])
+    print(model(data).shape)
     break

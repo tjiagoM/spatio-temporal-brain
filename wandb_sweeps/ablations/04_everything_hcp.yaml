@@ -1,12 +1,12 @@
 method: random
 
-name: 03_new_training_hcp
+name: 04_everything_hcp
 program: main_loop.py
 parameters:
   dataset_type:
     value: hcp
   sweep_type:
-    value: no_gnn
+    value: node_meta
   tcn_depth:
     distribution: int_uniform
     min: 1
@@ -91,6 +91,10 @@ parameters:
     distribution: log_uniform
     max: -2.3025850929940455
     min: -11.512925464970229
+  weight_decay:
+    distribution: log_uniform
+    max: 0
+    min: -27.631021115928547
   normalisation:
     distribution: categorical
     values:
@@ -100,12 +104,32 @@ parameters:
     distribution: categorical
     values:
       - mean
+      - add
       - concat
+      - dpadd
+      - dpmean
+      - dpmax
   target_var:
     value: gender
   time_length:
     value: 490
-  weight_decay:
-    distribution: log_uniform
-    max: 0
-    min: -27.631021115928547
+  nodemodel_aggr:
+    distribution: categorical
+    values:
+      - all
+      - mean
+      - max
+      - sum
+  nodemodel_scalers:
+    distribution: categorical
+    values:
+      - all
+      - none
+  nodemodel_layers:
+    distribution: int_uniform
+    min: 1
+    max: 4
+  final_mlp_layers:
+    distribution: int_uniform
+    min: 1
+    max: 2
