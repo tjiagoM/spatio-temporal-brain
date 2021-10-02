@@ -27,16 +27,16 @@ from utils import create_name_for_brain_dataset, create_name_for_model, Normalis
 wandb.init(project='st_extra')
 
 run_cfg: Dict[str, Any] = {
-    'analysis_type': AnalysisType('st_multimodal'),
-    'dataset_type': DatasetType('hcp'),
+    'analysis_type': AnalysisType('st_unimodal'),
+    'dataset_type': DatasetType('ukb'),
     'num_nodes': 68,
-    'param_conn_type': ConnType('struct'),
+    'param_conn_type': ConnType('fmri'),
     'split_to_test': 2,
     'target_var': 'gender',
     'time_length': 490,
 }
 if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
-    run_cfg['batch_size'] = 200
+    run_cfg['batch_size'] = 150
     run_cfg['device_run'] = f'cuda:{get_freer_gpu()}'
     run_cfg['early_stop_steps'] = 33
     run_cfg['edge_weights'] = True
@@ -50,7 +50,7 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['param_lr'] = 4.2791529866e-06
     run_cfg['param_normalisation'] = Normalisation('subject_norm')
     run_cfg['param_num_gnn_layers'] = 1
-    run_cfg['param_pooling'] = PoolingStrategy('dpadd')
+    run_cfg['param_pooling'] = PoolingStrategy('concat')
     run_cfg['param_threshold'] = 10
     run_cfg['param_weight_decay'] = 0.046926
     run_cfg['sweep_type'] = SweepType('node_meta')
@@ -72,8 +72,8 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['tcn_final_transform_layers'] = 3
     run_cfg['tcn_norm_strategy'] = 'batchnorm'
 
-    run_cfg['nodemodel_aggr'] = 'sum'
-    run_cfg['nodemodel_scalers'] = 'none'
+    run_cfg['nodemodel_aggr'] = 'all'
+    run_cfg['nodemodel_scalers'] = 'all'
     run_cfg['nodemodel_layers'] = 4
     run_cfg['final_mlp_layers'] = 1
 

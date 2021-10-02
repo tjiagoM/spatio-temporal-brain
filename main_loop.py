@@ -589,7 +589,7 @@ if __name__ == '__main__':
     # Because of strange bug with symbolic links in server
     os.environ['WANDB_DISABLE_CODE'] = 'true'
 
-    wandb.init(project='st_extra', save_code=True, dir='/work1/tiago/wandb')
+    wandb.init(project='st_extra', save_code=True)#, dir='/work1/tiago/wandb')
     config = wandb.config
 
     print('Config file from wandb:', config)
