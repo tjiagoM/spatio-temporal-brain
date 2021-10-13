@@ -54,7 +54,7 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['param_threshold'] = 10
     run_cfg['param_weight_decay'] = 0.046926
     run_cfg['sweep_type'] = SweepType('node_meta')
-    run_cfg['temporal_embed_size'] = 64
+    run_cfg['temporal_embed_size'] = 16
 
     run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
 
@@ -68,15 +68,14 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
 
     run_cfg['tcn_depth'] = 3
     run_cfg['tcn_kernel'] = 7
-    run_cfg['tcn_hidden_units'] = 32
-    run_cfg['tcn_final_transform_layers'] = 3
+    run_cfg['tcn_hidden_units'] = 8
+    run_cfg['tcn_final_transform_layers'] = 1
     run_cfg['tcn_norm_strategy'] = 'batchnorm'
 
     run_cfg['nodemodel_aggr'] = 'all'
-    run_cfg['nodemodel_scalers'] = 'all'
-    run_cfg['nodemodel_layers'] = 4
+    run_cfg['nodemodel_scalers'] = 'none'
+    run_cfg['nodemodel_layers'] = 3
     run_cfg['final_mlp_layers'] = 1
-
 
 N_OUT_SPLITS: int = 5
 N_INNER_SPLITS: int = 5

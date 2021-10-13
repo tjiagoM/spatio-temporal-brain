@@ -1,6 +1,6 @@
 method: random
 
-name: final_ukb_try1_N_fmri_fold2
+name: final_ukb_try1_N_fmri_fold3
 program: main_loop.py
 parameters:
   dataset_type:
@@ -36,7 +36,7 @@ parameters:
   analysis_type:
     value: st_unimodal
   num_epochs:
-    value: 250
+    value: 150
   num_nodes:
     value: 68
   activation:

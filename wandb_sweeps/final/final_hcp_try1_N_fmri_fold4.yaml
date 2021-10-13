@@ -1,12 +1,14 @@
 method: random
 
-name: final_ukb_try1_N_fmri_fold1
+name: final_hcp_try1_N_fmri_fold4
 program: main_loop.py
 parameters:
   dataset_type:
-    value: ukb
+    value: hcp
   fold_num:
-    value: 1
+    value: 4
+  num_epochs:
+    value: 150
   sweep_type:
     value: node_meta
   tcn_depth:
@@ -32,11 +34,9 @@ parameters:
   conn_type:
     value: fmri
   batch_size:
-    value: 150
+    value: 100
   analysis_type:
     value: st_unimodal
-  num_epochs:
-    value: 150
   num_nodes:
     value: 68
   activation:

@@ -36,7 +36,7 @@ parameters:
   analysis_type:
     value: st_unimodal
   num_epochs:
-    value: 250
+    value: 150
   num_nodes:
     value: 68
   activation:
