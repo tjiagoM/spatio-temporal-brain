@@ -183,7 +183,7 @@ class PNANodeModel(torch.nn.Module):
             self.convs.append(conv)
             self.batch_norms.append(BatchNorm(num_node_features))
 
-    def forward(self, x, edge_index, edge_attr):
+    def forward(self, x, edge_index, edge_attr, u=None, batch=None):
         for conv, batch_norm in zip(self.convs, self.batch_norms):
             x = self.activation(batch_norm(conv(x, edge_index, edge_attr)))
 
@@ -292,9 +292,8 @@ class SpatioTemporalModel(nn.Module):
             self.meta_layer = MetaLayer(edge_model=EdgeModel(num_node_features=self.NODE_EMBED_SIZE,
                                                              num_edge_features=1,
                                                              activation=activation),
-                                        node_model=NodeModel(num_node_features=self.NODE_EMBED_SIZE,
-                                                             num_edge_features=1,
-                                                             activation=activation))
+                                        node_model=PNANodeModel(num_node_features=self.NODE_EMBED_SIZE, num_edge_features=1,
+                                                                activation=self.activation, run_cfg=run_cfg))
         elif self.sweep_type == SweepType.META_NODE:
             #self.meta_layer = MetaLayer(node_model=NodeModel(num_node_features=self.NODE_EMBED_SIZE,
             #                                                 num_edge_features=1,
@@ -439,10 +438,10 @@ class SpatioTemporalModel(nn.Module):
                     x = self.gnn_conv2(x, edge_index)
                 x = self.activation(x)
                 x = F.dropout(x, training=self.training)
-        elif self.sweep_type in [SweepType.META_NODE, SweepType.META_EDGE_NODE]:
-            #x, edge_attr, _ = self.meta_layer(x, edge_index, edge_attr)
-            # TODO: Edit for both edge and node models
+        elif self.sweep_type == SweepType.META_NODE:
             x = self.meta_layer(x, edge_index, edge_attr)
+        elif self.sweep_type == SweepType.META_EDGE_NODE:
+            x, edge_attr, _ = self.meta_layer(x, edge_index, edge_attr)
 
         if self.pooling == PoolingStrategy.MEAN:
             x = global_mean_pool(x, data.batch)
