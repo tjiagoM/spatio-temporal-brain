@@ -641,8 +641,7 @@ if __name__ == '__main__':
             run_cfg['param_gat_heads'] = config.gat_heads
 
 
-        # For Ablation study only (?)
-        # TODO: comment out
+        # TCN components
         run_cfg['tcn_depth'] = config.tcn_depth
         run_cfg['tcn_kernel'] = config.tcn_kernel
         run_cfg['tcn_hidden_units'] = config.tcn_hidden_units

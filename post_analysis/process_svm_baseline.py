@@ -39,12 +39,14 @@ def run_for_specific_fold(fold_num: int, dataset_type: str, analysis_type: str):
         'param_normalisation': Normalisation('subject_norm'),
         'param_encoding_strategy': EncodingStrategy('none'),
         'edge_weights': False,
-        'split_to_test': fold_num
+        'split_to_test': fold_num,
+        'multimodal_size': 0
     }
 
     if analysis_type == 'st_multimodal':
         run_cfg['param_conn_type'] = ConnType('struct')
         run_cfg['edge_weights'] = True
+
 
     N_OUT_SPLITS: int = 5
     N_INNER_SPLITS: int = 5
