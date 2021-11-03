@@ -1,3 +1,7 @@
+###
+###
+## Put this in root folder to be able to properly run it
+###
 import argparse
 import json
 
@@ -51,6 +55,7 @@ def run_for_specific_fold(fold_num: int, dataset_type: str, analysis_type: str):
                               min_child_weight=min_c,
                               colsample_bytree=cols,
                               gamma=gamma,
+                              n_estimators=50,
                               n_jobs=-1,
                               random_state=1111)
 

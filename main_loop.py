@@ -222,7 +222,7 @@ def training_step(outer_split_no, inner_split_no, epoch, model, train_loader, va
                               train_metrics['auc'], val_metrics['auc'],
                               train_metrics['acc'], val_metrics['acc'],
                               train_metrics['f1'], val_metrics['f1']))
-        wandb.log({
+        log_dict = {
             f'train_loss{inner_split_no}': train_metrics['loss'], f'val_loss{inner_split_no}': val_metrics['loss'],
             f'train_auc{inner_split_no}': train_metrics['auc'], f'val_auc{inner_split_no}': val_metrics['auc'],
             f'train_acc{inner_split_no}': train_metrics['acc'], f'val_acc{inner_split_no}': val_metrics['acc'],
@@ -231,24 +231,26 @@ def training_step(outer_split_no, inner_split_no, epoch, model, train_loader, va
             f'train_spec{inner_split_no}': train_metrics['specificity'],
             f'val_spec{inner_split_no}': val_metrics['specificity'],
             f'train_f1{inner_split_no}': train_metrics['f1'], f'val_f1{inner_split_no}': val_metrics['f1']
-        })
+        }
     else:
         print(
             '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, R2: {:.4f} / {:.4f}, R: {:.4f} / {:.4f}'
             ''.format(outer_split_no, inner_split_no, epoch, train_metrics['loss'], val_metrics['loss'],
                       train_metrics['r2'], val_metrics['r2'],
                       train_metrics['r'], val_metrics['r']))
-        wandb.log({
+        log_dict = {
             f'train_loss{inner_split_no}': train_metrics['loss'], f'val_loss{inner_split_no}': val_metrics['loss'],
             f'train_r2{inner_split_no}': train_metrics['r2'], f'val_r2{inner_split_no}': val_metrics['r2'],
             f'train_r{inner_split_no}': train_metrics['r'], f'val_r{inner_split_no}': val_metrics['r']
-        })
+        }
 
     if run_cfg['param_pooling'] in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN]:
-        wandb.log({
-            f'train_link_loss{inner_split_no}': link_loss, f'val_link_loss{inner_split_no}': val_metrics['link_loss'],
-            f'train_ent_loss{inner_split_no}': ent_loss, f'val_ent_loss{inner_split_no}': val_metrics['ent_loss']
-        })
+        log_dict[f'train_link_loss{inner_split_no}'] = link_loss
+        log_dict[f'val_link_loss{inner_split_no}'] = val_metrics['link_loss']
+        log_dict[f'train_ent_loss{inner_split_no}'] = ent_loss
+        log_dict[f'val_ent_loss{inner_split_no}'] = val_metrics['ent_loss']
+
+    wandb.log(log_dict)
 
     return val_metrics
 

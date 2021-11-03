@@ -1,3 +1,8 @@
+###
+###
+## Put this in root folder to be able to properly run it
+###
+
 import argparse
 from typing import Dict, Any
 
@@ -32,13 +37,13 @@ def run_for_specific_fold(fold_num: int, dataset_type: str, analysis_type: str):
         'analysis_type': AnalysisType(analysis_type),
         'dataset_type': DatasetType(dataset_type),
         'num_nodes': 68,
-        'param_conn_type': ConnType('fmri'),
+        'param_conn_type': ConnType('fmri'), # changed later
         'target_var': 'gender',
         'time_length': 490,
-        'param_threshold': 5,  # Doesn't matter for fmri where only looking for timeseries
+        'param_threshold': 10,
         'param_normalisation': Normalisation('subject_norm'),
         'param_encoding_strategy': EncodingStrategy('none'),
-        'edge_weights': False,
+        'edge_weights': True,
         'split_to_test': fold_num,
         'multimodal_size': 0
     }

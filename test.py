@@ -28,7 +28,7 @@ wandb.init(project='st_extra')
 
 run_cfg: Dict[str, Any] = {
     'analysis_type': AnalysisType('st_unimodal'),
-    'dataset_type': DatasetType('hcp'),
+    'dataset_type': DatasetType('ukb'),
     'num_nodes': 68,
     'param_conn_type': ConnType('fmri'),
     'split_to_test': 2,
@@ -50,7 +50,7 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['param_lr'] = 4.2791529866e-06
     run_cfg['param_normalisation'] = Normalisation('subject_norm')
     run_cfg['param_num_gnn_layers'] = 1
-    run_cfg['param_pooling'] = PoolingStrategy('concat')
+    run_cfg['param_pooling'] = PoolingStrategy('dpadd')
     run_cfg['param_threshold'] = 10
     run_cfg['param_weight_decay'] = 0.046926
     run_cfg['sweep_type'] = SweepType('edge_node_meta')
@@ -129,5 +129,7 @@ val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=Fals
 
 for data in train_in_loader:
     data = data.to(run_cfg['device_run'])
-    print(model(data).shape)
+    #print(model(data).shape)
+    output = model(data)
+    print(output[0].shape, output[1].shape, output[2].shape)
     break

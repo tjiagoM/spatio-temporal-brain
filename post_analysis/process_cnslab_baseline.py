@@ -1,93 +1,68 @@
+###
+###
+## Put this in root folder to be able to properly run it
+###
+
 import argparse
 from typing import Dict, Any
 
 import numpy as np
 import torch
-from scipy import stats
+import torch_geometric.utils as pyg_utils
 
 from main_loop import generate_dataset, create_fold_generator
 from utils import AnalysisType, DatasetType, ConnType, Normalisation, EncodingStrategy
-
 
 # TODO: Make a table in README to compare my modifications to what cnslab.
 #  eg. list of changes / table original<->changes. Highlight the only file I've edited (and remove others from repo)
 #  eg: overall adj_matrix.npy is only on training (fold dependent, not overall)
 #  ... train/val/test, whereas before it was only train/test therefore avoiding performance inflation.
 #  ... change on model to include fold info (because of change on global adj matrix)
-def save_cnslab_format(dataset_slice, fold_num: int, fold_name: str, save_adj_mat=False):
-    print(f'Saving CNSLAB format for fold_num={fold_num} and fold_name={fold_name}')
-    L = 490
-    N_ROI = 68
+def save_cnslab_format(dataset_slice, fold_num: int, fold_name: str, dataset_type: str, analysis_type: str,
+                       save_adj_mat=False):
+    print(f'Saving CNSLAB format for {dataset_type}, fold_num={fold_num} and fold_name={fold_name}')
 
-    ys = np.concatenate([data.y for data in dataset_slice])
-    data = np.zeros((len(dataset_slice), 1, L, N_ROI, 1))
-    label = np.zeros((ys.shape[0],))
-
-    # load all data
-    idx = 0
-    data_all = None
-
-    # for i in range(demo.shape[0]):
-    for data_elem in dataset_slice:
-        # subject_string = format(int(demo[i, 0]), '06d')
-        # print(subject_string)
-        # filename_full = 'data/hcp_tc_npy_22/' + subject_string + '_cortex.npy'
-        # full_sequence = np.load(filename_full)
-        full_sequence = data_elem.x.numpy()
-
-        # if full_sequence.shape[1] < S + L:
-        #    continue
-
-        # full_sequence = full_sequence[:, S:S + L];
-        z_sequence = stats.zscore(full_sequence, axis=1)
-
-        if len(z_sequence[np.isnan(z_sequence)]) > 0:
-            z_sequence[np.isnan(z_sequence)] = 0
-
-        if data_all is None:
-            data_all = z_sequence
-        else:
-            data_all = np.concatenate((data_all, z_sequence), axis=1)
-
-        data[idx, 0, :, :, 0] = np.transpose(z_sequence)
-        label[idx] = data_elem.y.item()  # demo[i, 1]
-        idx = idx + 1
+    labels = np.concatenate([data.y for data in dataset_slice])
+    data = np.concatenate([data.x.reshape(1, 1, 490, 68, 1) for data in dataset_slice])
 
     if save_adj_mat:
-        # compute adj matrix
-        A = np.zeros((N_ROI, N_ROI))
-        for i in range(N_ROI):
-            for j in range(i, N_ROI):
-                if i == j:
-                    A[i][j] = 1
-                else:
-                    A[i][j] = abs(np.corrcoef(data_all[i, :], data_all[j, :])[0][1])  # get value from corrcoef matrix
-                    A[j][i] = A[i][j]
+        adj_mat = np.zeros((68, 68))
+        for elem in dataset_slice:
+            adj_mat += pyg_utils.to_dense_adj(edge_index=elem.edge_index, edge_attr=elem.edge_attr)[0, :, :, 0].numpy()
+        adj_mat /= len(labels)
 
-        np.save(f'data/cnslab_adj_matrix_{fold_num}.npy', A)
+        # (68, 68) - diagonals with 1, and symmetric
+        np.save(f'data/cnslab_{dataset_type}_{analysis_type}_adj_matrix_{fold_num}.npy', adj_mat)
 
-    filename = f'data/cnslab_{fold_name}_data_{fold_num}.npy'
+    # (N, 1, 490, 68, 1)
+    filename = f'data/cnslab_{dataset_type}_{analysis_type}_{fold_name}_data_{fold_num}.npy'
     np.save(filename, data)
-    filename = f'data/cnslab_{fold_name}_label_{fold_num}.npy'
-    np.save(filename, label)
+    # (N,) ... array([0., 0., 1., 1., 0.])
+    filename = f'data/cnslab_{dataset_type}_{analysis_type}_{fold_name}_label_{fold_num}.npy'
+    np.save(filename, labels)
 
 
-def run_for_specific_fold(fold_num: int):
-    print(f'RUNNING FOR {fold_num}...')
+def run_for_specific_fold(fold_num: int, dataset_type: str, analysis_type: str):
+    print(f'RUNNING FOR {fold_num} with {dataset_type}...')
 
     run_cfg: Dict[str, Any] = {
-        'analysis_type': AnalysisType('st_unimodal'),
-        'dataset_type': DatasetType('ukb'),
+        'analysis_type': AnalysisType(analysis_type),
+        'dataset_type': DatasetType(dataset_type),
         'num_nodes': 68,
-        'param_conn_type': ConnType('fmri'),
+        'param_conn_type': ConnType('fmri'), # Changed later
         'target_var': 'gender',
         'time_length': 490,
-        'param_threshold': 5,  # Doesn't matter, only looking for timeseries?
-        'param_normalisation': Normalisation('no_norm'),  # TODO: check this will go ok for normalisation
+        'param_threshold': 10,
+        'param_normalisation': Normalisation('subject_norm'),
         'param_encoding_strategy': EncodingStrategy('none'),
-        'edge_weights': False,
-        'split_to_test': fold_num
+        'edge_weights': True,
+        'split_to_test': fold_num,
+        'multimodal_size': 0
     }
+
+    if analysis_type == 'st_multimodal':
+        run_cfg['param_conn_type'] = ConnType('struct')
+        run_cfg['edge_weights'] = True
 
     N_OUT_SPLITS: int = 5
     N_INNER_SPLITS: int = 5
@@ -130,17 +105,30 @@ def run_for_specific_fold(fold_num: int):
         # One inner loop only
         break
 
-    save_cnslab_format(X_train_in, fold_num=fold_num, fold_name='train', save_adj_mat=True)
-    save_cnslab_format(X_val_in, fold_num=fold_num, fold_name='val')
-    save_cnslab_format(X_test_out, fold_num=fold_num, fold_name='test')
+    save_cnslab_format(X_train_in, fold_num=fold_num, fold_name='train', save_adj_mat=True, dataset_type=dataset_type,
+                       analysis_type=analysis_type)
+    save_cnslab_format(X_val_in, fold_num=fold_num, fold_name='val', dataset_type=dataset_type,
+                       analysis_type=analysis_type)
+    save_cnslab_format(X_test_out, fold_num=fold_num, fold_name='test', dataset_type=dataset_type,
+                       analysis_type=analysis_type)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Preprocess UKBiobank data for CNSLAB baseline')
+    parser = argparse.ArgumentParser(description='Preprocess data for SVM flatten baseline')
     parser.add_argument('--fold_num',
                         type=int,
                         choices=[1, 2, 3, 4, 5],
                         help='Fold number to process.')
+
+    parser.add_argument('--dataset_type',
+                        type=str,
+                        choices=['ukb', 'hcp'],
+                        help='Dataset to use.')
+
+    parser.add_argument('--analysis_type',
+                        type=str,
+                        choices=['st_unimodal', 'st_multimodal'],
+                        help='Which analysis type.')
 
     return parser.parse_args()
 
@@ -148,4 +136,4 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     print(args)
-    run_for_specific_fold(args.fold_num)
+    run_for_specific_fold(args.fold_num, args.dataset_type, args.analysis_type)

@@ -56,11 +56,11 @@ best_runs_hcp_fmri = {
 }
 
 best_runs_hcp_struct = {
-    #'N + E $\\rightarrow$ Concat': {0: {'run_id': ''},
-    #                                1: {'run_id': ''},
-    #                                2: {'run_id': ''},
-    #                                3: {'run_id': ''},
-    #                                4: {'run_id': ''}},
+    'N + E $\\rightarrow$ Concat': {0: {'run_id': 'wrh9gt23'},
+                                    1: {'run_id': 'tnnogscw'},
+                                    2: {'run_id': 'eebx30ts'},
+                                    3: {'run_id': 'bk2ql2m9'},
+                                    4: {'run_id': '8atwfm0e'}},
     # 'N + E $\\rightarrow$ DiffPool': {0: {'run_id': ''},
     #                    1: {'run_id': ''},
     #                    2: {'run_id': ''},
@@ -100,5 +100,5 @@ def print_metrics(model_name, runs_all):
 
 
 if __name__ == '__main__':
-    for model_type, runs_all in best_runs_ukb.items():
+    for model_type, runs_all in best_runs_hcp_struct.items():
         print_metrics(model_type, runs_all)

@@ -1,3 +1,7 @@
+###
+###
+## Put this in root folder to be able to properly run it
+###
 import argparse
 
 import numpy as np
