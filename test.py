@@ -27,16 +27,16 @@ from utils import create_name_for_brain_dataset, create_name_for_model, Normalis
 wandb.init(project='st_extra')
 
 run_cfg: Dict[str, Any] = {
-    'analysis_type': AnalysisType('st_unimodal'),
+    'analysis_type': AnalysisType('st_multimodal'),
     'dataset_type': DatasetType('hcp'),
     'num_nodes': 68,
-    'param_conn_type': ConnType('fmri'),
-    'split_to_test': 2,
+    'param_conn_type': ConnType('struct'),
+    'split_to_test': 3,
     'target_var': 'gender',
     'time_length': 490,
 }
 if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
-    run_cfg['batch_size'] = 150
+    run_cfg['batch_size'] = 23
     run_cfg['device_run'] = f'cuda:{get_freer_gpu()}'
     run_cfg['early_stop_steps'] = 33
     run_cfg['edge_weights'] = True
@@ -50,10 +50,10 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['param_lr'] = 4.2791529866e-06
     run_cfg['param_normalisation'] = Normalisation('subject_norm')
     run_cfg['param_num_gnn_layers'] = 1
-    run_cfg['param_pooling'] = PoolingStrategy('dpadd')
+    run_cfg['param_pooling'] = PoolingStrategy('dpimproved')
     run_cfg['param_threshold'] = 10
     run_cfg['param_weight_decay'] = 0.046926
-    run_cfg['sweep_type'] = SweepType('node_meta')
+    run_cfg['sweep_type'] = SweepType('no_gnn')
     run_cfg['temporal_embed_size'] = 16
 
     run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
@@ -107,7 +107,10 @@ for inner_train_index, inner_val_index in skf_inner_generator:
 
     run_cfg['dataset_indegree'] = calculate_indegree_histogram(X_train_in)
 
-    model: SpatioTemporalModel = generate_st_model(run_cfg)
+    #model: SpatioTemporalModel = generate_st_model(run_cfg)
+    model = SpatioTemporalModel(run_cfg=run_cfg,
+                                encoding_model=None
+                                ).to(run_cfg['device_run'])
 
     break
 

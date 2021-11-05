@@ -64,6 +64,7 @@ class PoolingStrategy(str, Enum):
     DP_ADD = 'dpadd'
     DP_MEAN = 'dpmean'
     DP_MAX = 'dpmax'
+    DP_IMPROVED = 'dpimproved'
 
 
 @unique

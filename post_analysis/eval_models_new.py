@@ -72,7 +72,12 @@ best_runs_hcp_fmri = {
                         1: {'run_id': 'zs0yym6c'},
                         2: {'run_id': 'b7bjrc8k'},
                         3: {'run_id': 'ls0u853s'},
-                        4: {'run_id': 'in6corcd'}}
+                        4: {'run_id': 'in6corcd'}},
+    ' $\\rightarrow$ DiffPool (Sum) ': {0: {'run_id': 'm4542j80'},
+                        1: {'run_id': 'd16h4763'},
+                        2: {'run_id': 'dz3alt0l'},
+                        3: {'run_id': 'cup9o1c7'},
+                        4: {'run_id': 'j3mjd4xj'}}
 }
 
 best_runs_hcp_struct = {
@@ -100,7 +105,12 @@ best_runs_hcp_struct = {
                         1: {'run_id': '4ijultjc'},
                         2: {'run_id': 'zff6mg3i'},
                         3: {'run_id': 'em4pfn7r'},
-                        4: {'run_id': 'xt71mwep'}}
+                        4: {'run_id': 'xt71mwep'}},
+     ' $\\rightarrow$ DiffPool (Sum)': {0: {'run_id': 'orf1xt53'},
+                        1: {'run_id': 'gm0zubbs'},
+                        2: {'run_id': '6drdrvbz'},
+                        3: {'run_id': 'zto6olyj'},
+                        4: {'run_id': 'ze09wvbz'}}
 }
 
 DEVICE_RUN = 'cpu'
