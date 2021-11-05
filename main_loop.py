@@ -62,7 +62,7 @@ def train_model(model, train_loader, optimizer, run_cfg, model_ema=None, label_s
     for data in train_loader:
         data = data.to(device)
         optimizer.zero_grad()
-        if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN]:
+        if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
             output_batch, link_loss, ent_loss = model(data)
             output_batch = output_batch.clamp(0, 1)  # For NaNs
             output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch) # For NaNs
@@ -83,7 +83,7 @@ def train_model(model, train_loader, optimizer, run_cfg, model_ema=None, label_s
             grads.extend(model.final_linear[-1].weight.grad.flatten().cpu().tolist())
 
         loss_all += loss.item() * data.num_graphs
-        if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN]:
+        if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
             loss_all_link += loss_b_link.item() * data.num_graphs
             loss_all_ent += loss_b_ent.item() * data.num_graphs
 
@@ -163,7 +163,7 @@ def evaluate_model(model, loader, run_cfg, label_scaler=None):
     for data in loader:
         with torch.no_grad():
             data = data.to(device)
-            if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN]:
+            if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
                 output_batch, link_loss, ent_loss = model(data)
                 output_batch = output_batch.clamp(0, 1)  # For NaNs
                 output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch)  # For NaNs
@@ -179,7 +179,7 @@ def evaluate_model(model, loader, run_cfg, label_scaler=None):
                 loss = criterion(output_batch, data.y.unsqueeze(1))
 
             test_error += loss.item() * data.num_graphs
-            if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN]:
+            if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
                 test_link_loss += loss_b_link.item() * data.num_graphs
                 test_ent_loss += loss_b_ent.item() * data.num_graphs
 
@@ -244,7 +244,7 @@ def training_step(outer_split_no, inner_split_no, epoch, model, train_loader, va
             f'train_r{inner_split_no}': train_metrics['r'], f'val_r{inner_split_no}': val_metrics['r']
         }
 
-    if run_cfg['param_pooling'] in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN]:
+    if run_cfg['param_pooling'] in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
         log_dict[f'train_link_loss{inner_split_no}'] = link_loss
         log_dict[f'val_link_loss{inner_split_no}'] = val_metrics['link_loss']
         log_dict[f'train_ent_loss{inner_split_no}'] = ent_loss
