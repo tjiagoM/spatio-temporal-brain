@@ -28,7 +28,7 @@ wandb.init(project='st_extra')
 
 run_cfg: Dict[str, Any] = {
     'analysis_type': AnalysisType('st_unimodal'),
-    'dataset_type': DatasetType('ukb'),
+    'dataset_type': DatasetType('hcp'),
     'num_nodes': 68,
     'param_conn_type': ConnType('fmri'),
     'split_to_test': 2,
@@ -53,7 +53,7 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['param_pooling'] = PoolingStrategy('dpadd')
     run_cfg['param_threshold'] = 10
     run_cfg['param_weight_decay'] = 0.046926
-    run_cfg['sweep_type'] = SweepType('edge_node_meta')
+    run_cfg['sweep_type'] = SweepType('node_meta')
     run_cfg['temporal_embed_size'] = 16
 
     run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])

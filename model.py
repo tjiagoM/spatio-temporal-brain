@@ -64,6 +64,7 @@ class GNN(torch.nn.Module):
 class DiffPoolLayer(torch.nn.Module):
     def __init__(self, max_num_nodes, num_init_feats, aggr):
         super(DiffPoolLayer, self).__init__()
+        self.aggr = aggr
         self.init_feats = num_init_feats
         self.max_nodes = max_num_nodes
         self.INTERN_EMBED_SIZE = self.init_feats  # ceil(self.init_feats / 3)
@@ -90,8 +91,10 @@ class DiffPoolLayer(torch.nn.Module):
         x, adj, l2, e2 = dense_diff_pool(x, adj, s)
 
         x = self.gnn3_embed(x, adj)
-
-        x = x.mean(dim=1)
+        if self.aggr == 'add':
+            x = x.sum(dim=1)
+        else:
+            x = x.mean(dim=1)
 
         return x, l1 + l2, e1 + e2
 
@@ -454,6 +457,7 @@ class SpatioTemporalModel(nn.Module):
             x_tmp, batch_mask = pyg_utils.to_dense_batch(x, data.batch)
 
             x, link_loss, ent_loss = self.diff_pool(x_tmp, adj_tmp, batch_mask)
+
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = self.activation(self.pre_final_linear(x))
         elif self.pooling == PoolingStrategy.CONCAT:
