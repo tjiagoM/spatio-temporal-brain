@@ -661,6 +661,10 @@ if __name__ == '__main__':
         run_cfg['nodemodel_layers'] = config.nodemodel_layers
         run_cfg['final_mlp_layers'] = config.final_mlp_layers
 
+        # DiffPool specific stuff
+        run_cfg['dp_perc_retaining'] = config.dp_perc_retaining
+        run_cfg['dp_norm'] = config.dp_norm
+
     elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
         run_cfg['device_run'] = 'cpu'
         run_cfg['colsample_bylevel'] = config.colsample_bylevel

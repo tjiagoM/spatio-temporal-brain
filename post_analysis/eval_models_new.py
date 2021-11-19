@@ -30,11 +30,11 @@ best_runs_ukb = {
                         2: {'run_id': 'xahinw23'},
                         3: {'run_id': 'lnfvnnd9'},
                         4: {'run_id': 'fvw8ordx'}},
-    # ' $\\rightarrow$ DiffPool': {0: {'run_id': ''},
-    #                    1: {'run_id': ''},
-    #                    2: {'run_id': ''},
-    #                    3: {'run_id': ''},
-    #                    4: {'run_id': ''}},
+     ' $\\rightarrow$ DiffPool': {0: {'run_id': 'apzymi22'},
+                        1: {'run_id': 'bc8t4ulw'},
+                        2: {'run_id': '4zpxljpq'},
+                        3: {'run_id': 'tttzzu2m'},
+                        4: {'run_id': 'qwnipyru'}},
      ' $\\rightarrow$ Concat': {0: {'run_id': 'jfi7tuxz'},
                         1: {'run_id': 'qd0gbu2y'},
                         2: {'run_id': 'k8tfwp74'},
@@ -135,7 +135,7 @@ def print_metrics(model_name, runs_all):
 
 
 if __name__ == '__main__':
-    for model_type, runs_all in best_runs_hcp_struct.items():
+    for model_type, runs_all in best_runs_ukb.items():
         print_metrics(model_type, runs_all)
     print('----')
     for model_type, runs_all in best_runs_hcp_fmri.items():

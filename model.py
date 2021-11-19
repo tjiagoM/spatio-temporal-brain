@@ -7,8 +7,8 @@ import torch.nn.functional as F
 import torch_geometric.utils as pyg_utils
 from math import ceil
 from torch.nn import BatchNorm1d, ModuleList
-from torch_geometric.nn import DenseGraphConv, dense_diff_pool, PNAConv, BatchNorm
-from torch_geometric.nn import MetaLayer
+from torch_geometric.nn import DenseGraphConv, dense_diff_pool, PNAConv, BatchNorm, DenseSAGEConv, GraphSizeNorm
+from torch_geometric.nn import MetaLayer, GraphNorm
 from torch_geometric.nn import global_mean_pool, GCNConv, GATConv, global_add_pool
 from torch_geometric.utils import to_dense_batch
 from torch_scatter import scatter_mean
@@ -22,16 +22,29 @@ class GNN(torch.nn.Module):
                  in_channels,
                  hidden_channels,
                  out_channels,
+                 run_cfg,
                  lin=True,
                  aggr='add'):
         super(GNN, self).__init__()
 
+        self.dp_norm = run_cfg['dp_norm']
+
+        if run_cfg['dp_norm'] == 'batchnorm':
+            self.bn1 = torch.nn.BatchNorm1d(hidden_channels)
+            self.bn2 = torch.nn.BatchNorm1d(hidden_channels)
+            self.bn3 = torch.nn.BatchNorm1d(out_channels)
+        elif run_cfg['dp_norm'] == 'graphnorm':
+            self.bn1 = GraphNorm(hidden_channels)
+            self.bn2 = GraphNorm(hidden_channels)
+            self.bn3 = GraphNorm(out_channels)
+        elif run_cfg['dp_norm'] == 'graphsizenorm':
+            self.bn1 = GraphSizeNorm()
+            self.bn2 = GraphSizeNorm()
+            self.bn3 = GraphSizeNorm()
+
         self.conv1 = DenseGraphConv(in_channels, hidden_channels, aggr=aggr)
-        self.bn1 = torch.nn.BatchNorm1d(hidden_channels)
         self.conv2 = DenseGraphConv(hidden_channels, hidden_channels, aggr=aggr)
-        self.bn2 = torch.nn.BatchNorm1d(hidden_channels)
         self.conv3 = DenseGraphConv(hidden_channels, out_channels, aggr=aggr)
-        self.bn3 = torch.nn.BatchNorm1d(out_channels)
 
         if lin is True:
             self.lin = torch.nn.Linear(2 * hidden_channels + out_channels,
@@ -42,16 +55,27 @@ class GNN(torch.nn.Module):
     def bn(self, i, x):
         batch_size, num_nodes, num_channels = x.size()
 
+        batch = torch.repeat_interleave(torch.full((batch_size,), num_nodes, dtype=torch.long)).to(x.device)
+
         x = x.view(-1, num_channels)
-        x = getattr(self, 'bn{}'.format(i))(x)
+        if self.dp_norm == 'batchnorm':
+            x = getattr(self, 'bn{}'.format(i))(x)
+        else:
+            x = getattr(self, 'bn{}'.format(i))(x, batch)
         x = x.view(batch_size, num_nodes, num_channels)
         return x
 
     def forward(self, x, adj, mask=None):
+        # Mask will always be true in our case because graphs have all fixed number of nodes.
         x0 = x
-        x1 = self.bn(1, F.relu(self.conv1(x0, adj, mask)))
-        x2 = self.bn(2, F.relu(self.conv2(x1, adj, mask)))
-        x3 = self.bn(3, F.relu(self.conv3(x2, adj, mask)))
+        if self.dp_norm == 'nonorm':
+            x1 = F.relu(self.conv1(x0, adj, mask))
+            x2 = F.relu(self.conv2(x1, adj, mask))
+            x3 = F.relu(self.conv3(x2, adj, mask))
+        else:
+            x1 = self.bn(1, F.relu(self.conv1(x0, adj, mask)))
+            x2 = self.bn(2, F.relu(self.conv2(x1, adj, mask)))
+            x3 = self.bn(3, F.relu(self.conv3(x2, adj, mask)))
 
         x = torch.cat([x1, x2, x3], dim=-1)
 
@@ -62,7 +86,7 @@ class GNN(torch.nn.Module):
 
 
 class DiffPoolLayer(torch.nn.Module):
-    def __init__(self, max_num_nodes, num_init_feats, aggr):
+    def __init__(self, max_num_nodes, num_init_feats, aggr, run_cfg):
         super(DiffPoolLayer, self).__init__()
         self.aggr = aggr
         if self.aggr == 'improved':
@@ -71,16 +95,16 @@ class DiffPoolLayer(torch.nn.Module):
         self.max_nodes = max_num_nodes
         self.INTERN_EMBED_SIZE = self.init_feats  # ceil(self.init_feats / 3)
 
-        num_nodes = ceil(0.25 * self.max_nodes)
-        self.gnn1_pool = GNN(self.init_feats, self.INTERN_EMBED_SIZE, num_nodes, aggr=aggr)
-        self.gnn1_embed = GNN(self.init_feats, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr)
+        num_nodes = max(1, ceil(run_cfg['dp_perc_retaining'] * self.max_nodes))
+        self.gnn1_pool = GNN(self.init_feats, self.INTERN_EMBED_SIZE, num_nodes, aggr=aggr, run_cfg=run_cfg)
+        self.gnn1_embed = GNN(self.init_feats, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr, run_cfg=run_cfg)
 
-        num_nodes = ceil(0.25 * num_nodes)
+        num_nodes = max(1, ceil(run_cfg['dp_perc_retaining'] * num_nodes))
         self.final_num_nodes = num_nodes
-        self.gnn2_pool = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, num_nodes, aggr=aggr)
-        self.gnn2_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr)
+        self.gnn2_pool = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, num_nodes, aggr=aggr, run_cfg=run_cfg)
+        self.gnn2_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr, run_cfg=run_cfg)
 
-        self.gnn3_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr)
+        self.gnn3_embed = GNN(3 * self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, self.INTERN_EMBED_SIZE, lin=False, aggr=aggr, run_cfg=run_cfg)
         if self.aggr == 'improved':
             self.final_mlp = nn.Linear(self.final_num_nodes * 3 * self.INTERN_EMBED_SIZE , 3 * self.INTERN_EMBED_SIZE)
 
@@ -372,7 +396,7 @@ class SpatioTemporalModel(nn.Module):
         if self.pooling == PoolingStrategy.DIFFPOOL:
             self.pre_final_linear = nn.Linear(3 * self.NODE_EMBED_SIZE, self.NODE_EMBED_SIZE)
 
-            self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='mean')
+            self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='mean', run_cfg=run_cfg)
         elif self.pooling == PoolingStrategy.CONCAT:
             self.pre_final_linear = nn.Linear(self.num_nodes * self.NODE_EMBED_SIZE, self.NODE_EMBED_SIZE)
         elif self.pooling in [PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
@@ -380,13 +404,13 @@ class SpatioTemporalModel(nn.Module):
             print(f'Special DiffPool: {self.pooling}.')
 
             if self.pooling == PoolingStrategy.DP_MAX:
-                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='max')
+                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='max', run_cfg=run_cfg)
             elif self.pooling == PoolingStrategy.DP_ADD:
-                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='add')
+                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='add', run_cfg=run_cfg)
             elif self.pooling == PoolingStrategy.DP_MEAN:
-                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='mean')
+                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='mean', run_cfg=run_cfg)
             elif self.pooling == PoolingStrategy.DP_IMPROVED:
-                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='improved')
+                self.diff_pool = DiffPoolLayer(num_nodes, self.NODE_EMBED_SIZE, aggr='improved', run_cfg=run_cfg)
 
         if run_cfg['final_mlp_layers'] == 1:
             self.final_linear = nn.Linear(self.NODE_EMBED_SIZE, 1)

@@ -77,6 +77,9 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['nodemodel_layers'] = 3
     run_cfg['final_mlp_layers'] = 1
 
+    run_cfg['dp_perc_retaining'] = 0.25
+    run_cfg['dp_norm'] = 'graphnorm'
+
 N_OUT_SPLITS: int = 5
 N_INNER_SPLITS: int = 5
 run_cfg['multimodal_size'] = 0
