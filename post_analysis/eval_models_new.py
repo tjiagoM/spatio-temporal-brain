@@ -42,27 +42,50 @@ best_runs_ukb = {
                         4: {'run_id': 'agqu30gc'}},
 }
 
+best_runs_thre100_ukb = {
+    'N + E $\\rightarrow$ Concat': {0: {'run_id': ''},
+                                    1: {'run_id': ''},
+                                    2: {'run_id': ''},
+                                    3: {'run_id': ''},
+                                    4: {'run_id': ''}},
+     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': ''},
+                        1: {'run_id': ''},
+                        2: {'run_id': ''},
+                        3: {'run_id': ''},
+                        4: {'run_id': ''}},
+    'N $\\rightarrow$ Concat': {0: {'run_id': ''},
+                                1: {'run_id': ''},
+                                2: {'run_id': ''},
+                                3: {'run_id': ''},
+                                4: {'run_id': ''}},
+     'N $\\rightarrow$ DiffPool': {0: {'run_id': ''},
+                        1: {'run_id': ''},
+                        2: {'run_id': ''},
+                        3: {'run_id': ''},
+                        4: {'run_id': ''}}
+}
+
 best_runs_hcp_fmri = {
      'N + E $\\rightarrow$ Concat': {0: {'run_id': 'tdztbchl'},
                        1: {'run_id': '5t0e0oel'},
                        2: {'run_id': '6d5qb8c7'},
                        3: {'run_id': 'pw7h3kub'},
                        4: {'run_id': '4txocl2p'}},
-     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': '3oo814km'},
-                        1: {'run_id': 'onvh74qg'},
-                        2: {'run_id': 'ybvfbb4b'},
-                        3: {'run_id': 'azn8u5ud'},
-                        4: {'run_id': 'wjjenvbp'}},
+     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'rdzluequ'},
+                        1: {'run_id': 'gawme2wn'},
+                        2: {'run_id': 'k4dikjin'},
+                        3: {'run_id': '444xtahu'},
+                        4: {'run_id': 'fcvpo0eg'}},
     'N $\\rightarrow$ Concat': {0: {'run_id': 'hovygim0'},
                                 1: {'run_id': '3cej2yzp'},
                                 2: {'run_id': 'gmfaxo2e'},
                                 3: {'run_id': 'fv4xi5ve'},
                                 4: {'run_id': 'c5hvjkq8'}},
-     'N $\\rightarrow$ DiffPool': {0: {'run_id': '4b3wepsy'},
-                        1: {'run_id': 'ub1r8snd'},
-                        2: {'run_id': 'fzfu7fid'},
-                        3: {'run_id': 'si0n1zto'},
-                        4: {'run_id': '4l00ghh5'}},
+     'N $\\rightarrow$ DiffPool': {0: {'run_id': 'hso8zyod'},
+                        1: {'run_id': 'y3jly9zt'},
+                        2: {'run_id': '54h5kfpo'},
+                        3: {'run_id': 'ys57gt39'},
+                        4: {'run_id': 'ga4x9bem'}},
     'N $\\rightarrow$ DiffPool (Mean)': {0: {'run_id': 'ixncz5xu'},
                         1: {'run_id': '5j5o8euj'},
                         2: {'run_id': 'lypdotyy'},
@@ -86,21 +109,21 @@ best_runs_hcp_struct = {
                                     2: {'run_id': 'eebx30ts'},
                                     3: {'run_id': 'bk2ql2m9'},
                                     4: {'run_id': '8atwfm0e'}},
-     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': '2c0oqarl'},
-                        1: {'run_id': '7rzqoqnx'},
-                        2: {'run_id': 'rxfa5aq6'},
-                        3: {'run_id': 'ndy44vc1'},
-                        4: {'run_id': 'arawexn0'}},
+     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'uepre0y4'},
+                        1: {'run_id': 'itz6bldz'},
+                        2: {'run_id': 'b9ieznpd'},
+                        3: {'run_id': 'jmal2ghv'},
+                        4: {'run_id': 'lf56w15e'}},
     'N $\\rightarrow$ Concat': {0: {'run_id': 'xfjrfwmv'},
                                 1: {'run_id': 'luzbl8k9'},
                                 2: {'run_id': '7tm6txs7'},
                                 3: {'run_id': 'dic1mu7c'},
                                 4: {'run_id': '8ki0ym6o'}},
-     'N $\\rightarrow$ DiffPool': {0: {'run_id': 'o1fdm77q'},
-                        1: {'run_id': 'l1hyry51'},
-                        2: {'run_id': 't31f7pjz'},
-                        3: {'run_id': 'iiqatrvc'},
-                        4: {'run_id': 'n9i2w0rs'}},
+     'N $\\rightarrow$ DiffPool': {0: {'run_id': 'pv0zqdkd'},
+                        1: {'run_id': 'ljwobaut'},
+                        2: {'run_id': '3om34gbi'},
+                        3: {'run_id': 'a9i1spyz'},
+                        4: {'run_id': '5a5dolm3'}},
     'N $\\rightarrow$ DiffPool (Mean)': {0: {'run_id': '5geocaib'},
                         1: {'run_id': '4ijultjc'},
                         2: {'run_id': 'zff6mg3i'},
@@ -135,8 +158,8 @@ def print_metrics(model_name, runs_all):
 
 
 if __name__ == '__main__':
-    for model_type, runs_all in best_runs_ukb.items():
-        print_metrics(model_type, runs_all)
+    #for model_type, runs_all in best_runs_ukb.items():
+    #    print_metrics(model_type, runs_all)
     print('----')
-    for model_type, runs_all in best_runs_hcp_fmri.items():
+    for model_type, runs_all in best_runs_hcp_struct.items():
         print_metrics(model_type, runs_all)
