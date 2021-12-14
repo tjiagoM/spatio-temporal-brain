@@ -662,8 +662,9 @@ if __name__ == '__main__':
         run_cfg['final_mlp_layers'] = config.final_mlp_layers
 
         # DiffPool specific stuff
-        run_cfg['dp_perc_retaining'] = config.dp_perc_retaining
-        run_cfg['dp_norm'] = config.dp_norm
+        if run_cfg['param_pooling'] in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
+            run_cfg['dp_perc_retaining'] = config.dp_perc_retaining
+            run_cfg['dp_norm'] = config.dp_norm
 
     elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
         run_cfg['device_run'] = 'cpu'

@@ -50,6 +50,7 @@ class ConnType(str, Enum):
 class ConvStrategy(str, Enum):
     CNN_ENTIRE = 'entire'
     TCN_ENTIRE = 'tcn_entire'
+    LSTM = 'lstm'
     NONE = 'none'
 
 
@@ -379,31 +380,30 @@ def change_w_config_(w_config):
     '''
     w_config['analysis_type'] = AnalysisType(w_config['analysis_type'])
     w_config['dataset_type'] = DatasetType(w_config['dataset_type'])
-    w_config['param_lr'] = w_config['lr']
+    w_config['param_conn_type'] = ConnType(w_config['conn_type'])
+    w_config['split_to_test'] = w_config['fold_num']
     w_config['model_with_sigmoid'] = True
     w_config['param_activation'] = w_config['activation']
     w_config['param_channels_conv'] = w_config['channels_conv']
-    w_config['param_conn_type'] = ConnType(w_config['conn_type'])
     w_config['param_conv_strategy'] = ConvStrategy(w_config['conv_strategy'])
     w_config['param_dropout'] = w_config['dropout']
     w_config['param_encoding_strategy'] = EncodingStrategy(w_config['encoding_strategy'])
+    w_config['param_lr'] = w_config['lr']
     w_config['param_normalisation'] = Normalisation(w_config['normalisation'])
     w_config['param_num_gnn_layers'] = w_config['num_gnn_layers']
     w_config['param_pooling'] = PoolingStrategy(w_config['pooling'])
+    w_config['param_threshold'] = w_config['threshold']
     w_config['param_weight_decay'] = w_config['weight_decay']
-
     w_config['sweep_type'] = SweepType(w_config['sweep_type'])
+    w_config['ts_spit_num'] = int(4800 / w_config['time_length'])
+
     w_config['param_gat_heads'] = 0
     if w_config['sweep_type'] == SweepType.GAT:
         w_config['param_gat_heads'] = w_config.gat_heads
 
-    w_config['param_threshold'] = w_config['threshold']
-
+    w_config['lr_scheduler'] = LRScheduler(w_config['lr_scheduler'])
+    w_config['optimiser'] = Optimiser(w_config['optimiser'])
     w_config['multimodal_size'] = 0
-    #if w_config['analysis_type'] == AnalysisType.ST_MULTIMODAL:
-    #    w_config['multimodal_size'] = 10
-    #elif w_config['analysis_type'] == AnalysisType.ST_UNIMODAL:
-    #    w_config['multimodal_size'] = 0
 
     if w_config['target_var'] in ['age', 'bmi']:
         w_config['model_with_sigmoid'] = False

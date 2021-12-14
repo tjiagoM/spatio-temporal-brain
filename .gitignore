@@ -10,7 +10,7 @@ old_logs/
 tmp_gpu.txt
 meta_data/Main_Covars.csv
 data/
-
+*.pt
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

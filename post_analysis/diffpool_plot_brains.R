@@ -1,7 +1,7 @@
 library("fsbrain")
 
 # Rscript --no-save --no-restore --verbose diffpool_plot_brains.R
-
+# fsbrain::download_optional_data();
 subjects_dir <- fsbrain::get_optional_data_filepath("subjects_dir")
 atlas <- 'aparc'  # Desikan atlas
 
@@ -10,14 +10,14 @@ sweep_names <- c('100_n_e_diffpool', '100_n_diffpool')
 for (sweep_name in sweep_names)
 {
   granularities <- c(4, 8, 12)
-  if (sweep_name == '100_n_diffpool')
-  {
-    granularities <- c(4)
-  }
+  #if (sweep_name == '100_n_diffpool')
+  #{
+  #  granularities <- c(4)
+  #}
 
   for (granularity_id in granularities)
   {
-    for (group_id in c('female', 'male', 'total'))
+    for (group_id in c('total')) #female', 'male', 'total'))
     {
       # Left Hemisphere
       lh_map <- read.csv(paste('results/dp_clust_', granularity_id, '_', sweep_name, '_l_', group_id, '.csv', sep=''))

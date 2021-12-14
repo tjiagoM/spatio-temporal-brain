@@ -223,7 +223,6 @@ class PNANodeModel(torch.nn.Module):
 
         return x
 
-
 class SpatioTemporalModel(nn.Module):
     def __init__(self, run_cfg: Dict[str, Any],
                  multimodal_size: int = 0, model_version: str = '80',
@@ -251,8 +250,8 @@ class SpatioTemporalModel(nn.Module):
         #if pooling not in [PoolingStrategy.MEAN, PoolingStrategy.DIFFPOOL, PoolingStrategy.CONCAT]:
         #    print('THIS IS NOT PREPARED FOR OTHER POOLING THAN MEAN/DIFFPOOL/CONCAT')
         #    exit(-1)
-        if conv_strategy not in [ConvStrategy.TCN_ENTIRE, ConvStrategy.CNN_ENTIRE, ConvStrategy.NONE]:
-            print('THIS IS NOT PREPARED FOR OTHER CONV STRATEGY THAN ENTIRE/TCN_ENTIRE/NONE')
+        if conv_strategy not in [ConvStrategy.TCN_ENTIRE, ConvStrategy.CNN_ENTIRE, ConvStrategy.NONE, ConvStrategy.LSTM]:
+            print('THIS IS NOT PREPARED FOR THAT CONV STRATEGY')
             exit(-1)
         if activation not in ['relu', 'tanh', 'elu']:
             print('THIS IS NOT PREPARED FOR OTHER ACTIVATION THAN relu/tanh/elu')
@@ -343,21 +342,7 @@ class SpatioTemporalModel(nn.Module):
             else:
                 self.size_before_lin_temporal = run_cfg['tcn_hidden_units'] * self.num_time_length
 
-            if run_cfg['tcn_final_transform_layers'] == 1:
-                self.lin_temporal = nn.Linear(self.size_before_lin_temporal,
-                                              self.NODE_EMBED_SIZE - self.multimodal_size)
-            elif run_cfg['tcn_final_transform_layers'] == 2:
-                self.lin_temporal = nn.Sequential(
-                    nn.Linear(self.size_before_lin_temporal, int(self.size_before_lin_temporal / 2)),
-                    self.activation, nn.Dropout(dropout_perc),
-                    nn.Linear(int(self.size_before_lin_temporal / 2), self.NODE_EMBED_SIZE - self.multimodal_size))
-            elif run_cfg['tcn_final_transform_layers'] == 3:
-                self.lin_temporal = nn.Sequential(
-                    nn.Linear(self.size_before_lin_temporal, int(self.size_before_lin_temporal / 2)),
-                    self.activation, nn.Dropout(dropout_perc),
-                    nn.Linear(int(self.size_before_lin_temporal / 2), int(self.size_before_lin_temporal / 3)),
-                    self.activation, nn.Dropout(dropout_perc),
-                    nn.Linear(int(self.size_before_lin_temporal / 3), self.NODE_EMBED_SIZE - self.multimodal_size))
+            self.lin_temporal = self._get_lin_temporal(run_cfg)
 
             tcn_layers = []
             for i in range(run_cfg['tcn_depth']):
@@ -371,6 +356,24 @@ class SpatioTemporalModel(nn.Module):
                                                  kernel_size=run_cfg['tcn_kernel'],
                                                  dropout=self.dropout,
                                                  norm_strategy=run_cfg['tcn_norm_strategy'])
+        elif self.conv_strategy == ConvStrategy.LSTM:
+            self.temporal_conv = nn.LSTM(input_size=1,
+                                         hidden_size=run_cfg['tcn_hidden_units'],
+                                         num_layers=run_cfg['tcn_depth'],
+                                         dropout=dropout_perc,
+                                         batch_first=True)
+
+            self.size_before_lin_temporal = run_cfg['tcn_hidden_units'] * self.num_time_length
+            self.lin_temporal = self._get_lin_temporal(run_cfg)
+
+            def init_lstm_hidden(x):
+                h0 = torch.zeros(run_cfg['tcn_depth'], x.size(0), run_cfg['tcn_hidden_units'])
+                c0 = torch.zeros(run_cfg['tcn_depth'], x.size(0), run_cfg['tcn_hidden_units'])
+                return [t.to(x.device) for t in (h0, c0)]
+
+            self.init_lstm_hidden = init_lstm_hidden
+
+
         elif self.conv_strategy == ConvStrategy.CNN_ENTIRE:
             stride = 2
             padding = 3
@@ -420,6 +423,27 @@ class SpatioTemporalModel(nn.Module):
                 self.activation, nn.Dropout(dropout_perc),
                 nn.Linear(int(self.NODE_EMBED_SIZE / 2), 1))
 
+
+
+    def _get_lin_temporal(self, run_cfg):
+        if run_cfg['tcn_final_transform_layers'] == 1:
+            lin_temporal = nn.Linear(self.size_before_lin_temporal,
+                                          self.NODE_EMBED_SIZE - self.multimodal_size)
+        elif run_cfg['tcn_final_transform_layers'] == 2:
+            lin_temporal = nn.Sequential(
+                nn.Linear(self.size_before_lin_temporal, int(self.size_before_lin_temporal / 2)),
+                self.activation, nn.Dropout(self.dropout),
+                nn.Linear(int(self.size_before_lin_temporal / 2), self.NODE_EMBED_SIZE - self.multimodal_size))
+        elif run_cfg['tcn_final_transform_layers'] == 3:
+            lin_temporal = nn.Sequential(
+                nn.Linear(self.size_before_lin_temporal, int(self.size_before_lin_temporal / 2)),
+                self.activation, nn.Dropout(self.dropout),
+                nn.Linear(int(self.size_before_lin_temporal / 2), int(self.size_before_lin_temporal / 3)),
+                self.activation, nn.Dropout(self.dropout),
+                nn.Linear(int(self.size_before_lin_temporal / 3), self.NODE_EMBED_SIZE - self.multimodal_size))
+
+        return lin_temporal
+
     def init_weights(self):
         self.conv1d_1.weight.data.normal_(0, 0.01)
         self.conv1d_2.weight.data.normal_(0, 0.01)
@@ -438,11 +462,17 @@ class SpatioTemporalModel(nn.Module):
 
         # Processing temporal part
         if self.conv_strategy != ConvStrategy.NONE:
-            x = x.view(-1, 1, self.num_time_length)
-            x = self.temporal_conv(x)
+            if self.conv_strategy == ConvStrategy.LSTM:
+                x = x.view(-1, self.num_time_length, 1)
+                h0, c0 = self.init_lstm_hidden(x)
+                x, (_, _) = self.temporal_conv(x, (h0, c0))
+                x = x.contiguous()
+            else:
+                x = x.view(-1, 1, self.num_time_length)
+                x = self.temporal_conv(x)
 
             # Concatenating for the final embedding per node
-            x = x.view(-1, self.size_before_lin_temporal)
+            x = x.view(x.size()[0], self.size_before_lin_temporal)
             x = self.lin_temporal(x)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout, training=self.training)

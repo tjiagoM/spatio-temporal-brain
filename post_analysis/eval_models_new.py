@@ -15,21 +15,21 @@ best_runs_ukb = {
                                     2: {'run_id': 'pm45qx39'},
                                     3: {'run_id': '1579q23v'},
                                     4: {'run_id': '3iaecgum'}},
-     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'w240uvas'},
-                        1: {'run_id': 'zeyzk9cc'},
-                        2: {'run_id': '99oyqkv7'},
-                        3: {'run_id': '4uha08sz'},
-                        4: {'run_id': 'p0qo4sru'}},
+     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'rc4mpxrz'},
+                        1: {'run_id': 'rg1dgv3c'},
+                        2: {'run_id': 'otv4x0ym'},
+                        3: {'run_id': '5kiz6m7k'},
+                        4: {'run_id': 'qxhwwpp4'}},
     'N $\\rightarrow$ Concat': {0: {'run_id': '5ra9icg7'},
                                 1: {'run_id': 'f2n8s6gw'},
                                 2: {'run_id': '3vunou40'},
                                 3: {'run_id': 'q6dl8u6b'},
                                 4: {'run_id': '90e7orj6'}},
-     'N $\\rightarrow$ DiffPool': {0: {'run_id': '1l6q4muy'},
-                        1: {'run_id': 'y1lyxyvm'},
-                        2: {'run_id': 'xahinw23'},
-                        3: {'run_id': 'lnfvnnd9'},
-                        4: {'run_id': 'fvw8ordx'}},
+     'N $\\rightarrow$ DiffPool': {0: {'run_id': '7lv9g3zl'},
+                        1: {'run_id': 'ehwgffad'},
+                        2: {'run_id': 'zsv4i7ln'},
+                        3: {'run_id': '6of50lbk'},
+                        4: {'run_id': '7b3vfv7u'}},
      ' $\\rightarrow$ DiffPool': {0: {'run_id': 'apzymi22'},
                         1: {'run_id': 'bc8t4ulw'},
                         2: {'run_id': '4zpxljpq'},
@@ -43,26 +43,26 @@ best_runs_ukb = {
 }
 
 best_runs_thre100_ukb = {
-    'N + E $\\rightarrow$ Concat': {0: {'run_id': ''},
-                                    1: {'run_id': ''},
-                                    2: {'run_id': ''},
-                                    3: {'run_id': ''},
-                                    4: {'run_id': ''}},
-     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': ''},
-                        1: {'run_id': ''},
-                        2: {'run_id': ''},
-                        3: {'run_id': ''},
-                        4: {'run_id': ''}},
-    'N $\\rightarrow$ Concat': {0: {'run_id': ''},
-                                1: {'run_id': ''},
-                                2: {'run_id': ''},
-                                3: {'run_id': ''},
-                                4: {'run_id': ''}},
-     'N $\\rightarrow$ DiffPool': {0: {'run_id': ''},
-                        1: {'run_id': ''},
-                        2: {'run_id': ''},
-                        3: {'run_id': ''},
-                        4: {'run_id': ''}}
+    'N + E $\\rightarrow$ Concat': {0: {'run_id': 'ieh2jbce'},
+                                    1: {'run_id': '0lsnau4z'},
+                                    2: {'run_id': 'k32c1ckp'},
+                                    3: {'run_id': 'gqv4vfoo'},
+                                    4: {'run_id': 'ql7jjb9b'}},
+     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'wb93e183'},
+                        1: {'run_id': '15jmbs0x'},
+                        2: {'run_id': 'tr3362d3'},
+                        3: {'run_id': '6gbh7jt1'},
+                        4: {'run_id': '96wkdl8i'}},
+    'N $\\rightarrow$ Concat': {0: {'run_id': '06ybqc3d'},
+                                1: {'run_id': 'je48s665'},
+                                2: {'run_id': 'w632q3du'},
+                                3: {'run_id': 'z39xsinv'},
+                                4: {'run_id': '650d93ga'}},
+     'N $\\rightarrow$ DiffPool': {0: {'run_id': 'v0nljvcf'},
+                        1: {'run_id': 'dncxffke'},
+                        2: {'run_id': 'dvc6767t'},
+                        3: {'run_id': 'vliojzuh'},
+                        4: {'run_id': 's1cjijtu'}}
 }
 
 best_runs_hcp_fmri = {
@@ -161,5 +161,5 @@ if __name__ == '__main__':
     #for model_type, runs_all in best_runs_ukb.items():
     #    print_metrics(model_type, runs_all)
     print('----')
-    for model_type, runs_all in best_runs_hcp_struct.items():
+    for model_type, runs_all in best_runs_ukb.items():
         print_metrics(model_type, runs_all)

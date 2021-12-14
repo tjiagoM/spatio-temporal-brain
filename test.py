@@ -27,11 +27,11 @@ from utils import create_name_for_brain_dataset, create_name_for_model, Normalis
 wandb.init(project='st_extra')
 
 run_cfg: Dict[str, Any] = {
-    'analysis_type': AnalysisType('st_multimodal'),
+    'analysis_type': AnalysisType('st_unimodal'),
     'dataset_type': DatasetType('hcp'),
     'num_nodes': 68,
-    'param_conn_type': ConnType('struct'),
-    'split_to_test': 3,
+    'param_conn_type': ConnType('fmri'),
+    'split_to_test': 2,
     'target_var': 'gender',
     'time_length': 490,
 }
@@ -44,13 +44,13 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['num_epochs'] = 150
     run_cfg['param_activation'] = 'relu'
     run_cfg['param_channels_conv'] = 8
-    run_cfg['param_conv_strategy'] = ConvStrategy('tcn_entire')
+    run_cfg['param_conv_strategy'] = ConvStrategy('lstm')
     run_cfg['param_dropout'] = 0.1
     run_cfg['param_encoding_strategy'] = EncodingStrategy('none')
     run_cfg['param_lr'] = 4.2791529866e-06
     run_cfg['param_normalisation'] = Normalisation('subject_norm')
     run_cfg['param_num_gnn_layers'] = 1
-    run_cfg['param_pooling'] = PoolingStrategy('dpimproved')
+    run_cfg['param_pooling'] = PoolingStrategy('concat')
     run_cfg['param_threshold'] = 10
     run_cfg['param_weight_decay'] = 0.046926
     run_cfg['sweep_type'] = SweepType('no_gnn')
@@ -68,7 +68,7 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
 
     run_cfg['tcn_depth'] = 3
     run_cfg['tcn_kernel'] = 7
-    run_cfg['tcn_hidden_units'] = 8
+    run_cfg['tcn_hidden_units'] = 32
     run_cfg['tcn_final_transform_layers'] = 1
     run_cfg['tcn_norm_strategy'] = 'batchnorm'
 
@@ -135,6 +135,7 @@ val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=Fals
 
 for data in train_in_loader:
     data = data.to(run_cfg['device_run'])
+    break
     #print(model(data).shape)
     output = model(data)
     print(output[0].shape, output[1].shape, output[2].shape)
