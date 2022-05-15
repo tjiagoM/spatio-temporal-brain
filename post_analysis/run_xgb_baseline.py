@@ -1,8 +1,13 @@
+###
+###
+## Put this in root folder to be able to properly run it
+###
 import argparse
+import json
 
 import numpy as np
-from sklearn import svm
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, classification_report
+from xgboost import XGBClassifier
 
 
 def return_classifier_metrics(labels, pred_binary, pred_prob):
@@ -25,6 +30,7 @@ def return_classifier_metrics(labels, pred_binary, pred_prob):
 def run_for_specific_fold(fold_num: int, dataset_type: str, analysis_type: str):
     print(f'RUNNING FOR {fold_num} on {dataset_type}...')
 
+    # Take advantage of previously cached data from SVM baseline runs
     X_train = np.load(f'data/svm_{dataset_type}_{analysis_type}_train_data_{fold_num}.npy')
     y_train = np.load(f'data/svm_{dataset_type}_{analysis_type}_train_label_{fold_num}.npy')
     X_val = np.load(f'data/svm_{dataset_type}_{analysis_type}_val_data_{fold_num}.npy')
@@ -32,37 +38,52 @@ def run_for_specific_fold(fold_num: int, dataset_type: str, analysis_type: str):
     X_test = np.load(f'data/svm_{dataset_type}_{analysis_type}_test_data_{fold_num}.npy')
     y_test = np.load(f'data/svm_{dataset_type}_{analysis_type}_test_label_{fold_num}.npy')
 
-    # model = XGBClassifier(n_jobs=-1, tree_method='hist', n_estimators=5, verbosity=2,
-    #                      random_state=111)
-    # model.fit(X_train, y_train)
+    subsample_vals = np.random.uniform(0.4, 1, 25)
+    max_depth_vals = np.random.choice(13, 25) + 3
+    min_child_weights_vals = np.random.choice(10, 25) + 1
+    colsubsample_bytree_vals = np.random.uniform(0.4, 1, 25)
+    gamma_vals = np.random.choice(6, 25)
+
     best_val_metrics = {'acc': 0.0}
     corresponding_test_metrics = None
-    for c_val in [1, 5, 10]:
-        print(c_val, '...')
-        model = svm.LinearSVC(random_state=111, C=c_val)
-        # model = svm.SVC(cache_size=2000, random_state=111)#, max_iter=1000)
+    i = 0
+    for sub, max_d, min_c, cols, gamma in zip(subsample_vals, max_depth_vals, min_child_weights_vals,
+                                              colsubsample_bytree_vals, gamma_vals):
+        print(f'Trial {i}...')
+        model = XGBClassifier(subsample=sub,
+                              max_depth=max_d,
+                              min_child_weight=min_c,
+                              colsample_bytree=cols,
+                              gamma=gamma,
+                              n_estimators=50,
+                              n_jobs=-1,
+                              random_state=1111)
+
         model.fit(X_train, y_train)
 
-        # print(model)
-
-        # pickle.dump(model, open(f'tmp_SVM_model_{fold_num}.pkl', 'wb'))
-        y_val_pred = model.predict(X_val)
-        y_val_pred_bin = [round(value) for value in y_val_pred]
+        y_val_pred_bin = model.predict(X_val)
+        y_val_pred = model.predict_proba(X_val)[:, 1]
         val_metrics = return_classifier_metrics(y_val, y_val_pred_bin, y_val_pred)
 
         if val_metrics['acc'] > best_val_metrics['acc']:
             print('!')
             best_val_metrics = val_metrics
 
-            y_pred = model.predict(X_test)
-            y_pred_bin = [round(value) for value in y_pred]
+            y_pred_bin = model.predict(X_test)
+            y_pred = model.predict_proba(X_test)[:, 1]
             corresponding_test_metrics = return_classifier_metrics(y_test, y_pred_bin, y_pred)
+
+        i += 1
+
+    best_file = open(f'results/xgb_{dataset_type}_{analysis_type}_test_{fold_num}.json', 'w')
+    json.dump(corresponding_test_metrics, best_file)
+    best_file.close()
 
     print(f'{dataset_type}_{analysis_type} / {fold_num}:', corresponding_test_metrics)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Run baseline on flatten data for SVM')
+    parser = argparse.ArgumentParser(description='Run baseline on flatten data for UK Biobank')
     parser.add_argument('--fold_num',
                         type=int,
                         choices=[1, 2, 3, 4, 5],

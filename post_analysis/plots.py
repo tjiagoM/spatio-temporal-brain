@@ -441,52 +441,81 @@ plt.close()
 ### Plot TCN kernels
 ###
 ###
-import torch
 import wandb
+import torch
+
+import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
-from main_loop import generate_st_model
+
+from datasets import BrainDataset
+from main_loop import generate_dataset, create_fold_generator, generate_st_model
+from utils import calculate_indegree_histogram, change_w_config_, get_freer_gpu
 from model import SpatioTemporalModel
-from utils import change_w_config_, create_name_for_model
 
 
-# this run_id correspond to 2nd fold of 100_n_e_diffpool
-run_id = 'nxqb9kvj'
+# this run_id correspond to 2nd fold of
+run_id = '5ra9icg7'
 api = wandb.Api()
-best_run = api.run(f'/st-team/spatio-temporal-brain/runs/{run_id}')
+best_run = api.run(f'/tjiagom/st_extra/runs/{run_id}')
 w_config = best_run.config
-inner_fold_for_val: int = 1
+
+model_file_name = None
+for file in best_run.files():
+    if file.name.endswith('.pt'):
+        model_file_name = file.name
+        file.download(replace=True)
+        break
 
 change_w_config_(w_config)
-w_config['device_run'] = 'cuda'
+w_config['device_run'] = f'cuda:0'
 
-model: SpatioTemporalModel = generate_st_model(w_config, for_test=True)
-model_saving_path: str = create_name_for_model(target_var=w_config['target_var'],
-                                               model=model,
-                                               outer_split_num=w_config['fold_num'],
-                                               inner_split_num=inner_fold_for_val,
-                                               n_epochs=w_config['num_epochs'],
-                                               threshold=w_config['threshold'],
-                                               batch_size=w_config['batch_size'],
-                                               num_nodes=w_config['num_nodes'],
-                                               conn_type=w_config['param_conn_type'],
-                                               normalisation=w_config['param_normalisation'],
-                                               analysis_type=w_config['analysis_type'],
-                                               metric_evaluated='loss',
-                                               dataset_type=w_config['dataset_type'],
-                                               lr=w_config['param_lr'],
-                                               weight_decay=w_config['param_weight_decay'],
-                                               edge_weights=w_config['edge_weights'])
+dataset: BrainDataset = generate_dataset(w_config)
 
-model.load_state_dict(torch.load(model_saving_path, map_location=w_config['device_run']))
+N_OUT_SPLITS: int = 5
+N_INNER_SPLITS: int = 5
+
+skf_outer_generator = create_fold_generator(dataset, w_config, N_OUT_SPLITS)
+
+# Getting train / test folds
+outer_split_num: int = 0
+for train_index, test_index in skf_outer_generator:
+    outer_split_num += 1
+    # Only run for the specific fold defined in the script arguments.
+    if outer_split_num != w_config['fold_num']:
+        continue
+
+    X_train_out = dataset[torch.tensor(train_index)]
+    X_test_out = dataset[torch.tensor(test_index)]
+
+    break
+
+skf_inner_generator = create_fold_generator(X_train_out, w_config, N_INNER_SPLITS)
+inner_loop_run: int = 0
+for inner_train_index, inner_val_index in skf_inner_generator:
+    inner_loop_run += 1
+
+    X_train_in = X_train_out[torch.tensor(inner_train_index)]
+    #X_val_in = X_train_out[torch.tensor(inner_val_index)]
+
+    w_config['dataset_indegree'] = calculate_indegree_histogram(X_train_in)
+
+    # model: SpatioTemporalModel = generate_st_model(run_cfg)
+    model = SpatioTemporalModel(run_cfg=w_config,
+                                encoding_model=None
+                                ).to(w_config['device_run'])
+
+    break
+model.load_state_dict(torch.load(model_file_name, map_location=w_config['device_run']))
 model.eval()
 
 import seaborn as sns
 
 weights_to_plot = [
     model.temporal_conv.network[0].conv1.weight.squeeze(1).detach().cpu().numpy(),
-    model.temporal_conv.network[0].conv2.weight.reshape(16, -1).detach().cpu().numpy()
+    model.temporal_conv.network[0].conv2.weight.reshape(8, -1).detach().cpu().numpy()
 ]
-weights_figsize = ((8, 7), (20, 5))
+weights_figsize = ((8, 7), (25, 3))
 weights_names = ('conv1', 'conv2')
 
 for kernel, figsize, name in zip(weights_to_plot, weights_figsize, weights_names):
@@ -497,3 +526,4 @@ for kernel, figsize, name in zip(weights_to_plot, weights_figsize, weights_names
                 cmap='viridis')
     plt.savefig(f'figures/tcn_{name}.pdf', bbox_inches = 'tight', pad_inches = 0)
     plt.close()
+    #plt.show()

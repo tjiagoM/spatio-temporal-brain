@@ -1,12 +1,12 @@
 from abc import ABC
 
 import networkx as nx
-import nolds
+#import nolds
 import numpy as np
 import pandas as pd
 import torch
-from entropy import app_entropy, perm_entropy, sample_entropy, spectral_entropy, svd_entropy, \
-    detrended_fluctuation, higuchi_fd, katz_fd, petrosian_fd
+#from antropy import app_entropy, perm_entropy, sample_entropy, spectral_entropy, svd_entropy, \
+#    detrended_fluctuation, higuchi_fd, katz_fd, petrosian_fd
 from nilearn.connectome import ConnectivityMeasure
 from numpy.random import default_rng
 from scipy.stats import mstats
@@ -23,11 +23,11 @@ HCP_DEMOGRAPHICS_PATH = 'meta_data/hcp_info.csv'
 
 
 def get_desikan_tracks_path(person: int):
-    return f'/space/desikan_tracks/{person}/{person}_conn_aparc+aseg_RS_sl.txt'
+    return f'../hcp_data/desikan_tracks/{person}_conn_aparc+aseg_RS_sl.txt'
 
 
 def get_desikan_ts_path(person: int, direction: str):
-    return f'/space/desikan_timeseries/{person}_{direction}/{person}_rfMRI_REST{direction}_rfMRI_REST{direction}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt'
+    return f'../hcp_data/fMRI_timeseries/{person}_rfMRI_REST{direction}_rfMRI_REST{direction}_hp2000_clean_T1_2_MNI2mm_shadowreg_aparc+aseg_nodes.txt'
 
 
 def threshold_adj_array(adj_array: np.ndarray, threshold: int, num_nodes: int) -> np.ndarray:

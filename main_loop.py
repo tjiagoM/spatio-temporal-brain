@@ -20,8 +20,10 @@ from datasets import BrainDataset, HCPDataset, UKBDataset, FlattenCorrsDataset
 from model import SpatioTemporalModel
 from utils import create_name_for_brain_dataset, create_name_for_model, Normalisation, ConnType, ConvStrategy, \
     StratifiedGroupKFold, PoolingStrategy, AnalysisType, merge_y_and_others, EncodingStrategy, create_best_encoder_name, \
-    SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, create_name_for_xgbmodel
+    SweepType, DatasetType, get_freer_gpu, free_gpu_info, create_name_for_flattencorrs_dataset, \
+    create_name_for_xgbmodel, LRScheduler, Optimiser, EarlyStopping, ModelEmaV2, calculate_indegree_histogram
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class MSLELoss(torch.nn.Module):
     def __init__(self):
@@ -43,7 +45,10 @@ class MSLELoss(torch.nn.Module):
         return loss.mean()
 
 
-def train_model(model, train_loader, optimizer, pooling_mechanism, device, label_scaler=None):
+def train_model(model, train_loader, optimizer, run_cfg, model_ema=None, label_scaler=None):
+    pooling_mechanism = run_cfg['param_pooling']
+    device = run_cfg['device_run']
+
     model.train()
     loss_all = 0
     loss_all_link = 0
@@ -53,34 +58,40 @@ def train_model(model, train_loader, optimizer, pooling_mechanism, device, label
     else:
         criterion = torch.nn.SmoothL1Loss()
 
-    grads = {'final_l': [],
-             'conv1d_1': []
-             }
+    grads = []
     for data in train_loader:
         data = data.to(device)
         optimizer.zero_grad()
-        if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+        if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
             output_batch, link_loss, ent_loss = model(data)
+            output_batch = output_batch.clamp(0, 1)  # For NaNs
+            output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch) # For NaNs
             loss = criterion(output_batch, data.y.unsqueeze(1)) + link_loss + ent_loss
             loss_b_link = link_loss
             loss_b_ent = ent_loss
         else:
             output_batch = model(data)
+            output_batch = output_batch.clamp(0, 1) # For NaNs
+            output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch) # For NaNs
             loss = criterion(output_batch, data.y.unsqueeze(1))
 
         loss.backward()
 
-        grads['final_l'].extend(model.final_linear.weight.grad.flatten().cpu().tolist())
-        grads['conv1d_1'].extend(model.final_linear.weight.grad.flatten().cpu().tolist())
+        if run_cfg['final_mlp_layers'] == 1:
+            grads.extend(model.final_linear.weight.grad.flatten().cpu().tolist())
+        else:
+            grads.extend(model.final_linear[-1].weight.grad.flatten().cpu().tolist())
 
         loss_all += loss.item() * data.num_graphs
-        if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+        if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
             loss_all_link += loss_b_link.item() * data.num_graphs
             loss_all_ent += loss_b_ent.item() * data.num_graphs
 
-        torch.nn.utils.clip_grad_value_(model.parameters(), 1)
+        torch.nn.utils.clip_grad_value_(model.parameters(), 10)
         optimizer.step()
-    print("GRAD", np.mean(grads['final_l']), np.max(grads['final_l']), np.std(grads['final_l']))
+        if model_ema is not None:
+            model_ema.update(model)
+    print("GRAD", np.mean(grads), np.max(grads), np.std(grads))
     # len(train_loader) gives the number of batches
     # len(train_loader.dataset) gives the number of graphs
 
@@ -133,7 +144,10 @@ def return_classifier_metrics(labels, pred_binary, pred_prob, loss_value=None, l
             }
 
 
-def evaluate_model(model, loader, pooling_mechanism, device, label_scaler=None):
+def evaluate_model(model, loader, run_cfg, label_scaler=None):
+    pooling_mechanism = run_cfg['param_pooling']
+    device = run_cfg['device_run']
+
     model.eval()
     if label_scaler is None:
         criterion = torch.nn.BCELoss()
@@ -149,19 +163,23 @@ def evaluate_model(model, loader, pooling_mechanism, device, label_scaler=None):
     for data in loader:
         with torch.no_grad():
             data = data.to(device)
-            if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+            if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
                 output_batch, link_loss, ent_loss = model(data)
+                output_batch = output_batch.clamp(0, 1)  # For NaNs
+                output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch)  # For NaNs
                 # output_batch = output_batch.flatten()
                 loss = criterion(output_batch, data.y.unsqueeze(1)) + link_loss + ent_loss
                 loss_b_link = link_loss
                 loss_b_ent = ent_loss
             else:
                 output_batch = model(data)
+                output_batch = output_batch.clamp(0, 1)  # For NaNs
+                output_batch = torch.where(torch.isnan(output_batch), torch.zeros_like(output_batch), output_batch)  # For NaNs
                 # output_batch = output_batch.flatten()
                 loss = criterion(output_batch, data.y.unsqueeze(1))
 
             test_error += loss.item() * data.num_graphs
-            if pooling_mechanism == PoolingStrategy.DIFFPOOL:
+            if pooling_mechanism in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
                 test_link_loss += loss_b_link.item() * data.num_graphs
                 test_ent_loss += loss_b_ent.item() * data.num_graphs
 
@@ -188,11 +206,14 @@ def evaluate_model(model, loader, pooling_mechanism, device, label_scaler=None):
 
 
 def training_step(outer_split_no, inner_split_no, epoch, model, train_loader, val_loader, optimizer,
-                  pooling_mechanism, device, label_scaler=None):
-    loss, link_loss, ent_loss = train_model(model, train_loader, optimizer, pooling_mechanism, device,
-                                            label_scaler=label_scaler)
-    train_metrics = evaluate_model(model, train_loader, pooling_mechanism, device, label_scaler=label_scaler)
-    val_metrics = evaluate_model(model, val_loader, pooling_mechanism, device, label_scaler=label_scaler)
+                  model_ema, run_cfg, label_scaler=None):
+    loss, link_loss, ent_loss = train_model(model, train_loader, optimizer, run_cfg=run_cfg,
+                                            model_ema=model_ema, label_scaler=label_scaler)
+    train_metrics = evaluate_model(model, train_loader, run_cfg=run_cfg, label_scaler=label_scaler)
+    if model_ema is not None:
+        val_metrics = evaluate_model(model_ema.module, val_loader, run_cfg=run_cfg, label_scaler=label_scaler)
+    else:
+        val_metrics = evaluate_model(model, val_loader, run_cfg=run_cfg, label_scaler=label_scaler)
 
     if label_scaler is None:
         print(
@@ -201,7 +222,7 @@ def training_step(outer_split_no, inner_split_no, epoch, model, train_loader, va
                               train_metrics['auc'], val_metrics['auc'],
                               train_metrics['acc'], val_metrics['acc'],
                               train_metrics['f1'], val_metrics['f1']))
-        wandb.log({
+        log_dict = {
             f'train_loss{inner_split_no}': train_metrics['loss'], f'val_loss{inner_split_no}': val_metrics['loss'],
             f'train_auc{inner_split_no}': train_metrics['auc'], f'val_auc{inner_split_no}': val_metrics['auc'],
             f'train_acc{inner_split_no}': train_metrics['acc'], f'val_acc{inner_split_no}': val_metrics['acc'],
@@ -210,24 +231,26 @@ def training_step(outer_split_no, inner_split_no, epoch, model, train_loader, va
             f'train_spec{inner_split_no}': train_metrics['specificity'],
             f'val_spec{inner_split_no}': val_metrics['specificity'],
             f'train_f1{inner_split_no}': train_metrics['f1'], f'val_f1{inner_split_no}': val_metrics['f1']
-        })
+        }
     else:
         print(
             '{:1d}-{:1d}-Epoch: {:03d}, Loss: {:.7f} / {:.7f}, R2: {:.4f} / {:.4f}, R: {:.4f} / {:.4f}'
             ''.format(outer_split_no, inner_split_no, epoch, train_metrics['loss'], val_metrics['loss'],
                       train_metrics['r2'], val_metrics['r2'],
                       train_metrics['r'], val_metrics['r']))
-        wandb.log({
+        log_dict = {
             f'train_loss{inner_split_no}': train_metrics['loss'], f'val_loss{inner_split_no}': val_metrics['loss'],
             f'train_r2{inner_split_no}': train_metrics['r2'], f'val_r2{inner_split_no}': val_metrics['r2'],
             f'train_r{inner_split_no}': train_metrics['r'], f'val_r{inner_split_no}': val_metrics['r']
-        })
+        }
 
-    if pooling_mechanism == PoolingStrategy.DIFFPOOL:
-        wandb.log({
-            f'train_link_loss{inner_split_no}': link_loss, f'val_link_loss{inner_split_no}': val_metrics['link_loss'],
-            f'train_ent_loss{inner_split_no}': ent_loss, f'val_ent_loss{inner_split_no}': val_metrics['ent_loss']
-        })
+    if run_cfg['param_pooling'] in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
+        log_dict[f'train_link_loss{inner_split_no}'] = link_loss
+        log_dict[f'val_link_loss{inner_split_no}'] = val_metrics['link_loss']
+        log_dict[f'train_ent_loss{inner_split_no}'] = ent_loss
+        log_dict[f'val_ent_loss{inner_split_no}'] = val_metrics['ent_loss']
+
+    wandb.log(log_dict)
 
     return val_metrics
 
@@ -352,26 +375,12 @@ def generate_st_model(run_cfg: Dict[str, Any], for_test: bool = False) -> Spatio
                                                              outer_split_num=outer_split_num,
                                                              encoder_name=run_cfg['param_encoding_strategy'].value))
 
-    model = SpatioTemporalModel(num_time_length=run_cfg['time_length'],
-                                dropout_perc=run_cfg['param_dropout'],
-                                pooling=run_cfg['param_pooling'],
-                                channels_conv=run_cfg['param_channels_conv'],
-                                activation=run_cfg['param_activation'],
-                                conv_strategy=run_cfg['param_conv_strategy'],
-                                sweep_type=run_cfg['sweep_type'],
-                                gat_heads=run_cfg['param_gat_heads'],
-                                edge_weights=run_cfg['edge_weights'],
-                                final_sigmoid=run_cfg['model_with_sigmoid'],
-                                num_nodes=run_cfg['num_nodes'],
-                                num_gnn_layers=run_cfg['param_num_gnn_layers'],
-                                encoding_strategy=run_cfg['param_encoding_strategy'],
-                                encoding_model=encoding_model,
-                                multimodal_size=run_cfg['multimodal_size'],
-                                temporal_embed_size=run_cfg['temporal_embed_size']
+    model = SpatioTemporalModel(run_cfg=run_cfg,
+                                encoding_model=encoding_model
                                 ).to(run_cfg['device_run'])
 
     if not for_test:
-        wandb.watch(model, log='all')
+        #wandb.watch(model, log='all')
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print("Number of trainable params:", trainable_params)
     # elif analysis_type == AnalysisType.FLATTEN_CORRS or analysis_type == AnalysisType.FLATTEN_CORRS_THRESHOLD:
@@ -445,34 +454,78 @@ def fit_xgb_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], 
 
 def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], model: SpatioTemporalModel,
                  X_train_in: BrainDataset, X_val_in: BrainDataset, label_scaler: MinMaxScaler = None) -> Dict:
-    train_in_loader = DataLoader(X_train_in, batch_size=run_cfg['batch_size'], shuffle=True, **kwargs_dataloader)
-    val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
+    train_in_loader = DataLoader(X_train_in, batch_size=run_cfg['batch_size'], shuffle=True)#, **kwargs_dataloader)
+    val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=False)#, **kwargs_dataloader)
 
-    optimizer = torch.optim.Adam(model.parameters(),
-                                 lr=run_cfg['param_lr'],
-                                 weight_decay=run_cfg['param_weight_decay'])
+    ###########
+    ## OPTIMISER
+    ###########
+    if run_cfg['optimiser'] == Optimiser.SGD:
+        print('--> OPTIMISER: SGD')
+        optimizer = torch.optim.SGD(model.parameters(),
+                                     lr=run_cfg['param_lr'],
+                                     weight_decay=run_cfg['param_weight_decay'],
+                                    )
+    elif run_cfg['optimiser'] == Optimiser.ADAM:
+        print('--> OPTIMISER: Adam')
+        optimizer = torch.optim.Adam(model.parameters(),
+                                     lr=run_cfg['param_lr'],
+                                     weight_decay=run_cfg['param_weight_decay'])
+    elif run_cfg['optimiser'] == Optimiser.ADAMW:
+        print('--> OPTIMISER: AdamW')
+        optimizer = torch.optim.AdamW(model.parameters(),
+                                     lr=run_cfg['param_lr'],
+                                     weight_decay=run_cfg['param_weight_decay'])
+    elif run_cfg['optimiser'] == Optimiser.RMSPROP:
+        print('--> OPTIMISER: RMSprop')
+        optimizer = torch.optim.RMSprop(model.parameters(),
+                                        lr=run_cfg['param_lr'],
+                                        weight_decay=run_cfg['param_weight_decay'])
 
-    model_saving_path = create_name_for_model(target_var=run_cfg['target_var'],
+    ###########
+    ## LR SCHEDULER
+    ###########
+    if run_cfg['lr_scheduler'] == LRScheduler.STEP:
+        print('--> LR SCHEDULER: Step')
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(run_cfg['num_epochs'] / 5), gamma=0.1, verbose=True)
+    elif run_cfg['lr_scheduler'] == LRScheduler.PLATEAU:
+        print('--> LR SCHEDULER: Plateau')
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                               mode='min',
+                                                               patience=run_cfg['early_stop_steps']-2,
+                                                               verbose=True)
+    elif run_cfg['lr_scheduler'] == LRScheduler.COS_ANNEALING:
+        print('--> LR SCHEDULER: Cosine Annealing')
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=run_cfg['num_epochs'], verbose=True)
+    elif run_cfg['lr_scheduler'] == LRScheduler.NONE:
+        print('--> LR SCHEDULER: None')
+
+    ###########
+    ## EARLY STOPPING
+    ###########
+    model_saving_name = create_name_for_model(run_cfg=run_cfg,
                                               model=model,
                                               outer_split_num=out_fold_num,
                                               inner_split_num=in_fold_num,
-                                              n_epochs=run_cfg['num_epochs'],
-                                              threshold=run_cfg['param_threshold'],
-                                              batch_size=run_cfg['batch_size'],
-                                              num_nodes=run_cfg['num_nodes'],
-                                              conn_type=run_cfg['param_conn_type'],
-                                              normalisation=run_cfg['param_normalisation'],
-                                              analysis_type=run_cfg['analysis_type'],
-                                              metric_evaluated='loss',
-                                              dataset_type=run_cfg['dataset_type'],
-                                              edge_weights=run_cfg['edge_weights'],
-                                              lr=run_cfg['param_lr'],
-                                              weight_decay=run_cfg['param_weight_decay']
+                                              prefix_location=''
                                               )
 
-    best_model_metrics = {'loss': 9999}
+    early_stopping = EarlyStopping(patience=run_cfg['early_stop_steps'], model_saving_name=model_saving_name)
 
-    last_losses_val = deque([9999 for _ in range(run_cfg['early_stop_steps'])], maxlen=run_cfg['early_stop_steps'])
+    ###########
+    ## Model Exponential Moving Average (EMA)
+    ###########
+    if run_cfg['use_ema']:
+        print('--> USING EMA (some repetitions on models outputs because of copying)!')
+        # Issues with deepcopy() when using weightnorm, therefore, this workaround is needed
+        new_model = generate_st_model(run_cfg, for_test=True)
+        new_model.load_state_dict(model.state_dict())
+        model_ema = ModelEmaV2(new_model)
+    else:
+        model_ema = None
+    # Only after knowing EMA deep copies "model", I call wandb.watch()
+    wandb.watch(model, log='all')
+
     for epoch in range(run_cfg['num_epochs'] + 1):
         val_metrics = training_step(out_fold_num,
                                     in_fold_num,
@@ -481,40 +534,32 @@ def fit_st_model(out_fold_num: int, in_fold_num: int, run_cfg: Dict[str, Any], m
                                     train_in_loader,
                                     val_loader,
                                     optimizer,
-                                    run_cfg['param_pooling'],
-                                    run_cfg['device_run'],
+                                    model_ema=model_ema,
+                                    run_cfg=run_cfg,
                                     label_scaler=label_scaler)
-        if sum([val_metrics['loss'] > loss for loss in last_losses_val]) == run_cfg['early_stop_steps']:
+
+        # Calling early_stopping() to update best metrics and stoppping state
+        if model_ema is not None:
+            early_stopping(val_metrics, model_ema.module, label_scaler)
+        else:
+            early_stopping(val_metrics, model, label_scaler)
+        if early_stopping.early_stop:
             print("EARLY STOPPING IT")
             break
-        last_losses_val.append(val_metrics['loss'])
 
-        if val_metrics['loss'] < best_model_metrics['loss']:
-            best_model_metrics['loss'] = val_metrics['loss']
-            if label_scaler is None:
-                best_model_metrics['sensitivity'] = val_metrics['sensitivity']
-                best_model_metrics['specificity'] = val_metrics['specificity']
-                best_model_metrics['acc'] = val_metrics['acc']
-                best_model_metrics['f1'] = val_metrics['f1']
-                best_model_metrics['auc'] = val_metrics['auc']
-            else:
-                best_model_metrics['r2'] = val_metrics['r2']
-                best_model_metrics['r'] = val_metrics['r']
-            if run_cfg['param_pooling'] == PoolingStrategy.DIFFPOOL:
-                best_model_metrics['ent_loss'] = val_metrics['ent_loss']
-                best_model_metrics['link_loss'] = val_metrics['link_loss']
+        if run_cfg['lr_scheduler'] in [LRScheduler.STEP, LRScheduler.COS_ANNEALING]:
+            scheduler.step()
+        elif run_cfg['lr_scheduler'] == LRScheduler.PLATEAU:
+            scheduler.step(val_metrics['loss'])
 
-            # wandb.unwatch()#[model])
-            # torch.save(model, model_names['loss'])
-            torch.save(model.state_dict(), model_saving_path)
     # wandb.unwatch()
-    return best_model_metrics
+    return early_stopping.best_model_metrics
 
 
 def get_empty_metrics_dict(run_cfg: Dict[str, Any]) -> Dict[str, list]:
     if run_cfg['target_var'] == 'gender':
         tmp_dict = {'loss': [], 'sensitivity': [], 'specificity': [], 'acc': [], 'f1': [], 'auc': [],
-                    'ent_loss': [], 'link_loss': []}
+                    'ent_loss': [], 'link_loss': [], 'best_epoch': []}
     else:
         tmp_dict = {'loss': [], 'r2': [], 'r': [], 'ent_loss': [], 'link_loss': []}
     return tmp_dict
@@ -546,8 +591,9 @@ if __name__ == '__main__':
     # Because of strange bug with symbolic links in server
     os.environ['WANDB_DISABLE_CODE'] = 'true'
 
-    wandb.init(entity='st-team')
+    wandb.init(project='st_extra', save_code=True)#, dir='/work1/tiago/wandb')
     config = wandb.config
+
     print('Config file from wandb:', config)
 
     torch.manual_seed(1)
@@ -589,12 +635,36 @@ if __name__ == '__main__':
         run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
 
         # Not sure whether this makes a difference with the cuda random issues, but it was in the examples :(
-        kwargs_dataloader = {'num_workers': 1, 'pin_memory': True} if run_cfg['device_run'].startswith('cuda') else {}
+        #kwargs_dataloader = {'num_workers': 1, 'pin_memory': True} if run_cfg['device_run'].startswith('cuda') else {}
 
         # Definitions depending on sweep_type
         run_cfg['param_gat_heads'] = 0
         if run_cfg['sweep_type'] == SweepType.GAT:
             run_cfg['param_gat_heads'] = config.gat_heads
+
+
+        # TCN components
+        run_cfg['tcn_depth'] = config.tcn_depth
+        run_cfg['tcn_kernel'] = config.tcn_kernel
+        run_cfg['tcn_hidden_units'] = config.tcn_hidden_units
+        run_cfg['tcn_final_transform_layers'] = config.tcn_final_transform_layers
+        run_cfg['tcn_norm_strategy'] = config.tcn_norm_strategy
+
+        # Training characteristics
+        run_cfg['lr_scheduler'] = LRScheduler(config.lr_scheduler)
+        run_cfg['optimiser'] = Optimiser(config.optimiser)
+        run_cfg['use_ema'] = config.use_ema
+
+        # Node model and final hyperparameters
+        run_cfg['nodemodel_aggr'] = config.nodemodel_aggr
+        run_cfg['nodemodel_scalers'] = config.nodemodel_scalers
+        run_cfg['nodemodel_layers'] = config.nodemodel_layers
+        run_cfg['final_mlp_layers'] = config.final_mlp_layers
+
+        # DiffPool specific stuff
+        if run_cfg['param_pooling'] in [PoolingStrategy.DIFFPOOL, PoolingStrategy.DP_MAX, PoolingStrategy.DP_ADD, PoolingStrategy.DP_MEAN, PoolingStrategy.DP_IMPROVED]:
+            run_cfg['dp_perc_retaining'] = config.dp_perc_retaining
+            run_cfg['dp_norm'] = config.dp_norm
 
     elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
         run_cfg['device_run'] = 'cpu'
@@ -687,13 +757,6 @@ if __name__ == '__main__':
     for inner_train_index, inner_val_index in skf_inner_generator:
         inner_loop_run += 1
 
-        if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
-            model: SpatioTemporalModel = generate_st_model(run_cfg)
-        elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
-            model: XGBModel = generate_xgb_model(run_cfg)
-        else:
-            model = None
-
         X_train_in = X_train_out[torch.tensor(inner_train_index)]
         X_val_in = X_train_out[torch.tensor(inner_val_index)]
         print("Inner Size is:", len(X_train_in), "/", len(X_val_in))
@@ -708,6 +771,16 @@ if __name__ == '__main__':
         else:
             print("Inner Positive classes:", sum([data.y.item() for data in X_train_in]),
                   "/", sum([data.y.item() for data in X_val_in]))
+
+        run_cfg['dataset_indegree'] = calculate_indegree_histogram(X_train_in)
+        print(f'--> Indegree distribution: {run_cfg["dataset_indegree"]}')
+
+        if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
+            model: SpatioTemporalModel = generate_st_model(run_cfg)
+        elif run_cfg['analysis_type'] in [AnalysisType.FLATTEN_CORRS]:
+            model: XGBModel = generate_xgb_model(run_cfg)
+        else:
+            model = None
 
         if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
             inner_fold_metrics = fit_st_model(out_fold_num=run_cfg['split_to_test'],
@@ -744,30 +817,19 @@ if __name__ == '__main__':
     if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIMODAL, AnalysisType.ST_UNIMODAL_AVG, AnalysisType.ST_MULTIMODAL_AVG]:
         model: SpatioTemporalModel = generate_st_model(run_cfg, for_test=True)
 
-        model_saving_path: str = create_name_for_model(target_var=run_cfg['target_var'],
+        model_saving_path: str = create_name_for_model(run_cfg=run_cfg,
                                                        model=model,
                                                        outer_split_num=run_cfg['split_to_test'],
                                                        inner_split_num=inner_fold_for_val,
-                                                       n_epochs=run_cfg['num_epochs'],
-                                                       threshold=run_cfg['param_threshold'],
-                                                       batch_size=run_cfg['batch_size'],
-                                                       num_nodes=run_cfg['num_nodes'],
-                                                       conn_type=run_cfg['param_conn_type'],
-                                                       normalisation=run_cfg['param_normalisation'],
-                                                       analysis_type=run_cfg['analysis_type'],
-                                                       metric_evaluated='loss',
-                                                       dataset_type=run_cfg['dataset_type'],
-                                                       lr=run_cfg['param_lr'],
-                                                       weight_decay=run_cfg['param_weight_decay'],
-                                                       edge_weights=run_cfg['edge_weights'])
-        model.load_state_dict(torch.load(model_saving_path))
+                                                       prefix_location='')
+
+        model.load_state_dict(torch.load(os.path.join(wandb.run.dir, model_saving_path)))
         model.eval()
 
         # Calculating on test set
-        test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False, **kwargs_dataloader)
+        test_out_loader = DataLoader(X_test_out, batch_size=run_cfg['batch_size'], shuffle=False)#, **kwargs_dataloader)
 
-        test_metrics = evaluate_model(model, test_out_loader, run_cfg['param_pooling'], run_cfg['device_run'],
-                                      label_scaler=scaler_labels)
+        test_metrics = evaluate_model(model, test_out_loader, run_cfg=run_cfg, label_scaler=scaler_labels)
         print(test_metrics)
 
         if scaler_labels is None:
@@ -810,5 +872,5 @@ if __name__ == '__main__':
 
     send_global_results(test_metrics)
 
-    if run_cfg['device_run'] == 'cuda:0':
-        free_gpu_info()
+    #if run_cfg['device_run'] == 'cuda:0':
+    #    free_gpu_info()
