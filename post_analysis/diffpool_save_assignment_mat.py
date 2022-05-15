@@ -26,23 +26,33 @@ best_runs = {
                                   4: {'run_id': 's1cjijtu'}}
 }
 
+EXPLORE_ROBUSTNESS = True
+
 if __name__ == '__main__':
-    import os
-    os.chdir('..')
-    print(os.getcwd())
 
     for model_type, runs_all in best_runs.items():
         print('----', model_type)
-        clusters = {
-            0: torch.zeros((68, 68)).to(DEVICE_RUN),
-            1: torch.zeros((68, 68)).to(DEVICE_RUN)
-        }
-        total_amount = {
-            0: 0,
-            1: 0
-        }
+        if not EXPLORE_ROBUSTNESS:
+            clusters = {
+                0: torch.zeros((68, 68)).to(DEVICE_RUN),
+                1: torch.zeros((68, 68)).to(DEVICE_RUN)
+            }
+            total_amount = {
+                0: 0,
+                1: 0
+            }
 
         for fold_num, run_info in runs_all.items():
+            if EXPLORE_ROBUSTNESS:
+                clusters = {
+                    0: torch.zeros((68, 68)).to(DEVICE_RUN),
+                    1: torch.zeros((68, 68)).to(DEVICE_RUN)
+                }
+                total_amount = {
+                    0: 0,
+                    1: 0
+                }
+
             run_id = run_info['run_id']
             api = wandb.Api()
             best_run = api.run(f'/tjiagom/st_extra/runs/{run_id}')
@@ -158,8 +168,12 @@ if __name__ == '__main__':
                     # np.save(f'diffpool_interp/s2_tmp{in_index}.npy', s.detach().cpu().numpy())
                     # in_index += 1
             print()
+            if EXPLORE_ROBUSTNESS:
+                np.save(f'results/dp_interp_{model_type}_{fold_num}_male.npy', clusters[1].cpu().numpy())
+                np.save(f'results/dp_interp_{model_type}_{fold_num}_female.npy', clusters[0].cpu().numpy())
 
-        np.save(f'results/dp_interp_{model_type}_male.npy', clusters[1].cpu().numpy())
-        np.save(f'results/dp_interp_{model_type}_female.npy', clusters[0].cpu().numpy())
+        if not EXPLORE_ROBUSTNESS:
+            np.save(f'results/dp_interp_{model_type}_male.npy', clusters[1].cpu().numpy())
+            np.save(f'results/dp_interp_{model_type}_female.npy', clusters[0].cpu().numpy())
         # a_female = clusters[0].numpy()
         # a_male = clusters[1].numpy()

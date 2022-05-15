@@ -28,7 +28,7 @@ wandb.init(project='st_extra')
 
 run_cfg: Dict[str, Any] = {
     'analysis_type': AnalysisType('st_unimodal'),
-    'dataset_type': DatasetType('hcp'),
+    'dataset_type': DatasetType('ukb'),
     'num_nodes': 68,
     'param_conn_type': ConnType('fmri'),
     'split_to_test': 2,
@@ -44,7 +44,7 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['num_epochs'] = 150
     run_cfg['param_activation'] = 'relu'
     run_cfg['param_channels_conv'] = 8
-    run_cfg['param_conv_strategy'] = ConvStrategy('lstm')
+    run_cfg['param_conv_strategy'] = ConvStrategy('none')
     run_cfg['param_dropout'] = 0.1
     run_cfg['param_encoding_strategy'] = EncodingStrategy('none')
     run_cfg['param_lr'] = 4.2791529866e-06
@@ -53,7 +53,7 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['param_pooling'] = PoolingStrategy('concat')
     run_cfg['param_threshold'] = 10
     run_cfg['param_weight_decay'] = 0.046926
-    run_cfg['sweep_type'] = SweepType('no_gnn')
+    run_cfg['sweep_type'] = SweepType('node_meta')
     run_cfg['temporal_embed_size'] = 16
 
     run_cfg['ts_spit_num'] = int(4800 / run_cfg['time_length'])
@@ -68,7 +68,7 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
 
     run_cfg['tcn_depth'] = 3
     run_cfg['tcn_kernel'] = 7
-    run_cfg['tcn_hidden_units'] = 32
+    run_cfg['tcn_hidden_units'] = 8
     run_cfg['tcn_final_transform_layers'] = 1
     run_cfg['tcn_norm_strategy'] = 'batchnorm'
 
@@ -77,8 +77,8 @@ if run_cfg['analysis_type'] in [AnalysisType.ST_UNIMODAL, AnalysisType.ST_MULTIM
     run_cfg['nodemodel_layers'] = 3
     run_cfg['final_mlp_layers'] = 1
 
-    run_cfg['dp_perc_retaining'] = 0.25
-    run_cfg['dp_norm'] = 'graphnorm'
+    run_cfg['dp_perc_retaining'] = 0.7
+    run_cfg['dp_norm'] = 'batchnorm'
 
 N_OUT_SPLITS: int = 5
 N_INNER_SPLITS: int = 5
@@ -114,6 +114,8 @@ for inner_train_index, inner_val_index in skf_inner_generator:
     model = SpatioTemporalModel(run_cfg=run_cfg,
                                 encoding_model=None
                                 ).to(run_cfg['device_run'])
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print("Number of trainable params:", trainable_params)
 
     break
 
@@ -135,8 +137,39 @@ val_loader = DataLoader(X_val_in, batch_size=run_cfg['batch_size'], shuffle=Fals
 
 for data in train_in_loader:
     data = data.to(run_cfg['device_run'])
-    break
     #print(model(data).shape)
     output = model(data)
-    print(output[0].shape, output[1].shape, output[2].shape)
+    print(output.shape)
+    #print(output[0].shape, output[1].shape, output[2].shape)
     break
+
+
+
+############################
+# For ICA exploration
+from sklearn.decomposition import FastICA
+from torch_geometric.utils import to_dense_batch
+import matplotlib.pyplot as plt
+n_components = 8
+
+X, batch_mask = to_dense_batch(data.x, data.batch)
+ica = FastICA(n_components=n_components, max_iter=1000)
+X_transformed = ica.fit_transform(X.permute((0, 2, 1))[20, :].cpu())
+
+fig, axs = plt.subplots(n_components, sharey=True, sharex=True)
+
+for i in range(n_components):
+    axs[i].plot(X_transformed[:, i])
+
+fig.text(0.5, 0.04, 'Time series', ha='center')
+fig.text(0.04, 0.5, 'ICA components', va='center', rotation='vertical')
+
+#plt.tight_layout()
+
+plt.savefig('figures/ica_8_components.pdf', bbox_inches = 'tight', pad_inches = 0)
+plt.show()
+plt.close()
+
+
+############################
+# For TCN kernels

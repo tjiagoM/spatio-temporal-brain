@@ -9,6 +9,65 @@ best_runs_tmp = {
             4: {'run_id': ''}},
 }
 
+best_runs_notcn = {
+    'N $\\rightarrow$ Concat': {0: {'run_id': 'twlgqhys'},
+            1: {'run_id': 'dai5zyud'},
+            2: {'run_id': 't84plo2z'},
+            3: {'run_id': 'onpj78rz'},
+            4: {'run_id': '5vv10ln1'}},
+    'N + E $\\rightarrow$ Concat': {0: {'run_id': 's3nom54e'},
+            1: {'run_id': '35kpz3r7'},
+            2: {'run_id': 'gftjqol6'},
+            3: {'run_id': 'cz5f4mdy'},
+            4: {'run_id': 'd8k7aqlp'}}
+}
+
+best_runs_lstm = {
+    'N $\\rightarrow$ Concat': {0: {'run_id': '3dimo8ds'},
+            1: {'run_id': 'z55l7ytm'},
+            2: {'run_id': '5023mak8'},
+            3: {'run_id': 'sa8x2q1q'},
+            4: {'run_id': 'y1bpo800'}},
+    ' $\\rightarrow$ Concat': {0: {'run_id': 'ho395tt8'},
+            1: {'run_id': 'xxk9nurr'},
+            2: {'run_id': 'x32oa9ai'},
+            3: {'run_id': 'w4uqg2xs'},
+            4: {'run_id': '9czzokj5'}}
+}
+
+best_runs_lstm = {
+    'N + E $\\rightarrow$ Concat': {0: {'run_id': 'ljy13d2u'},
+                                    1: {'run_id': 'dfrjiq6h'},
+                                    2: {'run_id': 'd64hmq3r'},
+                                    3: {'run_id': 'p6zk1rky'},
+                                    4: {'run_id': 'ou9ankw2'}},
+     'N + E $\\rightarrow$ DiffPool': {0: {'run_id': 'ammw21dz'},
+                        1: {'run_id': 'epksptq6'},
+                        2: {'run_id': 'xq82baf2'},
+                        3: {'run_id': 'c4qq3i85'},
+                        4: {'run_id': 'b5csi1i8'}},
+    'N $\\rightarrow$ Concat': {0: {'run_id': '1m3p843n'},
+                                1: {'run_id': 'wj7o5foo'},
+                                2: {'run_id': 't6n9mcku'},
+                                3: {'run_id': 'ibxt1b2f'},
+                                4: {'run_id': 'ebihuz6a'}},
+     'N $\\rightarrow$ DiffPool': {0: {'run_id': 'ykde2757'},
+                        1: {'run_id': 'puzzjfbm'},
+                        2: {'run_id': '1b15mou6'},
+                        3: {'run_id': 'mg0sc7x1'},
+                        4: {'run_id': 'w9hhamx6'}},
+     ' $\\rightarrow$ DiffPool': {0: {'run_id': 'gwdi0jt8'},
+                        1: {'run_id': '8rra5tpt'},
+                        2: {'run_id': '8mdhktq5'},
+                        3: {'run_id': 'ozt90m9b'},
+                        4: {'run_id': 'fj8cqv9l'}},
+     ' $\\rightarrow$ Concat': {0: {'run_id': '6w6cobrm'},
+                        1: {'run_id': 'd73nu5pi'},
+                        2: {'run_id': '7pmdp443'},
+                        3: {'run_id': 'zwonnsin'},
+                        4: {'run_id': 'gicm95oe'}},
+}
+
 best_runs_ukb = {
     'N + E $\\rightarrow$ Concat': {0: {'run_id': 'fbaff478'},
                                     1: {'run_id': 'i0ii76x1'},
@@ -161,5 +220,5 @@ if __name__ == '__main__':
     #for model_type, runs_all in best_runs_ukb.items():
     #    print_metrics(model_type, runs_all)
     print('----')
-    for model_type, runs_all in best_runs_ukb.items():
+    for model_type, runs_all in best_runs_notcn.items():
         print_metrics(model_type, runs_all)
