@@ -1,7 +1,7 @@
 [![GitHub license](https://img.shields.io/github/license/tjiagoM/spatio-temporal-brain)](https://github.com/tjiagoM/spatio-temporal-brain/blob/master/LICENSE)
-[![DOI](https://img.shields.io/badge/DOI-10.1101/2020.11.08.370288-blue.svg)](https://doi.org/10.1101/2020.11.08.370288)
+[![DOI](https://img.shields.io/badge/DOI-10.1016/j.media.2022.102471-blue.svg)](https://doi.org/10.1016/j.media.2022.102471)
 
-# A Deep Graph Neural Network Architecture for Modelling Spatio-temporal Dynamics in rs-fMRI Data
+# A deep graph neural network architecture for modelling spatio-temporal dynamics in resting-state functional MRI data
 
 ![Spatio-temporal flow](meta_data/st_graphical_abstract.png)
 
@@ -11,20 +11,22 @@ If something is not clear or you have any question please [open an Issue](https:
 
 ## Running the experiments
 
-The code in this repository relies on [Weights & Biases](https://www.wandb.com/) (W&B) to keep track and organise the results of experiments. W&B software was responsible to conduct the hyperparameter search, and all the sweeps (needed for hyperparameter search) used are defined in the `wandb_sweeps/` folder. All our runs, sweep definitions and reports are publicly available at our [project's W&B page](https://wandb.ai/st-team/spatio-temporal-brain). In particular, we provide [two reports](https://wandb.ai/st-team/spatio-temporal-brain/reportlist) to briefly organise the main results of our experiments. 
+The code in this repository relies on [Weights & Biases](https://www.wandb.com/) (W&B) to keep track and organise the results of experiments. W&B software was responsible to conduct the hyperparameter search, and all the sweeps (needed for hyperparameter search) used are defined in the `wandb_sweeps/` folder. All our runs, sweep definitions and reports are publicly available at our [project's W&B page](https://wandb.ai/tjiagom/st_extra). In particular, we provide [reports](https://wandb.ai/tjiagom/st_extra/reportlist) to briefly organise the main results of our experiments. 
 
 We recommend that a user wanting to run and extend our code first gets familiar with the [online documentation](https://docs.wandb.com/). As an example, we would create a sweep by running the following command in a terminal:
 
 ```bash
-$ wandb sweep --entity st-team wandb_sweeps/st_ukb_uni_gender_1_fmri_none_nodemeta_mean_128.yaml
+$ wandb sweep --project st_extra wandb_sweeps/final/final_ukb_try1_N_fmri_fold1.yaml
 ``` 
 
-Which yielded an identifier (in this case `qqqjagns`), thus allowing us to run 25 random sweeps of our code by executing:
+Which yielded an identifier (in this case `6v4f9zl1`), thus allowing us to run 25 random sweeps of our code by executing:
 ```bash
-$ wandb agent st-team/spatio-temporal-brain/qqqjagns --count=25
+$ wandb agent tjiagom/st_extra/6v4f9zl1 --count=25
 ```
 
 The wandb agent will execute `main_loop.py` with its set of hyperparameters (as defined in all the `*.yaml` files inside the `wandb_sweeps` folder). Note that we use a different sweep file for each cross validation fold.
+
+For logging purposes, preliminary versions of this work used another W&B link, which can be [accessed here](https://wandb.ai/st-team/spatio-temporal-brain).
 
 
 
@@ -38,15 +40,14 @@ $ conda activate st_env
 ```
 
 The main packages used by this repository are:
-* __matplotlib__==3.1.3
-* __networkx__==2.4
-* __pandas__==1.0.2
-* __python__==3.7
-* __pytorch__==1.4.0
-* __scikit-learn__==0.22.2
-* __seaborn__==0.10.1
-* __torch-geometric__==1.4.2
-* __wandb__==0.8.31
+* __matplotlib__==3.4.3
+* __pandas__==1.3.1
+* __python__==3.8
+* __pytorch__==1.9.0
+* __scikit-learn__==0.24.2
+* __seaborn__==0.11.2
+* __torch-geometric__==1.7.2
+* __wandb__==0.12.6
 
 
 ## Repository structure
@@ -73,17 +74,20 @@ Data cannot be publicly shared in this repository, we are working on giving more
 
 ## Publications
 
-The architecture implemented in this repository is described in detail in [a preprint at BioRxiv](https://doi.org/10.1101/2020.11.08.370288). If you use this architecture in your research work please cite the paper, with the following bibtex:
+The architecture implemented in this repository is described in detail in [our open-access publication](https://doi.org/10.1016/j.media.2022.102471). If you use this architecture in your research work please cite the paper, with the following bibtex:
 
 ```
-@article{Azevedo2020,
-  doi = {10.1101/2020.11.08.370288},
-  url = {https://doi.org/10.1101/2020.11.08.370288},
-  year = {2020},
-  month = nov,
-  publisher = {Cold Spring Harbor Laboratory},
-  author = {Tiago Azevedo and Alexander Campbell and Rafael Romero-Garcia and Luca Passamonti and Richard A.I. Bethlehem and Pietro Lio and Nicola Toschi},
-  title = {A Deep Graph Neural Network Architecture for Modelling Spatio-temporal Dynamics in resting-state functional {MRI} Data}
+@article{Azevedo2022,
+  doi = {10.1016/j.media.2022.102471},
+  url = {https://doi.org/10.1016/j.media.2022.102471},
+  year = {2022},
+  month = jul,
+  publisher = {Elsevier {BV}},
+  volume = {79},
+  pages = {102471},
+  author = {Tiago Azevedo and Alexander Campbell and Rafael Romero-Garcia and Luca Passamonti and Richard A.I. Bethlehem and Pietro Li{\`{o}} and Nicola Toschi},
+  title = {A deep graph neural network architecture for modelling spatio-temporal dynamics in resting-state functional {MRI} data},
+  journal = {Medical Image Analysis}
 }
 ``` 
 
