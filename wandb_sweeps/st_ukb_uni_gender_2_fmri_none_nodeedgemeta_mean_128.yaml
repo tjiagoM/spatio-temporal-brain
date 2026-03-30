@@ -1,0 +1,77 @@
+method: random
+#metric:
+#  goal: minimize
+#  name: mean_val_loss
+name: st_ukb_uni_gender_2_fmri_none_nodeedgemeta_mean_128
+program: main_loop.py
+parameters:
+  dataset_type:
+    value: ukb
+  sweep_type:
+    value: edge_node_meta
+  temporal_embed_size:
+    value: 128
+  edge_weights:
+    value: true
+  fold_num:
+    value: 2
+  conn_type:
+    value: fmri
+  batch_size:
+    value: 400
+  analysis_type:
+    value: st_unimodal
+  num_epochs:
+    value: 100
+  num_nodes:
+    value: 68
+  activation:
+    distribution: categorical
+    values:
+    - relu
+  channels_conv:
+    value: 8
+  conv_strategy:
+    distribution: categorical
+    values:
+    - tcn_entire
+  dropout:
+    distribution: uniform
+    max: 0.9
+    min: 0
+  early_stop_steps:
+    value: 33
+  encoding_strategy:
+    distribution: categorical
+    values:
+    - none
+  num_gnn_layers:
+    value: 1
+  threshold:
+    distribution: categorical
+    values:
+      - 5
+      - 10
+      - 20
+      - 30
+      - 40
+  lr:
+    distribution: log_uniform
+    max: -4.605170185988091
+    min: -16.11809565095832
+  normalisation:
+    distribution: categorical
+    values:
+    - subject_norm
+  pooling:
+    distribution: categorical
+    values:
+    - mean
+  target_var:
+    value: gender
+  time_length:
+    value: 490
+  weight_decay:
+    distribution: log_uniform
+    max: 0
+    min: -16.11809565095832

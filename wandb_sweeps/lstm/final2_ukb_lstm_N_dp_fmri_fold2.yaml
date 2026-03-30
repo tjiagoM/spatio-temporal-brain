@@ -1,0 +1,93 @@
+method: random
+
+name: final2_ukb_lstm_N_dp_fmri_fold2
+program: main_loop.py
+parameters:
+  dataset_type:
+    value: ukb
+  fold_num:
+    value: 2
+  sweep_type:
+    value: node_meta
+  pooling:
+    value: dpmean
+  dp_perc_retaining:
+    value: 0.7
+  dp_norm:
+    value: batchnorm
+  tcn_depth:
+    value: 3
+  tcn_norm_strategy:
+    value: batchnorm
+  tcn_kernel:
+    value: 7
+  tcn_hidden_units:
+    value: 32
+  tcn_final_transform_layers:
+    value: 1
+  temporal_embed_size:
+    value: 16
+  lr_scheduler:
+    value: plateau
+  optimiser:
+    value: adamw
+  use_ema:
+    value: false
+  edge_weights:
+    value: true
+  conn_type:
+    value: fmri
+  batch_size:
+    value: 150
+  analysis_type:
+    value: st_unimodal
+  num_epochs:
+    value: 150
+  num_nodes:
+    value: 68
+  activation:
+    value: relu
+  channels_conv:
+    value: 8
+  conv_strategy:
+    value: lstm
+  dropout:
+    distribution: uniform
+    max: 0.5
+    min: 0
+  early_stop_steps:
+    value: 33
+  encoding_strategy:
+    value: none
+  num_gnn_layers:
+    value: 1
+  threshold:
+    distribution: categorical
+    values:
+      - 5
+      - 10
+      - 20
+      - 30
+      - 40
+  lr:
+    distribution: log_uniform
+    max: -2.3025850929940455
+    min: -9.903487552536127
+  weight_decay:
+    distribution: log_uniform
+    max: -2.3025850929940455
+    min: -27.631021115928547
+  normalisation:
+    value: subject_norm
+  target_var:
+    value: gender
+  time_length:
+    value: 490
+  nodemodel_aggr:
+    value: all
+  nodemodel_scalers:
+    value: none
+  nodemodel_layers:
+    value: 3
+  final_mlp_layers:
+    value: 1
